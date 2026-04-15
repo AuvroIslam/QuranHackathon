@@ -1,0 +1,428 @@
+"use client";
+
+import { useAuth } from "@/components/AuthProvider";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { getSurahList, getAyahAudio } from "@/lib/quran";
+import {
+  saveListeningProgress,
+  getListeningProgress,
+  getChapterProgress,
+  type ListeningProgress,
+} from "@/lib/firestore";
+import {
+  Play,
+  Pause,
+  SkipForward,
+  SkipBack,
+  Shuffle,
+  BookOpen,
+  Headphones,
+  CheckCircle,
+} from "lucide-react";
+import toast from "react-hot-toast";
+
+interface Chapter {
+  id: number;
+  name_simple: string;
+  name_arabic: string;
+  verses_count: number;
+  translated_name: { name: string };
+}
+
+interface VerseData {
+  text: string;
+  translation: string;
+}
+
+export default function ListenPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [progress, setProgress] = useState<ListeningProgress[]>([]);
+  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+  const [currentVerse, setCurrentVerse] = useState(1);
+  const [verseData, setVerseData] = useState<VerseData | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [loadingVerse, setLoadingVerse] = useState(false);
+  const [loadingChapters, setLoadingChapters] = useState(true);
+  const [autoPlay, setAutoPlay] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (!loading && !user) router.push("/");
+  }, [loading, user, router]);
+
+  useEffect(() => {
+    async function init() {
+      try {
+        const [chaptersData, progressData] = await Promise.all([
+          getSurahList(),
+          user ? getListeningProgress(user.uid) : Promise.resolve([]),
+        ]);
+        setChapters(chaptersData);
+        setProgress(progressData);
+      } catch {
+        toast.error("Failed to load chapters");
+      }
+      setLoadingChapters(false);
+    }
+    if (!loading) init();
+  }, [loading, user]);
+
+  const loadVerse = useCallback(
+    async (chapter: Chapter, verseNum: number) => {
+      setLoadingVerse(true);
+      setVerseData(null);
+      const verseKey = `${chapter.id}:${verseNum}`;
+      try {
+        // Fetch verse text + translation + audio in parallel
+        const [audioUrl, verseRes, translationRes] = await Promise.all([
+          getAyahAudio(verseKey),
+          fetch(
+            `/api/quran?path=verses/by_key/${verseKey}&fields=text_uthmani`
+          ).then((r) => r.json()),
+          fetch(
+            `/api/quran?path=quran/translations/20&verse_key=${verseKey}`
+          ).then((r) => r.json()),
+        ]);
+
+        const text = verseRes?.verse?.text_uthmani || "";
+        let translation = "";
+        const translations = translationRes?.translations;
+        if (Array.isArray(translations) && translations.length > 0) {
+          translation = translations[0].text
+            .replace(/<sup[^>]*>.*?<\/sup>/g, "")
+            .replace(/<[^>]+>/g, "")
+            .trim();
+        }
+
+        setVerseData({ text, translation });
+        setCurrentVerse(verseNum);
+
+        // Set up audio
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.src = audioUrl;
+          audioRef.current.load();
+          if (autoPlay) {
+            audioRef.current.play().catch(() => {});
+            setIsPlaying(true);
+          }
+        }
+
+        // Save progress
+        if (user) {
+          await saveListeningProgress(
+            user.uid,
+            chapter.id,
+            chapter.name_simple,
+            verseNum,
+            chapter.verses_count
+          );
+          setProgress((prev) => {
+            const existing = prev.findIndex((p) => p.chapterId === chapter.id);
+            const entry: ListeningProgress = {
+              chapterId: chapter.id,
+              chapterName: chapter.name_simple,
+              lastVerse: verseNum,
+              totalVerses: chapter.verses_count,
+              updatedAt: new Date().toISOString(),
+            };
+            if (existing >= 0) {
+              const updated = [...prev];
+              updated[existing] = entry;
+              return updated;
+            }
+            return [...prev, entry];
+          });
+        }
+      } catch {
+        toast.error("Failed to load verse");
+      }
+      setLoadingVerse(false);
+    },
+    [autoPlay, user]
+  );
+
+  function selectChapter(chapter: Chapter, startVerse?: number) {
+    setSelectedChapter(chapter);
+    const verse = startVerse || 1;
+    loadVerse(chapter, verse);
+  }
+
+  async function selectChapterWithResume(chapter: Chapter) {
+    if (user) {
+      const saved = await getChapterProgress(user.uid, chapter.id);
+      if (saved && saved.lastVerse < chapter.verses_count) {
+        selectChapter(chapter, saved.lastVerse);
+        toast.success(`Resuming from verse ${saved.lastVerse}`);
+        return;
+      }
+    }
+    selectChapter(chapter);
+  }
+
+  function randomChapter() {
+    if (chapters.length === 0) return;
+    const ch = chapters[Math.floor(Math.random() * chapters.length)];
+    const randomVerse = Math.floor(Math.random() * ch.verses_count) + 1;
+    setSelectedChapter(ch);
+    loadVerse(ch, randomVerse);
+    toast.success(`Random: ${ch.name_simple} - Verse ${randomVerse}`);
+  }
+
+  function nextVerse() {
+    if (!selectedChapter) return;
+    if (currentVerse < selectedChapter.verses_count) {
+      loadVerse(selectedChapter, currentVerse + 1);
+    } else {
+      toast("End of surah", { icon: "📖" });
+      setIsPlaying(false);
+    }
+  }
+
+  function prevVerse() {
+    if (!selectedChapter || currentVerse <= 1) return;
+    loadVerse(selectedChapter, currentVerse - 1);
+  }
+
+  function togglePlayPause() {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().catch(() => {});
+      setIsPlaying(true);
+    }
+  }
+
+  // Auto-advance on audio end
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    function onEnded() {
+      setIsPlaying(false);
+      if (autoPlay) nextVerse();
+    }
+    audio.addEventListener("ended", onEnded);
+    return () => audio.removeEventListener("ended", onEnded);
+  });
+
+  const filteredChapters = chapters.filter(
+    (ch) =>
+      ch.name_simple.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ch.translated_name.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(ch.id).includes(searchQuery)
+  );
+
+  const getProgressForChapter = (chapterId: number) =>
+    progress.find((p) => p.chapterId === chapterId);
+
+  const totalVersesListened = progress.reduce((sum, p) => sum + p.lastVerse, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 animate-fade-in">
+      <audio ref={audioRef} />
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Headphones size={24} className="text-emerald-600" />
+            Quran Recitation
+          </h1>
+          <p className="text-gray-500 mt-1">Listen, reflect, and track your progress</p>
+        </div>
+        <button
+          onClick={randomChapter}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
+        >
+          <Shuffle size={16} />
+          Random
+        </button>
+      </div>
+
+      {/* Stats Bar */}
+      {progress.length > 0 && (
+        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <BookOpen size={20} className="text-emerald-600" />
+            <div>
+              <p className="text-sm font-medium text-emerald-800">
+                {totalVersesListened} verses listened
+              </p>
+              <p className="text-xs text-emerald-600">
+                {progress.length} surahs started
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Now Playing */}
+      {selectedChapter && (
+        <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-5">
+          <div className="text-center">
+            <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">
+              Now Playing
+            </p>
+            <h2 className="text-xl font-bold text-gray-900 mt-1">
+              {selectedChapter.name_simple}{" "}
+              <span className="text-gray-400 font-normal text-base">
+                ({selectedChapter.translated_name.name})
+              </span>
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Verse {currentVerse} of {selectedChapter.verses_count}
+            </p>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-100 rounded-full h-1.5">
+            <div
+              className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500"
+              style={{
+                width: `${(currentVerse / selectedChapter.verses_count) * 100}%`,
+              }}
+            />
+          </div>
+
+          {/* Verse Display */}
+          {loadingVerse ? (
+            <div className="flex justify-center py-8">
+              <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : verseData ? (
+            <div className="space-y-4">
+              <p
+                className="text-2xl text-gray-900 text-center leading-loose font-arabic"
+                dir="rtl"
+                translate="no"
+              >
+                {verseData.text}
+              </p>
+              {verseData.translation && (
+                <p className="text-sm text-gray-600 text-center leading-relaxed italic">
+                  &ldquo;{verseData.translation}&rdquo;
+                </p>
+              )}
+            </div>
+          ) : null}
+
+          {/* Controls */}
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={prevVerse}
+              disabled={currentVerse <= 1}
+              className="p-3 rounded-full text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-30"
+            >
+              <SkipBack size={20} />
+            </button>
+            <button
+              onClick={togglePlayPause}
+              className="p-4 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-lg"
+            >
+              {isPlaying ? <Pause size={24} /> : <Play size={24} />}
+            </button>
+            <button
+              onClick={nextVerse}
+              disabled={currentVerse >= selectedChapter.verses_count}
+              className="p-3 rounded-full text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-30"
+            >
+              <SkipForward size={20} />
+            </button>
+          </div>
+
+          {/* Auto-play toggle */}
+          <div className="flex items-center justify-center gap-2">
+            <label className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoPlay}
+                onChange={(e) => setAutoPlay(e.target.checked)}
+                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              Auto-play next verse
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Surah List */}
+      <div className="space-y-3">
+        <input
+          type="text"
+          placeholder="Search surah by name or number..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+        />
+
+        {loadingChapters ? (
+          <div className="flex justify-center py-12">
+            <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[60vh] overflow-y-auto pr-1">
+            {filteredChapters.map((ch) => {
+              const prog = getProgressForChapter(ch.id);
+              const isActive = selectedChapter?.id === ch.id;
+              return (
+                <button
+                  key={ch.id}
+                  onClick={() => selectChapterWithResume(ch)}
+                  className={`flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${
+                    isActive
+                      ? "bg-emerald-50 border border-emerald-200"
+                      : "bg-white border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/50"
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
+                      isActive
+                        ? "bg-emerald-600 text-white"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {ch.id}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {ch.name_simple}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {ch.translated_name.name} &middot; {ch.verses_count} verses
+                    </p>
+                  </div>
+                  {prog && (
+                    <div className="flex items-center gap-1">
+                      {prog.lastVerse >= prog.totalVerses ? (
+                        <CheckCircle size={16} className="text-emerald-500" />
+                      ) : (
+                        <span className="text-xs text-emerald-600 font-medium">
+                          {prog.lastVerse}/{prog.totalVerses}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

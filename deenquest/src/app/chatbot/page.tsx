@@ -61,7 +61,7 @@ export default function ChatbotPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -69,24 +69,28 @@ export default function ChatbotPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] md:h-screen">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100 bg-white">
-        <h1 className="text-lg font-bold text-gray-900">Ask DeenQuest AI</h1>
-        <p className="text-xs text-gray-500">
-          Ask questions about the Quran, its teachings, and Islamic guidance
-        </p>
+      <div className="relative overflow-hidden border-b border-white/10">
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/quran-bg.png')" }} />
+        <div className="absolute inset-0 bg-[#15173D]/45 backdrop-blur-[1px]" />
+        <div className="relative z-10 px-6 py-6">
+          <h1 className="text-lg font-bold text-white">Ask DeenQuest AI</h1>
+          <p className="text-xs text-white/60">
+            Ask questions about the Quran, its teachings, and Islamic guidance
+          </p>
+        </div>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {messages.length === 0 && (
           <div className="text-center py-16">
-            <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Bot size={28} className="text-emerald-600" />
+            <div className="w-16 h-16 bg-gradient-to-br from-secondary to-secondary-dark rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-secondary/25">
+              <Bot size={28} className="text-white" />
             </div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+            <h2 className="text-lg font-semibold text-primary mb-2">
               Bismillah, how can I help?
             </h2>
-            <p className="text-sm text-gray-500 max-w-md mx-auto">
+            <p className="text-sm text-primary/50 max-w-md mx-auto">
               Ask me about Quranic verses, their meanings, Islamic guidance, or how to apply
               Quranic teachings in your daily life.
             </p>
@@ -100,7 +104,7 @@ export default function ChatbotPage() {
                 <button
                   key={suggestion}
                   onClick={() => setInput(suggestion)}
-                  className="text-xs bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg hover:bg-emerald-100 transition-colors text-left"
+                  className="text-xs bg-white/20 text-primary/70 px-3 py-2 rounded-lg hover:bg-white/30 transition-all duration-300 text-left backdrop-blur-sm border border-white/20"
                 >
                   {suggestion}
                 </button>
@@ -112,22 +116,22 @@ export default function ChatbotPage() {
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
             {msg.role === "assistant" && (
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                <Bot size={16} className="text-emerald-600" />
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-secondary to-secondary-dark flex items-center justify-center flex-shrink-0 shadow-sm">
+                <Bot size={16} className="text-white" />
               </div>
             )}
             <div
               className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === "user"
-                  ? "bg-emerald-600 text-white rounded-br-md"
-                  : "bg-white border border-gray-100 text-gray-800 rounded-bl-md"
+                  ? "bg-gradient-to-r from-primary to-primary-light text-white rounded-br-md shadow-lg shadow-primary/20"
+                  : "glass-card text-primary rounded-bl-md"
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
             </div>
             {msg.role === "user" && (
-              <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <User size={16} className="text-gray-600" />
+              <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center flex-shrink-0">
+                <User size={16} className="text-secondary" />
               </div>
             )}
           </div>
@@ -135,11 +139,11 @@ export default function ChatbotPage() {
 
         {sending && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <Bot size={16} className="text-emerald-600" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-secondary to-secondary-dark flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Bot size={16} className="text-white" />
             </div>
-            <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
-              <Loader2 size={18} className="animate-spin text-emerald-600" />
+            <div className="glass-card rounded-2xl rounded-bl-md px-4 py-3">
+              <Loader2 size={18} className="animate-spin text-secondary" />
             </div>
           </div>
         )}
@@ -148,7 +152,7 @@ export default function ChatbotPage() {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSend} className="px-4 pb-4 pt-2 bg-white border-t border-gray-100">
+      <form onSubmit={handleSend} className="px-4 pb-4 pt-2 glass-strong border-t border-white/15">
         <div className="flex gap-3 max-w-3xl mx-auto">
           <input
             type="text"
@@ -156,12 +160,12 @@ export default function ChatbotPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={sending}
-            className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent disabled:opacity-50"
+            className="flex-1 px-4 py-3 bg-white/25 border border-white/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 disabled:opacity-50 backdrop-blur-sm placeholder:text-primary/35 transition-all duration-300"
           />
           <button
             type="submit"
             disabled={!input.trim() || sending}
-            className="px-4 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            className="px-4 py-3 bg-gradient-to-r from-secondary to-secondary-dark text-white rounded-xl hover:brightness-110 transition-all duration-300 disabled:opacity-50 shadow-lg shadow-secondary/20"
           >
             <Send size={18} />
           </button>

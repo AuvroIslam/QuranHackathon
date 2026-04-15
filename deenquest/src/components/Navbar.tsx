@@ -39,10 +39,10 @@ export default function Navbar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-emerald-100 flex-col z-40">
-        <div className="p-6 border-b border-emerald-100">
-          <h1 className="text-xl font-bold text-emerald-800 tracking-tight">DeenQuest AI</h1>
-          <p className="text-xs text-emerald-600 mt-1">Your Journey Back to the Quran</p>
+      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-64 glass-dark flex-col z-40 rounded-r-2xl">
+        <div className="p-6 border-b border-white/10">
+          <h1 className="text-xl font-bold text-accent tracking-tight">DeenQuest AI</h1>
+          <p className="text-xs text-accent/50 mt-1">Your Journey Back to the Quran</p>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
@@ -52,10 +52,10 @@ export default function Navbar() {
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   active
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    ? "bg-accent/15 text-accent shadow-lg shadow-secondary/10"
+                    : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 <Icon size={18} />
@@ -65,19 +65,19 @@ export default function Navbar() {
           })}
         </nav>
 
-        <div className="p-4 border-t border-emerald-100">
+        <div className="p-4 border-t border-white/10">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold text-sm">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-secondary to-secondary-dark flex items-center justify-center text-white font-semibold text-sm shadow-lg shadow-secondary/25">
               {profile?.name?.charAt(0).toUpperCase() || "U"}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{profile?.name}</p>
-              <p className="text-xs text-emerald-600">{profile?.xp} XP</p>
+              <p className="text-sm font-medium text-white truncate">{profile?.name}</p>
+              <p className="text-xs text-accent">{profile?.xp} XP</p>
             </div>
           </div>
           <button
             onClick={signOut}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 transition-colors w-full px-2"
+            className="flex items-center gap-2 text-sm text-slate-400 hover:text-red-400 transition-colors w-full px-2"
           >
             <LogOut size={16} />
             Sign out
@@ -86,24 +86,24 @@ export default function Navbar() {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-emerald-100 flex items-center justify-between px-4 z-40">
-        <h1 className="text-lg font-bold text-emerald-800">DeenQuest AI</h1>
-        <button onClick={() => setMenuOpen(!menuOpen)} className="text-gray-600">
+      <header className="md:hidden fixed top-0 left-0 right-0 h-14 glass-dark flex items-center justify-between px-4 z-40">
+        <h1 className="text-lg font-bold text-accent">DeenQuest AI</h1>
+        <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-300">
           {menuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </header>
 
       {/* Mobile menu overlay */}
       {menuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-black/30" onClick={() => setMenuOpen(false)}>
+        <div className="md:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={() => setMenuOpen(false)}>
           <div
-            className="absolute right-0 top-0 bottom-0 w-64 bg-white shadow-xl p-4"
+            className="absolute right-0 top-0 bottom-0 w-64 glass-dark p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-6">
-              <span className="font-bold text-emerald-800">Menu</span>
+              <span className="font-bold text-accent">Menu</span>
               <button onClick={() => setMenuOpen(false)}>
-                <X size={20} className="text-gray-500" />
+                <X size={20} className="text-slate-400" />
               </button>
             </div>
             <nav className="space-y-1">
@@ -112,10 +112,10 @@ export default function Navbar() {
                   key={href}
                   href={href}
                   onClick={() => setMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                     pathname === href
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "text-gray-600 hover:bg-gray-50"
+                      ? "bg-accent/15 text-accent"
+                      : "text-slate-300 hover:bg-white/10"
                   }`}
                 >
                   <Icon size={18} />
@@ -123,10 +123,10 @@ export default function Navbar() {
                 </Link>
               ))}
             </nav>
-            <div className="mt-6 pt-4 border-t">
+            <div className="mt-6 pt-4 border-t border-white/10">
               <button
                 onClick={() => { signOut(); setMenuOpen(false); }}
-                className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 px-4"
+                className="flex items-center gap-2 text-sm text-slate-400 hover:text-red-400 px-4"
               >
                 <LogOut size={16} />
                 Sign out
@@ -137,7 +137,7 @@ export default function Navbar() {
       )}
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-emerald-100 flex items-center justify-around z-40">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 glass-dark rounded-t-2xl flex items-center justify-around z-40">
         {NAV_ITEMS.slice(0, 5).map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
@@ -145,7 +145,7 @@ export default function Navbar() {
               key={href}
               href={href}
               className={`flex flex-col items-center gap-0.5 text-xs ${
-                active ? "text-emerald-700" : "text-gray-400"
+                active ? "text-accent" : "text-slate-400"
               }`}
             >
               <Icon size={20} />

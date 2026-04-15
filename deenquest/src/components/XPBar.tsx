@@ -12,18 +12,18 @@ export default function XPBar({ xp }: XPBarProps) {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-medium text-gray-600">
+        <span className="text-xs font-medium text-primary/60">
           Level {current.level} - {current.name}
         </span>
         {nextLevel && (
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-primary/35">
             {nextLevel.xpRequired - xp} XP to {nextLevel.name}
           </span>
         )}
       </div>
-      <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-2.5 bg-white/25 rounded-full overflow-hidden backdrop-blur-sm">
         <div
-          className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-700"
+          className="h-full bg-gradient-to-r from-secondary to-secondary-dark rounded-full transition-all duration-700 shadow-sm shadow-secondary/30"
           style={{ width: `${progress}%` }}
         />
       </div>

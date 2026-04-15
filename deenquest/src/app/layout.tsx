@@ -37,11 +37,23 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-full flex flex-col bg-[#fafbfc]">
+      <body className="min-h-full flex flex-col">
         <AuthProvider>
           <Navbar />
-          <main className="md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0 flex-1">
-            {children}
+          <main
+            className="md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0 flex-1 relative"
+            style={{
+              backgroundColor: '#ffffff',
+              backgroundImage: "url('/hero-bg.png')",
+              backgroundSize: '100% auto',
+              backgroundPosition: 'top center',
+              backgroundRepeat: 'no-repeat',
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white pointer-events-none" style={{ top: '30%' }} />
+            <div className="relative z-10">
+              {children}
+            </div>
           </main>
           <Toaster
             position="top-right"

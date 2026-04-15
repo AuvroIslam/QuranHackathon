@@ -85,7 +85,7 @@ export default function PerspectivePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -93,8 +93,8 @@ export default function PerspectivePage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Quranic Perspectives</h1>
-        <p className="text-gray-500 mt-1">
+        <h1 className="text-2xl font-bold text-primary">Quranic Perspectives</h1>
+        <p className="text-primary/50 mt-1">
           Explore what the Quran says about different topics
         </p>
       </div>
@@ -105,10 +105,10 @@ export default function PerspectivePage() {
           <button
             key={topic}
             onClick={() => handleTopicSelect(topic)}
-            className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+            className={`px-4 py-2 rounded-full text-sm font-medium border transition-all backdrop-blur-sm ${
               selectedTopic === topic
-                ? "bg-emerald-600 text-white border-emerald-600"
-                : "bg-white text-gray-700 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50"
+                ? "bg-gradient-to-r from-secondary to-secondary-dark text-white border-secondary shadow-lg shadow-secondary/20"
+                : "bg-white/25 text-primary/70 border-white/30 hover:border-accent/30 hover:bg-accent/8"
             }`}
           >
             {topic}
@@ -119,19 +119,19 @@ export default function PerspectivePage() {
       {/* Custom Search */}
       <form onSubmit={handleCustomSearch} className="flex gap-3">
         <div className="flex-1 relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/35" />
           <input
             type="text"
             placeholder="Or search any topic..."
             value={customTopic}
             onChange={(e) => setCustomTopic(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-3 bg-white/25 border border-white/30 rounded-xl text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 backdrop-blur-sm placeholder:text-primary/35"
           />
         </div>
         <button
           type="submit"
           disabled={searching}
-          className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
+          className="px-6 py-3 bg-gradient-to-r from-secondary to-secondary-dark text-white rounded-xl text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 shadow-lg shadow-secondary/20"
         >
           Explore
         </button>
@@ -140,24 +140,24 @@ export default function PerspectivePage() {
       {/* Loading */}
       {searching && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 size={24} className="animate-spin text-emerald-600" />
+          <Loader2 size={24} className="animate-spin text-secondary" />
         </div>
       )}
 
       {/* AI Perspective */}
       {explanation && !searching && (
-        <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-6">
-          <h3 className="font-semibold text-emerald-800 mb-2">
+        <div className="glass-card rounded-2xl p-6">
+          <h3 className="font-semibold text-secondary mb-2">
             Quranic Perspective on &ldquo;{selectedTopic}&rdquo;
           </h3>
-          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{explanation}</p>
+          <p className="text-sm text-primary/75 leading-relaxed whitespace-pre-wrap">{explanation}</p>
         </div>
       )}
 
       {/* Results */}
       {ayahs.length > 0 && !searching && (
         <div className="space-y-4">
-          <h3 className="font-semibold text-gray-900">
+          <h3 className="font-semibold text-primary">
             Related Ayahs ({ayahs.length})
           </h3>
           {ayahs.map((ayah: any, i: number) => (
@@ -176,7 +176,7 @@ export default function PerspectivePage() {
       )}
 
       {selectedTopic && ayahs.length === 0 && !searching && (
-        <p className="text-center text-gray-500 py-8">
+        <p className="text-center text-primary/50 py-8">
           No matching ayahs found. Try a different topic.
         </p>
       )}

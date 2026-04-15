@@ -227,7 +227,7 @@ export default function ListenPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -237,33 +237,38 @@ export default function ListenPage() {
       <audio ref={audioRef} />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Headphones size={24} className="text-emerald-600" />
-            Quran Recitation
-          </h1>
-          <p className="text-gray-500 mt-1">Listen, reflect, and track your progress</p>
-        </div>
-        <button
-          onClick={randomChapter}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors"
-        >
+      {/* Hero Banner */}
+      <div className="relative overflow-hidden rounded-2xl h-40">
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/masjid-aerial.png')" }} />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#15173D]/60 to-transparent" />
+        <div className="relative z-10 h-full flex items-end justify-between px-6 pb-5">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <Headphones size={24} className="text-white/80" />
+              Quran Recitation
+            </h1>
+            <p className="text-white/70 mt-1">Listen, reflect, and track your progress</p>
+          </div>
+          <button
+            onClick={randomChapter}
+            className="flex items-center gap-2 px-4 py-2 bg-white/15 backdrop-blur-sm border border-white/25 text-white rounded-xl text-sm font-medium hover:bg-white/25 transition-all duration-300"
+          >
           <Shuffle size={16} />
           Random
         </button>
+        </div>
       </div>
 
       {/* Stats Bar */}
       {progress.length > 0 && (
-        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center justify-between">
+        <div className="glass-card rounded-2xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <BookOpen size={20} className="text-emerald-600" />
+            <BookOpen size={20} className="text-secondary" />
             <div>
-              <p className="text-sm font-medium text-emerald-800">
+              <p className="text-sm font-medium text-primary">
                 {totalVersesListened} verses listened
               </p>
-              <p className="text-xs text-emerald-600">
+              <p className="text-xs text-secondary">
                 {progress.length} surahs started
               </p>
             </div>
@@ -273,26 +278,26 @@ export default function ListenPage() {
 
       {/* Now Playing */}
       {selectedChapter && (
-        <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-5">
+        <div className="glass-card rounded-2xl p-6 space-y-5">
           <div className="text-center">
-            <p className="text-xs text-emerald-600 font-medium uppercase tracking-wide">
+            <p className="text-xs text-secondary font-medium uppercase tracking-wide">
               Now Playing
             </p>
-            <h2 className="text-xl font-bold text-gray-900 mt-1">
+            <h2 className="text-xl font-bold text-primary mt-1">
               {selectedChapter.name_simple}{" "}
-              <span className="text-gray-400 font-normal text-base">
+              <span className="text-primary/35 font-normal text-base">
                 ({selectedChapter.translated_name.name})
               </span>
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-primary/50 mt-1">
               Verse {currentVerse} of {selectedChapter.verses_count}
             </p>
           </div>
 
           {/* Progress Bar */}
-          <div className="w-full bg-gray-100 rounded-full h-1.5">
+          <div className="w-full bg-white/20 rounded-full h-1.5 backdrop-blur-sm">
             <div
-              className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-secondary to-secondary-dark h-1.5 rounded-full transition-all duration-500 shadow-sm shadow-secondary/30"
               style={{
                 width: `${(currentVerse / selectedChapter.verses_count) * 100}%`,
               }}
@@ -302,19 +307,19 @@ export default function ListenPage() {
           {/* Verse Display */}
           {loadingVerse ? (
             <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : verseData ? (
             <div className="space-y-4">
               <p
-                className="text-2xl text-gray-900 text-center leading-loose font-arabic"
+                className="text-2xl text-primary text-center leading-loose font-arabic"
                 dir="rtl"
                 translate="no"
               >
                 {verseData.text}
               </p>
               {verseData.translation && (
-                <p className="text-sm text-gray-600 text-center leading-relaxed italic">
+                <p className="text-sm text-primary/60 text-center leading-relaxed italic">
                   &ldquo;{verseData.translation}&rdquo;
                 </p>
               )}
@@ -326,20 +331,20 @@ export default function ListenPage() {
             <button
               onClick={prevVerse}
               disabled={currentVerse <= 1}
-              className="p-3 rounded-full text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-30"
+              className="p-3 rounded-full text-primary/60 hover:bg-white/30 transition-colors disabled:opacity-30"
             >
               <SkipBack size={20} />
             </button>
             <button
               onClick={togglePlayPause}
-              className="p-4 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-lg"
+              className="p-4 rounded-full bg-gradient-to-r from-secondary to-secondary-dark text-white hover:brightness-110 transition-all shadow-lg shadow-secondary/25"
             >
               {isPlaying ? <Pause size={24} /> : <Play size={24} />}
             </button>
             <button
               onClick={nextVerse}
               disabled={currentVerse >= selectedChapter.verses_count}
-              className="p-3 rounded-full text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-30"
+              className="p-3 rounded-full text-primary/60 hover:bg-white/30 transition-colors disabled:opacity-30"
             >
               <SkipForward size={20} />
             </button>
@@ -347,12 +352,12 @@ export default function ListenPage() {
 
           {/* Auto-play toggle */}
           <div className="flex items-center justify-center gap-2">
-            <label className="text-xs text-gray-500 flex items-center gap-2 cursor-pointer">
+            <label className="text-xs text-primary/50 flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={autoPlay}
                 onChange={(e) => setAutoPlay(e.target.checked)}
-                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                className="rounded border-white/30 text-secondary focus:ring-accent"
               />
               Auto-play next verse
             </label>
@@ -367,12 +372,12 @@ export default function ListenPage() {
           placeholder="Search surah by name or number..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+          className="w-full px-4 py-3 bg-white/25 border border-white/30 rounded-xl text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 backdrop-blur-sm placeholder:text-primary/35"
         />
 
         {loadingChapters ? (
           <div className="flex justify-center py-12">
-            <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[60vh] overflow-y-auto pr-1">
@@ -383,35 +388,35 @@ export default function ListenPage() {
                 <button
                   key={ch.id}
                   onClick={() => selectChapterWithResume(ch)}
-                  className={`flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${
+                  className={`flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
                     isActive
-                      ? "bg-emerald-50 border border-emerald-200"
-                      : "bg-white border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/50"
+                      ? "glass-card border border-accent/30 shadow-secondary/10"
+                      : "bg-white/25 border border-white/30 hover:border-accent/25 hover:bg-white/35 backdrop-blur-sm"
                   }`}
                 >
                   <div
                     className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
                       isActive
-                        ? "bg-emerald-600 text-white"
-                        : "bg-gray-100 text-gray-600"
+                        ? "bg-gradient-to-r from-secondary to-secondary-dark text-white shadow-md shadow-secondary/20"
+                        : "bg-white/30 text-primary/60"
                     }`}
                   >
                     {ch.id}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-sm font-medium text-primary truncate">
                       {ch.name_simple}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="text-xs text-primary/50 truncate">
                       {ch.translated_name.name} &middot; {ch.verses_count} verses
                     </p>
                   </div>
                   {prog && (
                     <div className="flex items-center gap-1">
                       {prog.lastVerse >= prog.totalVerses ? (
-                        <CheckCircle size={16} className="text-emerald-500" />
+                        <CheckCircle size={16} className="text-secondary" />
                       ) : (
-                        <span className="text-xs text-emerald-600 font-medium">
+                        <span className="text-xs text-secondary font-medium">
                           {prog.lastVerse}/{prog.totalVerses}
                         </span>
                       )}

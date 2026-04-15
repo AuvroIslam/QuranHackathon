@@ -70,7 +70,7 @@ export default function AyahPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -79,13 +79,13 @@ export default function AyahPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Explore Ayahs</h1>
-          <p className="text-gray-500 mt-1">Discover the words of Allah</p>
+          <h1 className="text-2xl font-bold text-primary">Explore Ayahs</h1>
+          <p className="text-primary/50 mt-1">Discover the words of Allah</p>
         </div>
         <button
           onClick={loadRandomAyah}
           disabled={loadingAyah}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-secondary to-secondary-dark text-white rounded-xl text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 shadow-lg shadow-secondary/20"
         >
           <RefreshCw size={16} className={loadingAyah ? "animate-spin" : ""} />
           Random Ayah
@@ -95,19 +95,19 @@ export default function AyahPage() {
       {/* Search */}
       <form onSubmit={handleSearch} className="flex gap-3">
         <div className="flex-1 relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/35" />
           <input
             type="text"
             placeholder="Search by keyword (e.g., patience, mercy, prayer)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-3 bg-white/25 border border-white/30 rounded-xl text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 backdrop-blur-sm placeholder:text-primary/35"
           />
         </div>
         <button
           type="submit"
           disabled={searching}
-          className="px-6 py-3 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
+          className="px-6 py-3 bg-gradient-to-r from-secondary to-secondary-dark text-white rounded-xl text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 shadow-lg shadow-secondary/20"
         >
           {searching ? "..." : "Search"}
         </button>
@@ -116,7 +116,7 @@ export default function AyahPage() {
       {/* Random Ayah */}
       {loadingAyah ? (
         <div className="flex items-center justify-center py-12">
-          <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
         ayah && (
@@ -136,7 +136,7 @@ export default function AyahPage() {
       {/* Search Results */}
       {searchResults.length > 0 && (
         <div className="space-y-4">
-          <h3 className="font-semibold text-gray-900">
+          <h3 className="font-semibold text-primary">
             Search Results ({searchResults.length})
           </h3>
           {searchResults.map((result: any, i: number) => (

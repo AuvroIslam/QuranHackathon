@@ -1,63 +1,86 @@
 @import "tailwindcss";
 
-:root {
-  --background: #fafbfc;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: #F1E9E9;
+  --color-foreground: #15173D;
+  --color-primary: #15173D;
+  --color-primary-light: #2a2d5e;
+  --color-secondary: #982598;
+  --color-secondary-dark: #7a1e7a;
+  --color-accent: #E491C9;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@font-face {
-  font-family: "Amiri";
-  src: url("https://fonts.googleapis.com/css2?family=Amiri&display=swap");
 }
 
 .font-arabic {
   font-family: "Amiri", serif;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+/* === Glassmorphism Utilities === */
+.glass {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 24px rgba(21, 23, 61, 0.06);
 }
 
-/* Smooth transitions */
-* {
-  scroll-behavior: smooth;
+.glass-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px rgba(21, 23, 61, 0.08);
 }
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 4px 24px rgba(21, 23, 61, 0.06);
+}
+
+.glass-dark {
+  background: rgba(21, 23, 61, 0.80);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(152, 37, 152, 0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(152, 37, 152, 0.35); }
+
+/* === Transitions & Animations === */
+* { scroll-behavior: smooth; }
 
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(228, 145, 201, 0.12) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+}
+
+/* === Body === */
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: #ffffff;
+  color: #15173D;
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
 }

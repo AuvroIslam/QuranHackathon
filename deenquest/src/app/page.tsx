@@ -127,7 +127,7 @@ export default function HomePage() {
   const levelInfo = profile ? getLevelInfo(profile.xp) : null;
 
   return (
-    <PageContainer size="wide" className="space-y-10">
+    <PageContainer size="wide" className="space-y-10 home-page-cards">
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold text-primary">
@@ -211,7 +211,7 @@ export default function HomePage() {
                 disabled={done}
                 className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
                   done
-                    ? "bg-accent/10 border-accent/25"
+                    ? "bg-[rgba(108,36,112,0.58)] border-accent/35"
                     : "glass border-white/25 hover:border-accent/25 hover:bg-accent/8"
                 }`}
               >

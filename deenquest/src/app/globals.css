@@ -136,6 +136,31 @@ h3 {
   box-shadow: 0 10px 34px rgba(0, 0, 0, 0.38);
 }
 
+.home-page-cards .glass {
+  background: rgba(20, 20, 40, 0.5);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.home-page-cards .glass-card {
+  background: rgba(20, 20, 40, 0.62);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.home-page-cards .glass-strong {
+  background: rgba(20, 20, 40, 0.68);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.home-page-cards .stat-card {
+  background: rgba(255, 255, 255, 0.26);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.listen-page-cards .glass-card {
+  background: rgba(20, 20, 40, 0.66);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
 .overlay {
   position: absolute;
   inset: 0;
@@ -149,7 +174,7 @@ h3 {
 .bg-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 10, 30, 0.6);
+  background: rgba(10, 10, 30, 0.5);
   z-index: 0;
   pointer-events: none;
 }

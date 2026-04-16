@@ -234,7 +234,7 @@ export default function ListenPage() {
   }
 
   return (
-    <PageContainer size="default" className="space-y-6">
+    <PageContainer size="default" className="space-y-6 listen-page-cards">
       <audio ref={audioRef} />
 
       {/* Hero Banner */}
@@ -391,7 +391,7 @@ export default function ListenPage() {
                   className={`flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
                     isActive
                       ? "glass-card border border-accent/30 shadow-secondary/10"
-                      : "bg-white/25 border border-white/30 hover:border-accent/25 hover:bg-white/35 backdrop-blur-sm"
+                      : "bg-[rgba(20,20,40,0.62)] border border-white/24 hover:border-accent/30 hover:bg-[rgba(20,20,40,0.72)] backdrop-blur-sm"
                   }`}
                 >
                   <div

@@ -20,16 +20,16 @@ export default function LevelBadge({ xp }: LevelBadgeProps) {
             key={level.level}
             className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
               isCurrent
-                ? "glass-card border-accent/30 ring-1 ring-accent/30"
+                ? "bg-secondary-dark  border-secondary/55 ring-1 ring-white shadow-lg shadow-secondary/20"
                 : unlocked
-                ? "glass-card"
-                : "bg-white/10 border-white/15 opacity-60"
+                ? "glass-card border-white/20"
+                : "bg-[rgba(20,20,40,0.68)] border-white/20"
             }`}
           >
             <div
               className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
                 isCurrent
-                  ? "bg-gradient-to-br from-secondary to-secondary-dark text-white shadow-lg shadow-secondary/25"
+                  ? "bg-white text-secondary-dark shadow-lg shadow-secondary/25"
                   : unlocked
                   ? "bg-accent/15 text-secondary"
                   : "bg-white/20 text-primary/35"

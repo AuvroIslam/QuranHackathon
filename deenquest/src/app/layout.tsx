@@ -42,10 +42,6 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap"
           rel="stylesheet"
         />
-        <link
-          href="https://fonts.cdnfonts.com/css/wasabi"
-          rel="stylesheet"
-        />
       </head>
       <body className="min-h-full flex flex-col">
         <AuthProvider>

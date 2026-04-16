@@ -63,7 +63,7 @@
 :root {
   --font-body: var(--font-poppins), var(--font-geist-sans), "Poppins", "Inter", system-ui, -apple-system, sans-serif;
   --font-heading: "Wasabi", var(--font-poppins), var(--font-geist-sans), "Poppins", "Inter", system-ui, sans-serif;
-  --font-brand: "Wasabi Condensed", "Wasabi", var(--font-poppins), var(--font-geist-sans), "Poppins", "Inter", system-ui, sans-serif;
+  --font-brand: "Wasabi", var(--font-poppins), var(--font-geist-sans), "Poppins", "Inter", system-ui, sans-serif;
   --surface-text: #ffffff;
   --surface-text-muted: rgba(255, 255, 255, 0.8);
 }
@@ -102,7 +102,10 @@ h3 {
 .brand-title {
   font-family: var(--font-brand);
   font-weight: 700;
-  letter-spacing: 0.035em;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  color: #ffffff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
 }
 
 /* === Glassmorphism Utilities === */

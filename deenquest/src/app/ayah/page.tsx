@@ -3,6 +3,7 @@
 import { useAuth } from "@/components/AuthProvider";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import PageContainer from "../../components/PageContainer";
 import AyahCard from "@/components/AyahCard";
 import { getRandomAyah, searchAyahs } from "@/lib/quran";
 import { toggleBookmark, getBookmarks } from "@/lib/firestore";
@@ -76,7 +77,7 @@ export default function AyahPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
+    <PageContainer size="default" className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-primary">Explore Ayahs</h1>
@@ -156,6 +157,6 @@ export default function AyahPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

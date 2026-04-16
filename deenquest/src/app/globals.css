@@ -8,44 +8,138 @@
   --color-secondary: #982598;
   --color-secondary-dark: #7a1e7a;
   --color-accent: #E491C9;
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-poppins);
   --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  --font-body: var(--font-poppins), var(--font-geist-sans), "Poppins", "Inter", system-ui, -apple-system, sans-serif;
+  --font-heading: "Wasabi", var(--font-poppins), var(--font-geist-sans), "Poppins", "Inter", system-ui, sans-serif;
+  --surface-text: #ffffff;
+  --surface-text-muted: rgba(255, 255, 255, 0.8);
 }
 
 .font-arabic {
   font-family: "Amiri", serif;
 }
 
+.font-heading {
+  font-family: var(--font-heading);
+  letter-spacing: 0.03em;
+  font-weight: 700;
+}
+
+h1,
+h2,
+h3,
+.brand-title,
+.hero-title,
+.section-title {
+  font-family: var(--font-heading);
+  letter-spacing: 0.025em;
+}
+
 /* === Glassmorphism Utilities === */
 .glass {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 4px 24px rgba(21, 23, 61, 0.06);
+  background: rgba(20, 20, 40, 0.38);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 8px 32px rgba(21, 23, 61, 0.08);
-}
-
+.glass-card,
 .glass-strong {
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 4px 24px rgba(21, 23, 61, 0.06);
+  background: rgba(20, 20, 40, 0.55);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
 }
 
 .glass-dark {
-  background: rgba(21, 23, 61, 0.80);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(20, 20, 40, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.38);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(21, 23, 61, 0.6),
+    rgba(21, 23, 61, 0.4)
+  );
+}
+
+.bg-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 30, 0.6);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.primary-btn,
+.glass-btn {
+  background: linear-gradient(135deg, #982598, #E491C9);
+  color: white;
+  border-radius: 999px;
+  padding: 12px 28px;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 6px 20px rgba(228, 145, 201, 0.4);
+  transition: all 0.3s ease;
+}
+
+.primary-btn:hover,
+.glass-btn:hover {
+  transform: scale(1.05);
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28);
+}
+
+.text-primary {
+  color: #ffffff !important;
+}
+
+.text-primary\/75 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.text-primary\/70 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.text-primary\/60 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.text-primary\/50,
+.text-primary\/45 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.text-primary\/35,
+.text-primary\/25 {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.text-secondary {
+  color: #E491C9 !important;
 }
 
 /* === Scrollbar === */
@@ -79,8 +173,13 @@
 
 /* === Body === */
 body {
-  background-color: #ffffff;
-  color: #15173D;
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #0F1639;
+  color: var(--surface-text);
+  font-family: var(--font-body);
   min-height: 100vh;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--surface-text-muted);
 }

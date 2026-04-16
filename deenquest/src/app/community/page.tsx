@@ -3,6 +3,7 @@
 import { useAuth } from "@/components/AuthProvider";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import PageContainer from "../../components/PageContainer";
 import {
   createPost,
   getPosts,
@@ -168,19 +169,19 @@ export default function CommunityPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6 animate-fade-in">
+    <PageContainer size="default" className="space-y-6">
       {/* Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl h-40">
+      <div className="relative overflow-hidden rounded-2xl h-44">
         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/mosque-bg.png')" }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#15173D]/60 to-transparent" />
+        <div className="overlay" />
         <div className="relative z-10 h-full flex items-end justify-between px-6 pb-5">
           <div>
-            <h1 className="text-2xl font-bold text-white">Community</h1>
-            <p className="text-white/70 mt-1">Share reflections and ask questions</p>
+            <h1 className="font-heading text-3xl font-bold text-white tracking-wide">Community</h1>
+            <p className="text-white/80 mt-2">Share reflections and ask questions</p>
           </div>
           <button
             onClick={() => setShowNewPost(!showNewPost)}
-            className="flex items-center gap-2 px-4 py-2 bg-white/15 backdrop-blur-sm border border-white/25 text-white rounded-xl text-sm font-medium hover:bg-white/25 transition-all duration-300"
+            className="glass-btn flex items-center gap-2 text-sm"
           >
             {showNewPost ? <X size={16} /> : <Plus size={16} />}
             {showNewPost ? "Cancel" : "New Post"}
@@ -202,7 +203,7 @@ export default function CommunityPage() {
                 onClick={() => setNewType(type)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                   newType === type
-                    ? "bg-gradient-to-r from-secondary to-secondary-dark text-white shadow-lg shadow-secondary/20"
+                    ? "bg-linear-to-r from-secondary to-secondary-dark text-white shadow-lg shadow-secondary/20"
                     : "bg-white/20 text-primary/60 hover:bg-white/30"
                 }`}
               >
@@ -231,7 +232,7 @@ export default function CommunityPage() {
           <button
             type="submit"
             disabled={submitting || !newContent.trim() || !newTitle.trim()}
-            className="px-6 py-2.5 bg-gradient-to-r from-secondary to-secondary-dark text-white rounded-xl text-sm font-medium hover:brightness-110 transition-all duration-300 disabled:opacity-50 shadow-lg shadow-secondary/20"
+            className="glass-btn px-6 py-2.5 text-sm disabled:opacity-50"
           >
             {submitting ? "Posting..." : "Post"}
           </button>
@@ -254,7 +255,7 @@ export default function CommunityPage() {
             <div key={post.id} className="glass-card rounded-2xl overflow-hidden">
               <div className="p-5">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-secondary to-secondary-dark flex items-center justify-center text-white text-sm font-semibold shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-linear-to-br from-secondary to-secondary-dark flex items-center justify-center text-white text-sm font-semibold shadow-sm">
                     {post.userName.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -403,7 +404,7 @@ export default function CommunityPage() {
                                 />
                                 <button
                                   onClick={() => handleAnswer(post.id, answer.id, answer.userName)}
-                                  className="px-3 py-1.5 bg-gradient-to-r from-secondary to-secondary-dark text-white rounded-lg hover:brightness-110 transition-all duration-300"
+                                  className="glass-btn px-3 py-1.5 rounded-lg"
                                 >
                                   <Send size={12} />
                                 </button>
@@ -437,7 +438,7 @@ export default function CommunityPage() {
                     />
                     <button
                       onClick={() => handleAnswer(post.id)}
-                      className="px-3 py-2 bg-gradient-to-r from-secondary to-secondary-dark text-white rounded-lg hover:brightness-110 transition-all duration-300"
+                      className="glass-btn px-3 py-2 rounded-lg"
                     >
                       <Send size={14} />
                     </button>
@@ -448,6 +449,6 @@ export default function CommunityPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

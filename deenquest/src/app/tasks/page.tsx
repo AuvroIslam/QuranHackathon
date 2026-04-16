@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getTodaysTasks, DAILY_TASKS } from "@/lib/tasks-data";
 import { getUserTasksForDate, completeTask } from "@/lib/firestore";
+import PageContainer from "../../components/PageContainer";
 import { CheckCircle2, Circle, BookOpen } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -51,7 +52,7 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
+    <PageContainer size="default" className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-primary">Daily Deeds</h1>
         <p className="text-primary/50 mt-1">
@@ -141,6 +142,6 @@ export default function TasksPage() {
           ))}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

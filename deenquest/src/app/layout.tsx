@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import Navbar from "@/components/Navbar";
@@ -15,6 +15,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const poppins = Poppins({
+  variable: "--font-poppins",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+});
+
 export const metadata: Metadata = {
   title: "DeenQuest AI - Your Journey Back to the Quran",
   description: "A gamified, AI-powered Quran companion that helps you build a daily connection with the Quran.",
@@ -28,12 +34,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} h-full antialiased`}
     >
       <head>
         <meta name="google" content="notranslate" />
         <link
           href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
+        <link
+          href="https://fonts.cdnfonts.com/css/wasabi"
           rel="stylesheet"
         />
       </head>
@@ -43,14 +53,14 @@ export default function RootLayout({
           <main
             className="md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0 flex-1 relative"
             style={{
-              backgroundColor: '#ffffff',
-              backgroundImage: "url('/hero-bg.png')",
+              backgroundColor: '#10153A',
+              backgroundImage: "url('/kaaba-bg-longer.png')",
               backgroundSize: '100% auto',
               backgroundPosition: 'top center',
               backgroundRepeat: 'no-repeat',
             }}
           >
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white pointer-events-none" style={{ top: '30%' }} />
+            <div className="bg-overlay" />
             <div className="relative z-10">
               {children}
             </div>

@@ -3,6 +3,7 @@
 import { useAuth } from "@/components/AuthProvider";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import PageContainer from "../../components/PageContainer";
 import { getSurahList, getAyahAudio } from "@/lib/quran";
 import {
   saveListeningProgress,
@@ -233,25 +234,24 @@ export default function ListenPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 animate-fade-in">
+    <PageContainer size="default" className="space-y-6">
       <audio ref={audioRef} />
 
-      {/* Header */}
       {/* Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl h-40">
+      <div className="relative overflow-hidden rounded-2xl h-44">
         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/masjid-aerial.png')" }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#15173D]/60 to-transparent" />
+        <div className="overlay" />
         <div className="relative z-10 h-full flex items-end justify-between px-6 pb-5">
           <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <h1 className="font-heading text-3xl font-bold text-white tracking-wide flex items-center gap-2">
               <Headphones size={24} className="text-white/80" />
               Quran Recitation
             </h1>
-            <p className="text-white/70 mt-1">Listen, reflect, and track your progress</p>
+            <p className="text-white/80 mt-2">Listen, reflect, and track your progress</p>
           </div>
           <button
             onClick={randomChapter}
-            className="flex items-center gap-2 px-4 py-2 bg-white/15 backdrop-blur-sm border border-white/25 text-white rounded-xl text-sm font-medium hover:bg-white/25 transition-all duration-300"
+            className="glass-btn flex items-center gap-2 text-sm"
           >
           <Shuffle size={16} />
           Random
@@ -297,7 +297,7 @@ export default function ListenPage() {
           {/* Progress Bar */}
           <div className="w-full bg-white/20 rounded-full h-1.5 backdrop-blur-sm">
             <div
-              className="bg-gradient-to-r from-secondary to-secondary-dark h-1.5 rounded-full transition-all duration-500 shadow-sm shadow-secondary/30"
+              className="bg-linear-to-r from-secondary to-secondary-dark h-1.5 rounded-full transition-all duration-500 shadow-sm shadow-secondary/30"
               style={{
                 width: `${(currentVerse / selectedChapter.verses_count) * 100}%`,
               }}
@@ -337,7 +337,7 @@ export default function ListenPage() {
             </button>
             <button
               onClick={togglePlayPause}
-              className="p-4 rounded-full bg-gradient-to-r from-secondary to-secondary-dark text-white hover:brightness-110 transition-all shadow-lg shadow-secondary/25"
+              className="p-4 rounded-full bg-linear-to-r from-secondary to-secondary-dark text-white hover:brightness-110 transition-all shadow-lg shadow-secondary/25"
             >
               {isPlaying ? <Pause size={24} /> : <Play size={24} />}
             </button>
@@ -397,7 +397,7 @@ export default function ListenPage() {
                   <div
                     className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
                       isActive
-                        ? "bg-gradient-to-r from-secondary to-secondary-dark text-white shadow-md shadow-secondary/20"
+                        ? "bg-linear-to-r from-secondary to-secondary-dark text-white shadow-md shadow-secondary/20"
                         : "bg-white/30 text-primary/60"
                     }`}
                   >
@@ -428,6 +428,6 @@ export default function ListenPage() {
           </div>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

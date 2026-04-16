@@ -4,6 +4,7 @@ import { useAuth } from "@/components/AuthProvider";
 import LevelBadge from "@/components/LevelBadge";
 import XPBar from "@/components/XPBar";
 import StreakBadge from "@/components/StreakBadge";
+import PageContainer from "../../components/PageContainer";
 import { getLevelInfo } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -27,7 +28,7 @@ export default function LevelsPage() {
   const levelInfo = getLevelInfo(profile.xp);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
+    <PageContainer size="default" className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-primary">Your Spiritual Journey</h1>
         <p className="text-primary/50 mt-1">Progress through the stations of faith</p>
@@ -51,6 +52,6 @@ export default function LevelsPage() {
       </div>
 
       <LevelBadge xp={profile.xp} />
-    </div>
+    </PageContainer>
   );
 }

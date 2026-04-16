@@ -68,18 +68,6 @@ export default function ChatbotPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] md:h-screen">
-      {/* Header */}
-      <div className="relative overflow-hidden border-b border-white/10">
-        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/quran-bg.png')" }} />
-        <div className="absolute inset-0 bg-[#15173D]/45 backdrop-blur-[1px]" />
-        <div className="relative z-10 px-6 py-6">
-          <h1 className="text-lg font-bold text-white">Ask DeenQuest AI</h1>
-          <p className="text-xs text-white/60">
-            Ask questions about the Quran, its teachings, and Islamic guidance
-          </p>
-        </div>
-      </div>
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {messages.length === 0 && (

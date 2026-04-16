@@ -3,6 +3,7 @@
 import { useAuth } from "@/components/AuthProvider";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import PageContainer from "../../components/PageContainer";
 import AyahCard from "@/components/AyahCard";
 import { searchAyahs } from "@/lib/quran";
 import { Search, Loader2 } from "lucide-react";
@@ -91,7 +92,7 @@ export default function PerspectivePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
+    <PageContainer size="default" className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-primary">Quranic Perspectives</h1>
         <p className="text-primary/50 mt-1">
@@ -180,6 +181,6 @@ export default function PerspectivePage() {
           No matching ayahs found. Try a different topic.
         </p>
       )}
-    </div>
+    </PageContainer>
   );
 }

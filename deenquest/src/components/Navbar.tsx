@@ -41,8 +41,8 @@ export default function Navbar() {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-64 glass-dark flex-col z-40 rounded-r-2xl">
         <div className="p-6 border-b border-white/10">
-          <h1 className="text-xl font-bold text-accent tracking-tight">DeenQuest AI</h1>
-          <p className="text-xs text-accent/50 mt-1">Your Journey Back to the Quran</p>
+          <h1 className="brand-title font-heading text-2xl font-bold text-accent tracking-wide">DeenQuest AI</h1>
+          <p className="text-xs text-white/70 mt-1">Your Journey Back to the Quran</p>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
@@ -54,7 +54,7 @@ export default function Navbar() {
                 href={href}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   active
-                    ? "bg-accent/15 text-accent shadow-lg shadow-secondary/10"
+                    ? "bg-white/15 text-white shadow-lg shadow-black/25"
                     : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
@@ -67,7 +67,7 @@ export default function Navbar() {
 
         <div className="p-4 border-t border-white/10">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-secondary to-secondary-dark flex items-center justify-center text-white font-semibold text-sm shadow-lg shadow-secondary/25">
+            <div className="w-9 h-9 rounded-full bg-linear-to-br from-secondary to-secondary-dark flex items-center justify-center text-white font-semibold text-sm shadow-lg shadow-secondary/25">
               {profile?.name?.charAt(0).toUpperCase() || "U"}
             </div>
             <div className="min-w-0">
@@ -87,7 +87,7 @@ export default function Navbar() {
 
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-14 glass-dark flex items-center justify-between px-4 z-40">
-        <h1 className="text-lg font-bold text-accent">DeenQuest AI</h1>
+        <h1 className="brand-title font-heading text-xl font-bold text-accent tracking-wide">DeenQuest AI</h1>
         <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-300">
           {menuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>

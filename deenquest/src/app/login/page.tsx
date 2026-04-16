@@ -41,15 +41,15 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden" style={{ backgroundImage: "url('/kaaba-bg.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
       {/* Dark overlay for readability */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#15173D]/30 via-[#15173D]/10 to-[#15173D]/50" />
+      <div className="overlay" />
 
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <BookOpen size={28} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">DeenQuest AI</h1>
-          <p className="text-white/60 mt-1">Your Journey Back to the Quran</p>
+          <h1 className="font-heading text-3xl font-bold text-white tracking-wide">DeenQuest AI</h1>
+          <p className="text-white/75 mt-2">Your Journey Back to the Quran</p>
         </div>
 
         <div className="glass rounded-2xl shadow-2xl p-8">
@@ -59,7 +59,7 @@ export default function LoginPage() {
 
           <button
             onClick={handleGoogle}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-sm font-medium text-white hover:bg-white/20 transition-all duration-300 mb-6 backdrop-blur-sm"
+            className="glass-btn w-full flex items-center justify-center gap-3 mb-6"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -143,7 +143,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-secondary to-secondary-dark text-white rounded-xl text-sm font-medium hover:brightness-110 transition-all duration-300 disabled:opacity-50 shadow-lg shadow-secondary/25"
+              className="glass-btn w-full py-3 disabled:opacity-50"
             >
               {loading
                 ? "Please wait..."

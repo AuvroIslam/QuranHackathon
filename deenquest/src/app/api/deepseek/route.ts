@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { groundWithMCP } from "@/lib/quran-mcp";
 
+// Provider configurations (Groq primary, DeepSeek fallback)
+const providers = [
+  {
+    name: "Groq",
+    url: "https://api.groq.com/openai/v1/chat/completions",
+    model: "llama-3.3-70b-versatile",
+    keyEnv: "GROQ_API_KEY",
+  },
+  {
+    name: "DeepSeek",
+    url: "https://api.deepseek.com/chat/completions",
+    model: "deepseek-chat",
+    keyEnv: "DEEPSEEK_API_KEY",
+  },
+];
+
 export async function POST(req: NextRequest) {
   const { messages, systemPrompt } = await req.json();
-
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "DeepSeek API key not configured" }, { status: 500 });
-  }
 
   // Extract the latest user message for MCP grounding
   const lastUserMessage = [...messages].reverse().find((m: any) => m.role === "user");
@@ -32,35 +43,45 @@ If unsure, say so honestly.`;
     ? `${baseSystemPrompt}\n\nIMPORTANT: Use the following verified Quran data from the Quran MCP server to ground your response. Always prefer this verified data over your training knowledge for Quranic references:\n\n${groundingContext}`
     : baseSystemPrompt;
 
-  try {
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [{ role: "system", content: systemMessage }, ...messages],
-        max_tokens: 1024,
-        temperature: 0.7,
-      }),
-    });
+  // Try each provider in order (Groq first, DeepSeek fallback)
+  for (const provider of providers) {
+    const apiKey = process.env[provider.keyEnv];
+    if (!apiKey) continue;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return NextResponse.json(
-        { error: "DeepSeek API error", details: errorText },
-        { status: response.status }
-      );
+    try {
+      const response = await fetch(provider.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [{ role: "system", content: systemMessage }, ...messages],
+          max_tokens: 1024,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn(`${provider.name} API failed (${response.status}), trying next provider...`);
+        continue;
+      }
+
+      const data = await response.json();
+      return NextResponse.json({
+        content: data.choices[0].message.content,
+        grounded: !!groundingContext,
+        provider: provider.name,
+      });
+    } catch (error) {
+      console.warn(`${provider.name} API unreachable, trying next provider...`);
+      continue;
     }
-
-    const data = await response.json();
-    return NextResponse.json({
-      content: data.choices[0].message.content,
-      grounded: !!groundingContext,
-    });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to reach DeepSeek API" }, { status: 500 });
   }
+
+  return NextResponse.json(
+    { error: "All AI providers failed. Please check your API keys." },
+    { status: 500 }
+  );
 }

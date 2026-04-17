@@ -10,7 +10,7 @@ import { getAyahsForMood, searchAyahs } from "@/lib/quran";
 import { getTodaysTasks } from "@/lib/tasks-data";
 import { getUserTasksForDate, completeTask } from "@/lib/firestore";
 import { getLevelInfo } from "@/lib/types";
-import { CheckCircle2, Circle, Star, BookOpen, Flame, Trophy } from "lucide-react";
+import { CheckCircle2, Circle, Star, BookOpen, Flame, Trophy, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import LoginPage from "./login/page";
 
@@ -23,6 +23,7 @@ export default function HomePage() {
   const todayTasks = getTodaysTasks();
   const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set());
   const [loadingTasks, setLoadingTasks] = useState(true);
+  const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(new Set());
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -103,14 +104,28 @@ export default function HomePage() {
   }
 
   async function handleCompleteTask(taskId: string, xpReward: number) {
-    if (!user || completedTaskIds.has(taskId)) return;
+    if (!user || completedTaskIds.has(taskId) || pendingTaskIds.has(taskId)) return;
+
+    setPendingTaskIds((prev) => new Set(prev).add(taskId));
+    setCompletedTaskIds((prev) => new Set(prev).add(taskId));
+
     try {
       await completeTask(user.uid, taskId, today, xpReward);
-      setCompletedTaskIds((prev) => new Set(prev).add(taskId));
-      await refreshProfile();
+      refreshProfile().catch(() => undefined);
       toast.success(`+${xpReward} Hasanat earned!`);
     } catch {
+      setCompletedTaskIds((prev) => {
+        const updated = new Set(prev);
+        updated.delete(taskId);
+        return updated;
+      });
       toast.error("Failed to complete task");
+    } finally {
+      setPendingTaskIds((prev) => {
+        const updated = new Set(prev);
+        updated.delete(taskId);
+        return updated;
+      });
     }
   }
 
@@ -204,11 +219,12 @@ export default function HomePage() {
         <div className="space-y-3">
           {todayTasks.map((task) => {
             const done = completedTaskIds.has(task.id);
+            const pending = pendingTaskIds.has(task.id);
             return (
               <button
                 key={task.id}
                 onClick={() => handleCompleteTask(task.id, task.xpReward)}
-                disabled={done}
+                disabled={done || pending || loadingTasks}
                 className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
                   done
                     ? "bg-[rgba(108,36,112,0.58)] border-accent/35"
@@ -217,6 +233,8 @@ export default function HomePage() {
               >
                 {done ? (
                   <CheckCircle2 size={22} className="text-secondary shrink-0" />
+                ) : pending ? (
+                  <Loader2 size={22} className="text-secondary shrink-0 animate-spin" />
                 ) : (
                   <Circle size={22} className="text-primary/25 shrink-0" />
                 )}

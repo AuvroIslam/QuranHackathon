@@ -99,10 +99,9 @@ export const DAILY_TASKS: Task[] = [
   },
 ];
 
-export function getTodaysTasks(): Task[] {
-  const today = new Date();
+export function getTasksForDate(date: Date): Task[] {
   const dayOfYear = Math.floor(
-    (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000
+    (date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000
   );
   const startIndex = dayOfYear % DAILY_TASKS.length;
   const tasks: Task[] = [];
@@ -110,4 +109,8 @@ export function getTodaysTasks(): Task[] {
     tasks.push(DAILY_TASKS[(startIndex + i) % DAILY_TASKS.length]);
   }
   return tasks;
+}
+
+export function getTodaysTasks(): Task[] {
+  return getTasksForDate(new Date());
 }

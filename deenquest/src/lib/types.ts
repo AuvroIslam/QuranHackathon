@@ -23,6 +23,9 @@ export interface UserTask {
   taskId: string;
   completed: boolean;
   date: string;
+  isBonus?: boolean;
+  bonusCategory?: string;
+  sourceTaskId?: string;
 }
 
 export interface Post {

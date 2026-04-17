@@ -3,6 +3,8 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  writeBatch,
+  runTransaction,
   collection,
   query,
   where,
@@ -12,7 +14,6 @@ import {
   increment,
   arrayUnion,
   arrayRemove,
-  Timestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { UserProfile, UserTask, Post, Answer } from "./types";
@@ -70,13 +71,57 @@ export async function getUserTasksForDate(uid: string, date: string): Promise<Us
 }
 
 export async function completeTask(uid: string, taskId: string, date: string, xpReward: number) {
-  await addDoc(collection(db, "userTasks"), {
+  const userRef = doc(db, "users", uid);
+  const taskRef = doc(collection(db, "userTasks"));
+  const batch = writeBatch(db);
+
+  batch.set(taskRef, {
     userId: uid,
     taskId,
     completed: true,
     date,
   });
-  await addXP(uid, xpReward);
+  batch.update(userRef, {
+    xp: increment(xpReward),
+    lastActive: new Date().toISOString(),
+  });
+
+  await batch.commit();
+}
+
+export async function completeBonusTask(
+  uid: string,
+  taskId: string,
+  date: string,
+  xpReward: number,
+  bonusCategory: string,
+  sourceTaskId: string
+) {
+  const bonusRef = doc(db, "userTasks", `${uid}_${date}_bonus`);
+  const userRef = doc(db, "users", uid);
+
+  await runTransaction(db, async (transaction) => {
+    const bonusSnap = await transaction.get(bonusRef);
+
+    if (bonusSnap.exists()) {
+      throw new Error("Bonus deed already completed today");
+    }
+
+    transaction.set(bonusRef, {
+      userId: uid,
+      taskId,
+      sourceTaskId,
+      completed: true,
+      date,
+      isBonus: true,
+      bonusCategory,
+    });
+
+    transaction.update(userRef, {
+      xp: increment(xpReward),
+      lastActive: new Date().toISOString(),
+    });
+  });
 }
 
 // ─── Bookmarks ──────────────────────────────────────────────────

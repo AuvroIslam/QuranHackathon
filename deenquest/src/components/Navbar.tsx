@@ -5,11 +5,10 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import {
   Home,
-  BookOpen,
   CheckSquare,
   MessageCircle,
   Users,
-  Search,
+  Moon,
   Trophy,
   LogOut,
   Menu,
@@ -21,12 +20,11 @@ import { useState } from "react";
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/levels", label: "Levels", icon: Trophy },
-  { href: "/ayah", label: "Ayah", icon: BookOpen },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/listen", label: "Listen", icon: Headphones },
-  { href: "/chatbot", label: "Ask AI", icon: MessageCircle },
-  { href: "/perspective", label: "Perspective", icon: Search },
+  { href: "/dawah", label: "Dawah", icon: Moon },
   { href: "/community", label: "Community", icon: Users },
+  { href: "/chatbot", label: "Ask AI", icon: MessageCircle },
 ];
 
 export default function Navbar() {
@@ -138,7 +136,7 @@ export default function Navbar() {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 glass-dark rounded-t-2xl flex items-center justify-around z-40">
-        {NAV_ITEMS.slice(0, 5).map(({ href, label, icon: Icon }) => {
+        {NAV_ITEMS.slice(0, 4).map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
             <Link

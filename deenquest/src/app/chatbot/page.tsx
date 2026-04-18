@@ -4,12 +4,22 @@ import { useAuth } from "@/components/AuthProvider";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Send, Bot, User, Loader2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import type { ChatMessage } from "@/lib/types";
+import PageTooltip from "@/components/PageTooltip";
+
+const CHAT_STORAGE_KEY = "deenquest_chat_messages";
 
 export default function ChatbotPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = sessionStorage.getItem(CHAT_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -20,6 +30,10 @@ export default function ChatbotPage() {
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    try { sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages)); } catch { }
   }, [messages]);
 
   async function handleSend(e: React.FormEvent) {
@@ -33,11 +47,14 @@ export default function ChatbotPage() {
     setSending(true);
 
     try {
+      const fullHistory = [...messages, userMsg];
+      // Keep last 8 messages (4 exchanges) to avoid token bloat and rate limits
+      const contextWindow = fullHistory.slice(-8);
       const res = await fetch("/api/deepseek", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [...messages, userMsg].map(({ role, content }) => ({ role, content })),
+          messages: contextWindow.map(({ role, content }) => ({ role, content })),
         }),
       });
       const data = await res.json();
@@ -67,7 +84,18 @@ export default function ChatbotPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] md:h-screen">
+    <div className="relative flex flex-col h-[calc(100vh-3.5rem)] md:h-screen">
+      <div className="absolute right-4 top-4 z-40">
+        <PageTooltip
+          title="Quran Chatbot"
+          description={[
+            "Ask questions about Islam and Quranic teachings.",
+            "Get concise, context-aware guidance in chat format.",
+            "Use suggested prompts or type your own question.",
+          ]}
+        />
+      </div>
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {messages.length === 0 && (
@@ -115,7 +143,16 @@ export default function ChatbotPage() {
                   : "glass-card text-primary rounded-bl-md"
               }`}
             >
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                  em: ({ children }) => <em className="italic">{children}</em>,
+                  ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+                  li: ({ children }) => <li className="text-sm">{children}</li>,
+                }}
+              >{msg.content}</ReactMarkdown>
             </div>
             {msg.role === "user" && (
               <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center flex-shrink-0">

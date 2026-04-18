@@ -14,6 +14,8 @@ export interface Task {
   title: string;
   description: string;
   ayahRef: string;
+  quranGuidance: string;
+  deedBenefit: string;
   xpReward: number;
   category: string;
 }
@@ -68,12 +70,62 @@ export interface ChatMessage {
   content: string;
 }
 
-export const LEVELS = [
-  { level: 1, name: "Sabr", nameAr: "الصبر", xpRequired: 0, description: "Patience – The foundation of faith" },
-  { level: 2, name: "Shukr", nameAr: "الشكر", xpRequired: 200, description: "Gratitude – Recognizing blessings" },
-  { level: 3, name: "Tawakkul", nameAr: "التوكل", xpRequired: 500, description: "Trust in Allah – Reliance on the Divine" },
-  { level: 4, name: "Ihsan", nameAr: "الإحسان", xpRequired: 1000, description: "Excellence – Worshipping as if you see Him" },
-  { level: 5, name: "Taqwa", nameAr: "التقوى", xpRequired: 2000, description: "God-consciousness – The highest station" },
+export interface LevelStation {
+  level: number;
+  name: string;
+  nameAr: string;
+  xpRequired: number;
+  description: string;
+  importance: string;
+  prophetStory: string;
+}
+
+export const LEVELS: LevelStation[] = [
+  {
+    level: 1,
+    name: "Sabr",
+    nameAr: "الصبر",
+    xpRequired: 0,
+    description: "Patience – The foundation of faith",
+    importance: "Sabr keeps your heart steady during tests and helps you obey Allah even when life feels difficult.",
+    prophetStory: "Prophet Ayyub (AS) endured years of illness and loss with patience, and Allah restored his health, family, and honor.",
+  },
+  {
+    level: 2,
+    name: "Shukr",
+    nameAr: "الشكر",
+    xpRequired: 200,
+    description: "Gratitude – Recognizing blessings",
+    importance: "Shukr turns ordinary moments into worship and protects the heart from negativity and envy.",
+    prophetStory: "Prophet Sulaiman (AS) thanked Allah for his kingdom and wisdom, and his gratitude increased both his blessings and humility.",
+  },
+  {
+    level: 3,
+    name: "Tawakkul",
+    nameAr: "التوكل",
+    xpRequired: 500,
+    description: "Trust in Allah – Reliance on the Divine",
+    importance: "Tawakkul gives peace after effort: you do your part sincerely, then place outcomes in Allah's hands.",
+    prophetStory: "When Prophet Musa (AS) faced the sea with his people trapped behind him, he trusted Allah and a path opened where none seemed possible.",
+  },
+  {
+    level: 4,
+    name: "Ihsan",
+    nameAr: "الإحسان",
+    xpRequired: 1000,
+    description: "Excellence – Worshipping as if you see Him",
+    importance: "Ihsan means doing every deed with sincerity, beauty, and awareness that Allah sees you.",
+    prophetStory: "Prophet Yusuf (AS) chose integrity over temptation and remained excellent in character, and Allah raised him to leadership and honor.",
+  },
+  {
+    level: 5,
+    name: "Taqwa",
+    nameAr: "التقوى",
+    xpRequired: 2000,
+    description: "God-consciousness – The highest station",
+    importance: "Taqwa is a constant awareness of Allah that guides choices, protects from sin, and brings clarity.",
+    prophetStory: "Prophet Nuh (AS) stayed firm in obedience for many years despite rejection, and Allah granted him protection, victory, and lasting legacy.",
+  },
 ];
 
 export function getLevelInfo(xp: number) {

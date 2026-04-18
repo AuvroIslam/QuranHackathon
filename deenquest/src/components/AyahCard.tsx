@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BookmarkPlus, BookmarkCheck, Volume2 } from "lucide-react";
+import { BookmarkPlus, BookmarkCheck, Loader2, Volume2 } from "lucide-react";
 import { getAyahAudio } from "@/lib/quran";
 
 interface AyahCardProps {
@@ -12,6 +12,7 @@ interface AyahCardProps {
   numberInSurah: number;
   verseKey?: string;
   explanation?: string;
+  explanationLoading?: boolean;
   bookmarked?: boolean;
   onBookmark?: () => void;
   showAudio?: boolean;
@@ -25,6 +26,7 @@ export default function AyahCard({
   numberInSurah,
   verseKey,
   explanation,
+  explanationLoading = false,
   bookmarked,
   onBookmark,
   showAudio = true,
@@ -82,12 +84,20 @@ export default function AyahCard({
         &ldquo;{translation}&rdquo;
       </p>
 
-      {explanation && (
+      {explanationLoading ? (
+        <div className="bg-accent/10 rounded-xl p-4 border border-accent/20">
+          <div className="flex items-center gap-2 text-secondary mb-1">
+            <Loader2 size={14} className="animate-spin" />
+            <p className="text-xs font-medium">AI Explanation</p>
+          </div>
+          <p className="text-sm text-primary/75 leading-relaxed">Generating a personalized explanation...</p>
+        </div>
+      ) : explanation ? (
         <div className="bg-accent/10 rounded-xl p-4 border border-accent/20">
           <p className="text-xs font-medium text-secondary mb-1">AI Explanation</p>
           <p className="text-sm text-primary/75 leading-relaxed">{explanation}</p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   getChapterProgress,
   type ListeningProgress,
 } from "@/lib/firestore";
+import { getQFAccessToken } from "@/lib/qf-user-auth";
 import {
   Play,
   Pause,
@@ -114,7 +115,7 @@ export default function ListenPage() {
           }
         }
 
-        // Save progress
+        // Save progress to Firebase
         if (user) {
           await saveListeningProgress(
             user.uid,
@@ -123,6 +124,22 @@ export default function ListenPage() {
             verseNum,
             chapter.verses_count
           );
+
+          // Sync reading session to Quran Foundation User API (non-blocking)
+          const qfToken = getQFAccessToken();
+          const chNum = Number(chapter.id);
+          const vsNum = Number(verseNum);
+          if (
+            typeof qfToken === "string" && qfToken.length > 0 &&
+            Number.isInteger(chNum) && chNum >= 1 && chNum <= 114 &&
+            Number.isInteger(vsNum) && vsNum >= 1
+          ) {
+            fetch("/api/qf/reading-session", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-qf-token": qfToken },
+              body: JSON.stringify({ chapterNumber: chNum, verseNumber: vsNum }),
+            }).catch((err) => console.warn("[QF] reading session sync failed:", err));
+          }
           setProgress((prev) => {
             const existing = prev.findIndex((p) => p.chapterId === chapter.id);
             const entry: ListeningProgress = {
@@ -234,7 +251,16 @@ export default function ListenPage() {
   }
 
   return (
-    <PageContainer size="default" className="space-y-6 listen-page-cards">
+    <PageContainer
+      size="default"
+      className="space-y-6 listen-page-cards"
+      tooltipTitle="Quran Recitation"
+      tooltipDescription={[
+        "Listen to recitation verse by verse and reflect as you go.",
+        "Search and select any surah, then resume where you left off.",
+        "Track listening progress across chapters.",
+      ]}
+    >
       <audio ref={audioRef} />
 
       {/* Hero Banner */}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { BookOpen, Mail, Lock, User } from "lucide-react";
+import PageTooltip from "@/components/PageTooltip";
 
 export default function LoginPage() {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
@@ -42,6 +43,17 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden" style={{ backgroundImage: "url('/kaaba-bg.png')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
       {/* Dark overlay for readability */}
       <div className="overlay" />
+
+      <div className="absolute right-4 top-4 z-40">
+        <PageTooltip
+          title="Login"
+          description={[
+            "Sign in or create an account to begin your Quran journey.",
+            "Use Google or email to access your personalized progress.",
+            "After login, you can track streaks, tasks, and reflections.",
+          ]}
+        />
+      </div>
 
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">

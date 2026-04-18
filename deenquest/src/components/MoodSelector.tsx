@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Search } from "lucide-react";
 
 const MOODS = [
   { key: "sad", label: "Sad", color: "bg-white/20 text-primary/70 border-white/25 hover:bg-white/35" },
@@ -40,8 +39,10 @@ export default function MoodSelector({ onSelect, onCustomSituation, selected, lo
             onClick={() => onSelect(key)}
             disabled={loading}
             className={`px-4 py-2 rounded-full text-sm font-medium border transition-all disabled:opacity-50 backdrop-blur-sm ${
-              selected === key ? "ring-2 ring-offset-1 ring-accent scale-105" : ""
-            } ${color}`}
+              selected === key
+                ? "bg-[rgba(108,36,112,0.72)] border-accent/40 text-accent ring-1 ring-accent/45 scale-105 shadow-md shadow-secondary/20"
+                : color
+            }`}
           >
             {label}
           </button>
@@ -50,22 +51,21 @@ export default function MoodSelector({ onSelect, onCustomSituation, selected, lo
 
       <div className="mt-4">
         <p className="text-xs text-primary/45 mb-2">Or describe your situation for a personalized ayah</p>
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <div className="flex-1 relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/35" />
-            <input
-              type="text"
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+          <div className="flex-1">
+            <textarea
               placeholder="e.g. I lost a loved one and feel empty..."
               value={situation}
               onChange={(e) => setSituation(e.target.value)}
               disabled={loading}
-              className="w-full pl-9 pr-4 py-2.5 bg-white/25 border border-white/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 disabled:opacity-50 placeholder:text-primary/35 transition-all duration-300"
+              rows={3}
+              className="w-full px-4 py-2.5 bg-white/25 border border-white/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 disabled:opacity-50 placeholder:text-primary/35 transition-all duration-300 resize-none"
             />
           </div>
           <button
             type="submit"
             disabled={loading || !situation.trim()}
-            className="px-5 py-2.5 bg-gradient-to-r from-secondary to-secondary-dark text-white rounded-xl text-sm font-medium hover:brightness-110 transition-all duration-300 disabled:opacity-50 shadow-lg shadow-secondary/20"
+            className="self-end px-5 py-2.5 bg-linear-to-r from-secondary to-secondary-dark text-white rounded-xl text-sm font-medium hover:brightness-110 transition-all duration-300 disabled:opacity-50 shadow-lg shadow-secondary/20"
           >
             Find Ayah
           </button>

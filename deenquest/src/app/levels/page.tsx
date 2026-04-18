@@ -28,7 +28,16 @@ export default function LevelsPage() {
   const levelInfo = getLevelInfo(profile.xp);
 
   return (
-    <PageContainer size="default" className="space-y-8">
+    <PageContainer
+      size="default"
+      className="space-y-8"
+      tooltipTitle="Levels"
+      tooltipDescription={[
+        "View your spiritual level and current station of faith.",
+        "Track XP progress to the next level.",
+        "Unlock new stages by completing daily deeds.",
+      ]}
+    >
       <div>
         <h1 className="text-2xl font-bold text-primary">Your Spiritual Journey</h1>
         <p className="text-primary/50 mt-1">Progress through the stations of faith</p>
@@ -42,7 +51,7 @@ export default function LevelsPage() {
       </div>
 
       <div className="glass-card rounded-2xl p-6 text-center">
-        <div className="w-20 h-20 bg-gradient-to-br from-secondary to-secondary-dark rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-secondary/25">
+        <div className="w-20 h-20 bg-linear-to-br from-secondary to-secondary-dark rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-secondary/25">
           <span className="text-3xl font-bold text-white">{levelInfo.current.level}</span>
         </div>
         <h2 className="text-xl font-bold text-primary">{levelInfo.current.name}</h2>
@@ -50,6 +59,8 @@ export default function LevelsPage() {
         <p className="text-sm text-primary/50 mt-2">{levelInfo.current.description}</p>
         <p className="text-2xl font-bold text-secondary mt-4">{profile.xp} Hasanat</p>
       </div>
+
+      <p className="text-xs text-primary/45">Tap a level to view its importance and a short prophet story.</p>
 
       <LevelBadge xp={profile.xp} />
     </PageContainer>

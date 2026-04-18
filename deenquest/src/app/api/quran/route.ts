@@ -1,37 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getQFContentToken, getQFHeaders } from "@/lib/qf-auth";
 
-// Proxy GET requests to Quran Foundation Content API v4
-// Usage: /api/quran?path=verses/random&fields=text_uthmani&translations=131
+const PUBLIC_API = "https://api.quran.com/api/v4";
+const AUTH_API = "https://apis.quran.foundation/content/api/v4";
+
+// Only allow safe path segments — no traversal, no external redirects
+const SAFE_PATH = /^[a-zA-Z0-9_\-/.:]+$/;
+
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const path = searchParams.get("path");
 
-  if (!path) {
-    return NextResponse.json({ error: "Missing 'path' parameter" }, { status: 400 });
+  if (!path || !SAFE_PATH.test(path) || path.includes("..")) {
+    return NextResponse.json({ error: "Invalid path" }, { status: 400 });
   }
-
-  const apiUrl = process.env.QF_API_URL || "https://api.quran.com/api/v4";
 
   const downstreamParams = new URLSearchParams();
   searchParams.forEach((value, key) => {
-    if (key !== "path") {
-      downstreamParams.set(key, value);
-    }
+    if (key !== "path") downstreamParams.set(key, value);
   });
+  const query = downstreamParams.toString() ? `?${downstreamParams.toString()}` : "";
 
-  const qfUrl = `${apiUrl}/${path}${downstreamParams.toString() ? "?" + downstreamParams.toString() : ""}`;
+  // Try authenticated QF Content API; fall back to public api.quran.com
+  const token = await getQFContentToken();
+  const url = token ? `${AUTH_API}/${path}${query}` : `${PUBLIC_API}/${path}${query}`;
+  const headers = token ? getQFHeaders(token) : { Accept: "application/json" };
 
   try {
-    const res = await fetch(qfUrl, {
-      headers: { Accept: "application/json" },
-    });
-
+    const res = await fetch(url, { headers });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to reach Quran Foundation API" },
-      { status: 502 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Failed to reach Quran API" }, { status: 502 });
   }
 }

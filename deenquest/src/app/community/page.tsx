@@ -11,6 +11,8 @@ import {
   createAnswer,
   getAnswers,
   upvoteAnswer,
+  deletePost,
+  updatePost,
 } from "@/lib/firestore";
 import type { Post, Answer } from "@/lib/types";
 import {
@@ -22,30 +24,46 @@ import {
   Plus,
   X,
   Reply,
+  Search,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
+
+const COMMUNITY_CACHE_KEY = "deenquest_community_cache";
+
+function loadCache() {
+  if (typeof window === "undefined") return null;
+  try {
+    const saved = sessionStorage.getItem(COMMUNITY_CACHE_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch { return null; }
+}
 
 export default function CommunityPage() {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loadingPosts, setLoadingPosts] = useState(true);
+  const cache = loadCache();
+  const [posts, setPosts] = useState<Post[]>(cache?.posts ?? []);
+  const [loadingPosts, setLoadingPosts] = useState(!cache);
   const [showNewPost, setShowNewPost] = useState(false);
   const [newContent, setNewContent] = useState("");
   const [newType, setNewType] = useState<"question" | "reflection">("question");
   const [submitting, setSubmitting] = useState(false);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<Record<string, Answer[]>>({});
+  const [answers, setAnswers] = useState<Record<string, Answer[]>>(cache?.answers ?? {});
   const [answerInput, setAnswerInput] = useState<Record<string, string>>({});
   const [newTitle, setNewTitle] = useState("");
   const [replyingTo, setReplyingTo] = useState<{ answerId: string; postId: string; userName: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingPost, setEditingPost] = useState<{ id: string; title: string; content: string } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
   }, [loading, user, router]);
 
   useEffect(() => {
-    loadPosts();
+    if (!cache) loadPosts();
   }, []);
 
   async function loadPosts() {
@@ -65,6 +83,7 @@ export default function CommunityPage() {
         })
       );
       setAnswers(answersMap);
+      try { sessionStorage.setItem(COMMUNITY_CACHE_KEY, JSON.stringify({ posts: data, answers: answersMap })); } catch {}
     } catch {
       toast.error("Failed to load posts");
     }
@@ -77,7 +96,11 @@ export default function CommunityPage() {
     setSubmitting(true);
     try {
       const post = await createPost(user.uid, profile.name, newContent.trim(), newType, newTitle.trim());
-      setPosts((prev) => [post, ...prev]);
+      setPosts((prev) => {
+        const updated = [post, ...prev];
+        try { sessionStorage.setItem(COMMUNITY_CACHE_KEY, JSON.stringify({ posts: updated, answers: {} })); } catch {}
+        return updated;
+      });
       setAnswers((prev) => ({ ...prev, [post.id]: [] }));
       setNewContent("");
       setNewTitle("");
@@ -139,6 +162,40 @@ export default function CommunityPage() {
     }
   }
 
+  async function handleDeletePost(postId: string) {
+    if (!user || !confirm("Delete this post?")) return;
+    try {
+      await deletePost(postId, user.uid);
+      setPosts((prev) => {
+        const updated = prev.filter((p) => p.id !== postId);
+        try { sessionStorage.setItem(COMMUNITY_CACHE_KEY, JSON.stringify({ posts: updated, answers: {} })); } catch {}
+        return updated;
+      });
+      toast.success("Post deleted");
+    } catch {
+      toast.error("Failed to delete post");
+    }
+  }
+
+  async function handleUpdatePost(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user || !editingPost) return;
+    try {
+      await updatePost(editingPost.id, user.uid, editingPost.title, editingPost.content);
+      setPosts((prev) => prev.map((p) => p.id === editingPost.id ? { ...p, title: editingPost.title, content: editingPost.content } : p));
+      setEditingPost(null);
+      toast.success("Post updated");
+    } catch {
+      toast.error("Failed to update post");
+    }
+  }
+
+  const filteredPosts = posts.filter((p) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return p.title?.toLowerCase().includes(q) || p.content.toLowerCase().includes(q);
+  });
+
   async function handleAnswerUpvote(answerId: string, postId: string) {
     if (!user) return;
     try {
@@ -169,7 +226,16 @@ export default function CommunityPage() {
   }
 
   return (
-    <PageContainer size="default" className="space-y-6">
+    <PageContainer
+      size="default"
+      className="space-y-6"
+      tooltipTitle="Community"
+      tooltipDescription={[
+        "Ask questions and share reflections with other learners.",
+        "Upvote helpful posts and replies.",
+        "Start discussions to learn from different perspectives.",
+      ]}
+    >
       {/* Hero Banner */}
       <div className="relative overflow-hidden rounded-2xl h-44">
         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/mosque-bg.png')" }} />
@@ -188,6 +254,44 @@ export default function CommunityPage() {
           </button>
         </div>
       </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-primary/35" />
+        <input
+          type="text"
+          placeholder="Search posts by keyword..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-2.5 bg-white/20 border border-white/25 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 placeholder:text-primary/35 transition-all duration-300"
+        />
+      </div>
+
+      {/* Edit Post Modal */}
+      {editingPost && (
+        <form onSubmit={handleUpdatePost} className="glass-card rounded-2xl p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-primary text-sm">Edit Post</h3>
+            <button type="button" onClick={() => setEditingPost(null)}><X size={16} className="text-primary/50" /></button>
+          </div>
+          <input
+            type="text"
+            value={editingPost.title}
+            onChange={(e) => setEditingPost({ ...editingPost, title: e.target.value })}
+            className="w-full px-4 py-3 bg-white/25 border border-white/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 placeholder:text-primary/35"
+          />
+          <textarea
+            value={editingPost.content}
+            onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })}
+            rows={4}
+            className="w-full px-4 py-3 bg-white/25 border border-white/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none placeholder:text-primary/35"
+          />
+          <div className="flex gap-2">
+            <button type="submit" disabled={!editingPost.title.trim() || !editingPost.content.trim()} className="glass-btn px-5 py-2 text-sm disabled:opacity-50">Save</button>
+            <button type="button" onClick={() => setEditingPost(null)} className="px-5 py-2 text-sm text-primary/50 hover:text-primary transition-colors">Cancel</button>
+          </div>
+        </form>
+      )}
 
       {/* New Post Form */}
       {showNewPost && (
@@ -251,7 +355,12 @@ export default function CommunityPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {posts.map((post) => (
+          {filteredPosts.length === 0 && searchQuery.trim() ? (
+            <div className="text-center py-10">
+              <p className="text-primary/50 text-sm">No posts found for "{searchQuery}"</p>
+            </div>
+          ) : null}
+          {filteredPosts.map((post) => (
             <div key={post.id} className="glass-card rounded-2xl overflow-hidden">
               <div className="p-5">
                 <div className="flex items-center gap-3 mb-3">
@@ -264,15 +373,21 @@ export default function CommunityPage() {
                       {new Date(post.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <span
-                    className={`ml-auto text-xs px-2 py-0.5 rounded-full ${
-                      post.type === "question"
-                        ? "bg-blue-50 text-blue-600"
-                        : "bg-purple-50 text-purple-600"
-                    }`}
-                  >
-                    {post.type}
-                  </span>
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${post.type === "question" ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"}`}>
+                      {post.type}
+                    </span>
+                    {user?.uid === post.userId && (
+                      <>
+                        <button onClick={() => setEditingPost({ id: post.id, title: post.title || "", content: post.content })} className="text-primary/35 hover:text-secondary transition-colors">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => handleDeletePost(post.id)} className="text-primary/35 hover:text-red-400 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {post.title && (

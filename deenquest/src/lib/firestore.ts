@@ -173,6 +173,24 @@ export async function getPosts(): Promise<Post[]> {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Post));
 }
 
+export async function deletePost(postId: string, uid: string) {
+  const ref = doc(db, "posts", postId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Post not found");
+  if (snap.data().userId !== uid) throw new Error("Not authorized");
+  const { deleteDoc } = await import("firebase/firestore");
+  await deleteDoc(ref);
+}
+
+export async function updatePost(postId: string, uid: string, title: string, content: string) {
+  if (!title.trim() || !content.trim()) throw new Error("Title and content required");
+  const ref = doc(db, "posts", postId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Post not found");
+  if (snap.data().userId !== uid) throw new Error("Not authorized");
+  await updateDoc(ref, { title: title.trim(), content: content.trim(), updatedAt: new Date().toISOString() });
+}
+
 export async function upvotePost(postId: string, uid: string) {
   const ref = doc(db, "posts", postId);
   const snap = await getDoc(ref);

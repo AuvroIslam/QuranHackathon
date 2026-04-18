@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { getTasksForDate, DAILY_TASKS } from "@/lib/tasks-data";
 import { getUserTasksForDate, completeTask, completeBonusTask } from "@/lib/firestore";
 import PageContainer from "../../components/PageContainer";
-import { CheckCircle2, Circle, BookOpen, Sparkles, Loader2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Circle, BookOpen, Sparkles, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import type { Task, UserTask } from "@/lib/types";
 
@@ -26,6 +26,14 @@ interface WeeklyDayProgressInternal extends WeeklyDayProgress {
 }
 
 const BONUS_XP_REWARD = 10;
+const PRAYER_XP_REWARD = 10;
+const DAILY_PRAYERS = [
+  { id: "prayer-fajr", label: "Fajr" },
+  { id: "prayer-zuhr", label: "Zuhr" },
+  { id: "prayer-asr", label: "Asr" },
+  { id: "prayer-maghrib", label: "Maghrib" },
+  { id: "prayer-isha", label: "Isha" },
+] as const;
 
 function toIsoDateOnly(date: Date) {
   return date.toISOString().split("T")[0];
@@ -79,7 +87,11 @@ export default function TasksPage() {
   const [bonusDoneToday, setBonusDoneToday] = useState(false);
   const [completedBonusSourceIdsToday, setCompletedBonusSourceIdsToday] = useState<Set<string>>(new Set());
   const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(new Set());
+  const [completedPrayerIds, setCompletedPrayerIds] = useState<Set<string>>(new Set());
+  const [pendingPrayerIds, setPendingPrayerIds] = useState<Set<string>>(new Set());
   const [pendingBonus, setPendingBonus] = useState(false);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [bonusDetailsOpen, setBonusDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -157,10 +169,16 @@ export default function TasksPage() {
           ? DAILY_TASKS.find((task) => task.id === completedBonusRecord.sourceTaskId) || null
           : null;
         const todayHasBonus = todayCompletedTasks.some((task) => task.isBonus);
+        const todayPrayerCompletions = new Set(
+          todayCompletedTasks
+            .filter((task) => task.taskId.startsWith("prayer-"))
+            .map((task) => task.taskId)
+        );
 
         const sortedCategories = getSortedCategoriesByCount(categoryCounts);
 
         setCompletedTaskIds(todayProgress ? todayProgress.completedIds : new Set());
+        setCompletedPrayerIds(todayPrayerCompletions);
         setCompletedBonusSourceIdsToday(todayBonusSourceIds);
         setBonusDoneToday(todayHasBonus);
         setCompletedBonusTask(completedBonusTaskFromHistory);
@@ -324,6 +342,36 @@ export default function TasksPage() {
     }
   }
 
+  async function handleCompletePrayer(prayerId: string) {
+    if (!user || completedPrayerIds.has(prayerId) || pendingPrayerIds.has(prayerId)) return;
+
+    setPendingPrayerIds((prev) => new Set(prev).add(prayerId));
+    setCompletedPrayerIds((prev) => new Set(prev).add(prayerId));
+
+    try {
+      await completeTask(user.uid, prayerId, today, PRAYER_XP_REWARD);
+      refreshProfile().catch(() => undefined);
+      toast.success(`+${PRAYER_XP_REWARD} Hasanat earned!`);
+    } catch {
+      setCompletedPrayerIds((prev) => {
+        const updated = new Set(prev);
+        updated.delete(prayerId);
+        return updated;
+      });
+      toast.error("Failed to complete prayer");
+    } finally {
+      setPendingPrayerIds((prev) => {
+        const updated = new Set(prev);
+        updated.delete(prayerId);
+        return updated;
+      });
+    }
+  }
+
+  function toggleTaskDetails(taskId: string) {
+    setExpandedTaskId((prev) => (prev === taskId ? null : taskId));
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -338,11 +386,66 @@ export default function TasksPage() {
   const bonusDisplayTask = bonusDoneToday ? (completedBonusTask ?? bonusTask) : bonusTask;
 
   return (
-    <PageContainer size="default" className="space-y-8">
+    <PageContainer
+      size="default"
+      className="space-y-8"
+      tooltipTitle="Daily Tasks"
+      tooltipDescription={[
+        "Complete daily good deeds inspired by the Quran.",
+        "Earn Hasanat, build streaks, and track your weekly balance.",
+        "Take the bonus deed for extra progress.",
+      ]}
+    >
         <div>
           <h1 className="text-2xl font-bold text-primary">Daily Deeds</h1>
           <p className="text-primary/50 mt-1">
             Complete good deeds inspired by the Quran to earn Hasanat
+          </p>
+        </div>
+
+        {/* Daily Salah */}
+        <div className="glass-card rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-primary">Daily Salah</h3>
+            <span className="text-xs text-secondary bg-accent/15 px-3 py-1 rounded-full">
+              +{PRAYER_XP_REWARD} XP each
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+            {DAILY_PRAYERS.map((prayer) => {
+              const done = completedPrayerIds.has(prayer.id);
+              const pending = pendingPrayerIds.has(prayer.id);
+
+              return (
+                <button
+                  key={prayer.id}
+                  type="button"
+                  onClick={() => handleCompletePrayer(prayer.id)}
+                  disabled={done || pending || loadingTasks}
+                  className={`w-full rounded-xl border px-3 py-2.5 text-left transition-all flex items-center justify-between ${
+                    done
+                      ? "bg-[rgba(108,36,112,0.72)] border-accent/40"
+                      : "bg-[rgba(20,20,40,0.68)] border-white/20 hover:border-accent/35"
+                  }`}
+                >
+                  <span className={`text-sm font-medium ${done ? "text-secondary" : "text-primary"}`}>
+                    {prayer.label}
+                  </span>
+                  {done ? (
+                    <CheckCircle2 size={16} className="text-secondary" />
+                  ) : pending ? (
+                    <Loader2 size={16} className="text-secondary animate-spin" />
+                  ) : (
+                    <Circle size={16} className="text-primary/25" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="text-xs text-primary/45 mt-3">
+            {completedPrayerIds.size}/{DAILY_PRAYERS.length} prayers completed today.
           </p>
         </div>
 
@@ -366,6 +469,7 @@ export default function TasksPage() {
             {todayTasks.map((task) => {
               const done = completedTaskIds.has(task.id);
               const pending = pendingTaskIds.has(task.id);
+              const expanded = expandedTaskId === task.id;
               return (
                 <div
                   key={task.id}
@@ -390,19 +494,33 @@ export default function TasksPage() {
                       )}
                     </button>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h4
-                          className={`font-medium ${
-                            done ? "text-secondary line-through" : "text-primary"
-                          }`}
-                        >
-                          {task.title}
-                        </h4>
-                        <span className="text-xs font-medium text-secondary bg-accent/15 px-3 py-1 rounded-full">
-                          +{task.xpReward} XP
-                        </span>
-                      </div>
-                      <p className="text-sm text-primary/50 mt-1">{task.description}</p>
+                      <button
+                        type="button"
+                        onClick={() => toggleTaskDetails(task.id)}
+                        className="w-full text-left"
+                        aria-expanded={expanded}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <h4
+                            className={`font-medium ${
+                              done ? "text-secondary line-through" : "text-primary"
+                            }`}
+                          >
+                            {task.title}
+                          </h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-secondary bg-accent/15 px-3 py-1 rounded-full">
+                              +{task.xpReward} XP
+                            </span>
+                            {expanded ? (
+                              <ChevronUp size={16} className="text-primary/50" />
+                            ) : (
+                              <ChevronDown size={16} className="text-primary/50" />
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-sm text-primary/50 mt-1">{task.description}</p>
+                      </button>
                       <div className="flex items-center gap-2 mt-2">
                         <span className="text-xs text-secondary bg-accent/15 px-2 py-0.5 rounded-full">
                           {formatCategory(task.category)}
@@ -412,6 +530,20 @@ export default function TasksPage() {
                         <BookOpen size={12} />
                         <span>Quran {task.ayahRef}</span>
                       </div>
+                      {expanded ? (
+                        <div className="mt-3 rounded-xl border border-white/15 bg-[rgba(20,20,40,0.64)] p-3 space-y-2">
+                          <div>
+                            <p className="text-xs font-medium text-secondary">What Quran says</p>
+                            <p className="text-sm text-primary/75 leading-relaxed mt-1">{task.quranGuidance}</p>
+                          </div>
+                          <div className="h-px bg-white/10" />
+                          <div>
+                            <p className="text-xs font-medium text-secondary">Benefit and reward</p>
+                            <p className="text-sm text-primary/75 leading-relaxed mt-1">{task.deedBenefit}</p>
+                            <p className="text-xs text-accent mt-2">Neki reward: +{task.xpReward} Hasanat</p>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -457,33 +589,61 @@ export default function TasksPage() {
                   )}
                 </button>
                 <div className="flex-1">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <Sparkles size={14} className="text-secondary" />
-                      <span className="text-xs text-secondary">Suggested from low category</span>
+                  <button
+                    type="button"
+                    onClick={() => setBonusDetailsOpen((prev) => !prev)}
+                    className="w-full text-left"
+                    aria-expanded={bonusDetailsOpen}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={14} className="text-secondary" />
+                        <span className="text-xs text-secondary">Suggested from low category</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-secondary bg-accent/15 px-3 py-1 rounded-full">
+                          +{BONUS_XP_REWARD} XP
+                        </span>
+                        {bonusDetailsOpen ? (
+                          <ChevronUp size={16} className="text-primary/50" />
+                        ) : (
+                          <ChevronDown size={16} className="text-primary/50" />
+                        )}
+                      </div>
                     </div>
-                    <span className="text-xs font-medium text-secondary bg-accent/15 px-3 py-1 rounded-full">
-                      +{BONUS_XP_REWARD} XP
-                    </span>
-                  </div>
-                  <h4
-                    className={`font-medium mt-1 ${
-                      bonusDoneToday ? "text-secondary line-through" : "text-primary"
-                    }`}
-                  >
-                    {bonusDisplayTask.title}
-                  </h4>
-                  <p
-                    className={`text-sm mt-1 ${bonusDoneToday ? "text-primary/45" : "text-primary/50"}`}
-                  >
-                    {bonusDisplayTask.description}
-                  </p>
+                    <h4
+                      className={`font-medium mt-1 ${
+                        bonusDoneToday ? "text-secondary line-through" : "text-primary"
+                      }`}
+                    >
+                      {bonusDisplayTask.title}
+                    </h4>
+                    <p
+                      className={`text-sm mt-1 ${bonusDoneToday ? "text-primary/45" : "text-primary/50"}`}
+                    >
+                      {bonusDisplayTask.description}
+                    </p>
+                  </button>
                   <div className="flex items-center gap-2 mt-3">
                     <span className="text-xs text-secondary bg-accent/15 px-2 py-0.5 rounded-full">
                       {formatCategory(bonusDisplayTask.category)}
                     </span>
                     <span className="text-xs text-primary/45">Quran {bonusDisplayTask.ayahRef}</span>
                   </div>
+                  {bonusDetailsOpen ? (
+                    <div className="mt-3 rounded-xl border border-white/15 bg-[rgba(20,20,40,0.64)] p-3 space-y-2">
+                      <div>
+                        <p className="text-xs font-medium text-secondary">What Quran says</p>
+                        <p className="text-sm text-primary/75 leading-relaxed mt-1">{bonusDisplayTask.quranGuidance}</p>
+                      </div>
+                      <div className="h-px bg-white/10" />
+                      <div>
+                        <p className="text-xs font-medium text-secondary">Benefit and reward</p>
+                        <p className="text-sm text-primary/75 leading-relaxed mt-1">{bonusDisplayTask.deedBenefit}</p>
+                        <p className="text-xs text-accent mt-2">Neki reward: +{BONUS_XP_REWARD} Hasanat</p>
+                      </div>
+                    </div>
+                  ) : null}
                   {bonusDoneToday ? (
                     <p className="text-xs text-primary/45 mt-2">Come back tomorrow for a new bonus deed.</p>
                   ) : null}
@@ -511,21 +671,40 @@ export default function TasksPage() {
               {weeklyProgress.map((day) => {
                 const isFull = day.completedCount === day.totalCount;
                 const isPartial = day.completedCount > 0 && !isFull;
+                const stateClasses = isFull
+                  ? "bg-linear-to-br from-secondary/55 to-accent/35 border-secondary/70 shadow-secondary/25"
+                  : isPartial
+                    ? "bg-linear-to-br from-accent/32 to-accent/20 border-accent/70 shadow-accent/20"
+                    : "bg-white/20 border-white/28";
+                const todayClasses = day.isToday
+                  ? "ring-1 ring-white/50 border-white/70"
+                  : "";
 
                 return (
                   <div key={day.date} className="text-center">
-                    <p className="text-[11px] text-primary/50">{day.weekday}</p>
+                    <p className={`text-[11px] ${day.isToday ? "text-primary/70" : "text-primary/50"}`}>
+                      {day.weekday}
+                    </p>
                     <div
-                      className={`mt-1 rounded-xl py-3 border transition-colors ${
-                        isFull
-                          ? "bg-secondary/20 border-secondary/40"
-                          : isPartial
-                            ? "bg-accent/15 border-accent/40"
-                            : "bg-[rgba(20,20,40,0.68)] border-white/15"
-                      } ${day.isToday ? "ring-1 ring-secondary/60" : ""}`}
+                      className={`relative mt-1 rounded-xl py-3 border backdrop-blur-sm shadow-md transition-all ${stateClasses} ${todayClasses}`}
                     >
-                      <p className="text-sm font-semibold text-primary">{day.dayNumber}</p>
-                      <p className="text-[10px] text-primary/50 mt-0.5">
+                      {day.isToday ? (
+                        <span
+                          aria-hidden="true"
+                          className="absolute left-2 top-2 h-1.5 w-1.5 rounded-full bg-white/90"
+                        />
+                      ) : null}
+                      {isFull ? (
+                        <CheckCircle2 size={12} className="absolute right-2 top-2 text-white/90" />
+                      ) : null}
+                      <p className={`text-sm font-semibold ${isFull ? "text-white" : "text-primary"}`}>
+                        {day.dayNumber}
+                      </p>
+                      <p
+                        className={`mt-0.5 text-[10px] ${
+                          isFull ? "text-white/85" : isPartial ? "text-primary/75" : "text-primary/50"
+                        }`}
+                      >
                         {day.completedCount}/{day.totalCount}
                       </p>
                     </div>
@@ -536,7 +715,7 @@ export default function TasksPage() {
           )}
 
           <p className="text-xs text-primary/45 mt-3">
-            Full color means all daily deeds completed. Accent means partially completed.
+            Bright card means all deeds completed, pink card means partial progress, and a subtle marker highlights the current day.
           </p>
           {profile?.streak ? (
             <p className="text-xs text-secondary mt-1">Current streak: {profile.streak} day(s)</p>

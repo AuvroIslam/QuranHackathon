@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { BookOpen, Mail, Lock, User } from "lucide-react";
+import { Mail, Lock, User } from "lucide-react";
+import Image from "next/image";
 import PageTooltip from "@/components/PageTooltip";
 
 export default function LoginPage() {
@@ -57,10 +58,10 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <BookOpen size={28} className="text-white" />
+          <div className="w-16 h-16 mx-auto mb-4">
+            <Image src="/deenQuestLogo.png" alt="DeenQuest" width={64} height={64} className="rounded-2xl" />
           </div>
-          <h1 className="font-heading text-3xl font-bold text-white tracking-wide">DeenQuest AI</h1>
+          <h1 className="font-heading text-3xl font-bold text-white tracking-wide">DeenQuest</h1>
           <p className="text-white/75 mt-2">Your Journey Back to the Quran</p>
         </div>
 

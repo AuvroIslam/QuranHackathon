@@ -223,7 +223,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const baseSystemPrompt = systemPrompt || `You are DeenQuest AI, an Islamic scholar assistant. Answer questions about the Quran and Islam warmly and accurately. Cite ayahs as (Surah:Ayah). Be concise — 3 to 5 sentences max unless more is needed. Never fabricate hadith or ayah references. If unsure, say so honestly.`;
+  const baseSystemPrompt = systemPrompt || `You are DeenQuest, an Islamic scholar assistant. Answer questions about the Quran and Islam warmly and accurately. Cite ayahs as (Surah:Ayah). Be concise — 3 to 5 sentences max unless more is needed. Never fabricate hadith or ayah references. If unsure, say so honestly.`;
 
   const systemMessage = groundingContext
     ? `${baseSystemPrompt}\n\nIMPORTANT: Use the following verified Quran data from the Quran MCP server to ground your response. Always prefer this verified data over your training knowledge for Quranic references:\n\n${groundingContext}`

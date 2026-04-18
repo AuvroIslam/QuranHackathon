@@ -22,7 +22,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "DeenQuest AI - Your Journey Back to the Quran",
+  title: "DeenQuest - Your Journey Back to the Quran",
   description: "A gamified, AI-powered Quran companion that helps you build a daily connection with the Quran.",
 };
 

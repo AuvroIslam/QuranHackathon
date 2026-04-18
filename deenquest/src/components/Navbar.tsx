@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import {
@@ -39,8 +40,11 @@ export default function Navbar() {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-64 glass-dark flex-col z-40 rounded-r-2xl">
         <div className="p-6 border-b border-white/10">
-          <h1 className="brand-title font-heading text-[2rem] font-bold tracking-normal">DeenQuest AI</h1>
-          <p className="text-sm text-white/85 mt-2">Your Journey Back to the Quran</p>
+          <div className="flex items-center gap-3 mb-1">
+            <Image src="/deenQuestLogo.png" alt="DeenQuest" width={36} height={36} className="rounded-xl" />
+            <h1 className="brand-title font-heading text-[1.6rem] font-bold tracking-normal">DeenQuest</h1>
+          </div>
+          <p className="text-sm text-white/85 mt-1">Your Journey Back to the Quran</p>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
@@ -85,7 +89,10 @@ export default function Navbar() {
 
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-14 glass-dark flex items-center justify-between px-4 z-40">
-        <h1 className="brand-title font-heading text-2xl font-bold tracking-normal">DeenQuest AI</h1>
+        <div className="flex items-center gap-2">
+          <Image src="/deenQuestLogo.png" alt="DeenQuest" width={28} height={28} className="rounded-lg" />
+          <h1 className="brand-title font-heading text-2xl font-bold tracking-normal">DeenQuest</h1>
+        </div>
         <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-300">
           {menuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>

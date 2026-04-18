@@ -90,7 +90,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-semibold text-white mb-2">7. Children&apos;s Privacy</h2>
           <p>
-            DeenQuest AI is not directed at children under 13. We do not knowingly collect
+            DeenQuest is not directed at children under 13. We do not knowingly collect
             data from children under 13.
           </p>
         </section>

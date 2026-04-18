@@ -8,7 +8,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold text-white mb-2">1. Acceptance of Terms</h2>
           <p>
-            By accessing or using DeenQuest AI (&ldquo;the App&rdquo;), you agree to be bound by
+            By accessing or using DeenQuest (&ldquo;the App&rdquo;), you agree to be bound by
             these Terms of Service. If you do not agree, please do not use the App.
           </p>
         </section>
@@ -16,7 +16,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold text-white mb-2">2. Description of Service</h2>
           <p>
-            DeenQuest AI is a gamified Quran companion application that helps users build and
+            DeenQuest is a gamified Quran companion application that helps users build and
             maintain a daily connection with the Quran through AI-powered guidance, recitation
             tools, community features, and habit tracking.
           </p>
@@ -45,7 +45,7 @@ export default function TermsPage() {
           <h2 className="text-lg font-semibold text-white mb-2">5. User-Generated Content</h2>
           <p>
             Users may post reflections and questions in the Community section. You retain
-            ownership of your content. By posting, you grant DeenQuest AI a non-exclusive
+            ownership of your content. By posting, you grant DeenQuest a non-exclusive
             licence to display that content within the App. Content that is disrespectful,
             harmful, or violates Islamic etiquette may be removed.
           </p>

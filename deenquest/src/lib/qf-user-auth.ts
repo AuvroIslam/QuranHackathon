@@ -70,7 +70,7 @@ export async function initiateQFOAuth(): Promise<void> {
     response_type: "code",
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: "openid offline_access user collection",
+    scope: "openid offline_access bookmark.read bookmark.create bookmark.delete",
     state,
     nonce,
     code_challenge: challenge,

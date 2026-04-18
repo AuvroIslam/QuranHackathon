@@ -1,14 +1,15 @@
 // Server-side only — QF OAuth2 client credentials for Content API
 // Never expose QF_CLIENT_SECRET to the browser
 
-const QF_OAUTH_URL = `${process.env.QF_OAUTH_BASE_URL ?? "https://oauth2.quran.foundation"}/oauth2/token`;
+// Content API always uses production OAuth, separate from user PKCE credentials
+const QF_CONTENT_OAUTH_URL = "https://oauth2.quran.foundation/oauth2/token";
 
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
 
 export async function getQFContentToken(): Promise<string | null> {
-  const clientId = process.env.QF_CLIENT_ID;
-  const clientSecret = process.env.QF_CLIENT_SECRET;
+  const clientId = process.env.QF_CONTENT_CLIENT_ID ?? process.env.QF_CLIENT_ID;
+  const clientSecret = process.env.QF_CONTENT_CLIENT_SECRET ?? process.env.QF_CLIENT_SECRET;
   if (!clientId || !clientSecret) return null;
 
   const now = Date.now();
@@ -16,7 +17,7 @@ export async function getQFContentToken(): Promise<string | null> {
 
   try {
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-    const res = await fetch(QF_OAUTH_URL, {
+    const res = await fetch(QF_CONTENT_OAUTH_URL, {
       method: "POST",
       headers: {
         Authorization: `Basic ${credentials}`,
@@ -45,7 +46,7 @@ export async function getQFContentToken(): Promise<string | null> {
 export function getQFHeaders(token: string): Record<string, string> {
   return {
     "x-auth-token": token,
-    "x-client-id": process.env.QF_CLIENT_ID ?? "",
+    "x-client-id": process.env.QF_CONTENT_CLIENT_ID ?? process.env.QF_CLIENT_ID ?? "",
     Accept: "application/json",
   };
 }

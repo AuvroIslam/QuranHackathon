@@ -23,11 +23,21 @@ export async function GET(req: NextRequest) {
 
   // Try authenticated QF Content API; fall back to public api.quran.com
   const token = await getQFContentToken();
-  const url = token ? `${AUTH_API}/${path}${query}` : `${PUBLIC_API}/${path}${query}`;
-  const headers = token ? getQFHeaders(token) : { Accept: "application/json" };
+
+  if (token) {
+    try {
+      const res = await fetch(`${AUTH_API}/${path}${query}`, { headers: getQFHeaders(token) });
+      if (res.ok) {
+        const data = await res.json();
+        return NextResponse.json(data, { status: 200 });
+      }
+    } catch {
+      // fall through to public API
+    }
+  }
 
   try {
-    const res = await fetch(url, { headers });
+    const res = await fetch(`${PUBLIC_API}/${path}${query}`, { headers: { Accept: "application/json" } });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch {

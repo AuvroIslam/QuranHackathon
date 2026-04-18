@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
   });
 
   try {
-    const res = await fetch("https://oauth2.quran.foundation/oauth2/token", {
+    const oauthBase = process.env.QF_OAUTH_BASE_URL ?? "https://oauth2.quran.foundation";
+    const res = await fetch(`${oauthBase}/oauth2/token`, {
       method: "POST",
       headers: {
         Authorization: `Basic ${credentials}`,

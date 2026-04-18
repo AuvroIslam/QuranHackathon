@@ -73,7 +73,8 @@ export async function initiateQFOAuth(): Promise<void> {
     code_challenge_method: "S256",
   });
 
-  window.location.href = `https://oauth2.quran.foundation/oauth2/auth?${params}`;
+  const oauthBase = process.env.NEXT_PUBLIC_QF_OAUTH_BASE_URL ?? "https://oauth2.quran.foundation";
+  window.location.href = `${oauthBase}/oauth2/auth?${params}`;
 }
 
 export function getStoredVerifier(): string | null {

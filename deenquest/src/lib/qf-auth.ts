@@ -1,7 +1,7 @@
 // Server-side only — QF OAuth2 client credentials for Content API
 // Never expose QF_CLIENT_SECRET to the browser
 
-const QF_OAUTH_URL = "https://oauth2.quran.foundation/oauth2/token";
+const QF_OAUTH_URL = `${process.env.QF_OAUTH_BASE_URL ?? "https://oauth2.quran.foundation"}/oauth2/token`;
 
 let cachedToken: string | null = null;
 let tokenExpiry = 0;

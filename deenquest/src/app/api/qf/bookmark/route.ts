@@ -6,6 +6,7 @@ const MAX_VERSE = 286;
 
 function qfHeaders(token: string, clientId: string): Record<string, string> {
   return {
+    "Authorization": `Bearer ${token}`,
     "x-auth-token": token,
     "x-client-id": clientId,
     "Content-Type": "application/json",

@@ -25,10 +25,8 @@ function CallbackHandler() {
       const error = searchParams.get("error");
 
       if (error || !code) {
-        const desc = searchParams.get("error_description");
-        console.error("[QF OAuth] error:", error, desc);
-        setStatus(error === "access_denied" ? "Connection cancelled." : `Connection failed: ${desc || error || "no code returned"}`);
-        setTimeout(() => router.push("/"), 2500);
+        setStatus("Connection cancelled.");
+        setTimeout(() => router.push("/"), 1500);
         return;
       }
 

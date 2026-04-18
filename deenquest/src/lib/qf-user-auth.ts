@@ -5,6 +5,7 @@ const QF_REFRESH_TOKEN_KEY = "qf_refresh_token";
 const QF_TOKEN_EXPIRES_KEY = "qf_token_expires_at";
 const QF_CODE_VERIFIER_KEY = "qf_pkce_verifier";
 const QF_OAUTH_STATE_KEY = "qf_oauth_state";
+const QF_OAUTH_NONCE_KEY = "qf_oauth_nonce";
 
 export function getQFAccessToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -58,17 +59,20 @@ export async function initiateQFOAuth(): Promise<void> {
   const verifier = generateVerifier();
   const challenge = await generateChallenge(verifier);
   const state = base64urlEncode(crypto.getRandomValues(new Uint8Array(16)).buffer);
+  const nonce = base64urlEncode(crypto.getRandomValues(new Uint8Array(16)).buffer);
 
   sessionStorage.setItem(QF_CODE_VERIFIER_KEY, verifier);
   sessionStorage.setItem(QF_OAUTH_STATE_KEY, state);
+  sessionStorage.setItem(QF_OAUTH_NONCE_KEY, nonce);
 
   const redirectUri = `${window.location.origin}/auth/qf-callback`;
   const params = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: "openid offline_access bookmark.read bookmark.create bookmark.delete reading_session.read reading_session.create",
+    scope: "openid offline_access bookmark",
     state,
+    nonce,
     code_challenge: challenge,
     code_challenge_method: "S256",
   });
@@ -87,7 +91,13 @@ export function getStoredState(): string | null {
   return sessionStorage.getItem(QF_OAUTH_STATE_KEY);
 }
 
+export function getStoredNonce(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(QF_OAUTH_NONCE_KEY);
+}
+
 export function clearOAuthStorage(): void {
   sessionStorage.removeItem(QF_CODE_VERIFIER_KEY);
   sessionStorage.removeItem(QF_OAUTH_STATE_KEY);
+  sessionStorage.removeItem(QF_OAUTH_NONCE_KEY);
 }

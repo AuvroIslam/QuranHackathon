@@ -16,8 +16,9 @@
 | Groq API | `llama-3.3-70b-versatile` | Primary AI (free) |
 | Mistral API | `mistral-small-latest` | Secondary AI fallback (free) |
 | DeepSeek Chat API | `deepseek-chat` | Final AI fallback (paid) |
-| Quran Foundation API v4 | Public | Quran Data, Search, Audio |
-| Quran MCP Server | `mcp.quran.ai` | AI Grounding with Verified Quran Data |
+| Quran Foundation Content API v4 | Auth + Public Fallback | Verses, chapters, translations, recitations, tafsir, search |
+| Quran Foundation User API v1 | OAuth2 PKCE | Bookmarks + reading session sync |
+| Quran MCP Server | `mcp.quran.ai` | Verified Quran grounding via JSON-RPC tools |
 | react-markdown | — | Markdown rendering in chatbot |
 | lucide-react | — | Icons |
 | react-hot-toast | — | Toast Notifications |
@@ -34,6 +35,14 @@
 | `MISTRAL_DAWAH_MODEL` | Mistral model override (default: `mistral-small-latest`) |
 | `DEEPSEEK_API_KEY` | DeepSeek API key (fallback AI) |
 | `QF_API_URL` | Quran Foundation API base (`https://api.quran.com/api/v4`) |
+| `QF_CONTENT_CLIENT_ID` | QF Content API OAuth client id (server-side) |
+| `QF_CONTENT_CLIENT_SECRET` | QF Content API OAuth client secret (server-side) |
+| `QF_CLIENT_ID` | QF User API/OAuth client id (server-side) |
+| `QF_CLIENT_SECRET` | QF User API/OAuth client secret (server-side) |
+| `QF_OAUTH_BASE_URL` | QF OAuth base URL for token exchange |
+| `QF_USER_API_BASE_URL` | QF User API base URL |
+| `NEXT_PUBLIC_QF_CLIENT_ID` | QF OAuth client id used by browser PKCE flow |
+| `NEXT_PUBLIC_QF_OAUTH_BASE_URL` | QF OAuth authorize endpoint base used by browser |
 | `QURAN_MCP_URL` | Quran MCP Server (`https://mcp.quran.ai`) |
 
 ---
@@ -54,6 +63,7 @@ npm run dev
 ### 1. Dashboard / Home (`/`)
 - Greeting with user stats (Hasanat/XP, Level, Streak, Tasks Today)
 - **Mood-Based Ayah Finder** — Select a mood or type a custom situation to get a relevant Quran ayah with AI-generated explanation (no unnecessary Quran MCP grounding — verse is already in the prompt)
+- **Quran.com Bookmark Sync** — Connect Quran.com account and save shown ayah via QF User API bookmarks
 - **Daily Tasks** — 3 rotating tasks per day, complete to earn XP (reduced XP for balance)
 - XP progress bar with level info
 
@@ -90,11 +100,13 @@ npm run dev
 
 ### 6. Quran Recitation / Listen (`/listen`)
 - Browse all 114 surahs with search filter
-- Verse-by-verse audio player with Arabic text + English translation
+- **Read + Listen together** — verse-by-verse player with Arabic text + English translation
+- **Tafsir in reader** — per-verse tafsir panel (Ibn Kathir) for understanding context
 - Play/Pause, Previous/Next verse controls
 - **Auto-advance** — automatically plays next verse (toggle on/off)
 - **Random** — jump to a random surah + random verse
 - **Progress tracking** — per-surah progress saved to Firestore
+- **Quran.com Reading Session Sync** — when connected, current verse is posted to QF reading sessions
 - **Resume** — clicking a surah resumes from last listened verse
 - Stats bar: total verses listened, surahs started
 
@@ -137,6 +149,58 @@ All modes use: **Groq → Mistral → DeepSeek**
 
 ---
 
+## External APIs & MCP Used in App
+
+### Firebase APIs
+- Firebase Authentication (Google + Email/Password auth)
+- Cloud Firestore (users, tasks, community posts/replies, listening progress)
+
+### AI Provider APIs
+- Groq OpenAI-compatible endpoint: `https://api.groq.com/openai/v1/chat/completions`
+- Mistral endpoint: `https://api.mistral.ai/v1/chat/completions`
+- DeepSeek endpoint: `https://api.deepseek.com/chat/completions`
+
+### Quran Foundation Content APIs
+- Authenticated Content base: `https://apis.quran.foundation/content/api/v4`
+- Public fallback base: `https://api.quran.com/api/v4`
+- Content OAuth token endpoint (client credentials): `https://oauth2.quran.foundation/oauth2/token`
+- Used endpoints include:
+  - `verses/random`
+  - `verses/by_key/{verseKey}`
+  - `quran/translations/20`
+  - `chapters`
+  - `search`
+  - `verses/by_chapter/{chapterId}`
+  - `recitations/7/by_chapter/{chapterId}`
+  - `tafsirs/169/by_chapter/{chapterId}`
+
+### Quran Foundation User APIs (OAuth2 PKCE)
+- OAuth authorize: `{NEXT_PUBLIC_QF_OAUTH_BASE_URL}/oauth2/auth`
+- OAuth token exchange: `{QF_OAUTH_BASE_URL}/oauth2/token`
+- User API base: `{QF_USER_API_BASE_URL}`
+- **Yes, User API is used in the app** (bookmarks + reading session sync)
+- Runtime-used endpoints:
+  - `auth/v1/bookmarks` (POST)
+  - `auth/v1/reading-sessions` (POST)
+- Implemented and available in server route:
+  - `auth/v1/bookmarks` (GET/POST/DELETE)
+
+### Quran Audio Sources Used
+- `https://audio.qurancdn.com/` (ayah audio URLs)
+- `https://verses.quran.com/` (recitation file base used in listen flow)
+
+### Quran MCP (Model Context Protocol)
+- Server URL: `https://mcp.quran.ai`
+- Protocol: JSON-RPC over streamable HTTP / SSE
+- Runtime-used tool for grounding:
+  - `search_quran`
+- Implemented helper wrappers in codebase (not currently called by page flows):
+  - `fetch_quran`
+  - `fetch_translation`
+  - `fetch_tafsir`
+
+---
+
 ## API Routes
 
 | Route | Method | Purpose |
@@ -144,6 +208,9 @@ All modes use: **Groq → Mistral → DeepSeek**
 | `/api/deepseek` | POST | AI chat with optional MCP grounding — returns `{ content, grounded, provider, model, mode }` |
 | `/api/quran` | GET | Proxy to Quran Foundation Content API v4 |
 | `/api/quran/search` | GET | Proxy to Quran Foundation Search API |
+| `/api/qf/token` | POST | OAuth code exchange (PKCE) for Quran.com user access token |
+| `/api/qf/bookmark` | GET / POST / DELETE | List/add/remove ayah bookmarks in Quran.com account |
+| `/api/qf/reading-session` | POST | Sync current listening position to Quran.com reading sessions |
 
 ---
 
@@ -189,6 +256,8 @@ All modes use: **Groq → Mistral → DeepSeek**
 |---|---|
 | `quran.ts` | Client-side Quran API wrapper — random ayah, search, audio, surah list, mood mapping |
 | `quran-mcp.ts` | Server-side MCP client — JSON-RPC to `mcp.quran.ai` for AI grounding (English only) |
+| `qf-auth.ts` | Server-side OAuth client-credentials token cache for QF Content API headers (`x-auth-token`, `x-client-id`) |
+| `qf-user-auth.ts` | Client-side Quran.com OAuth2 PKCE flow + token/session storage |
 | `firestore.ts` | All Firestore CRUD — users, tasks, posts (with ownership-checked edit/delete), answers, listening progress |
 | `firebase.ts` | Firebase app/auth/db singleton init |
 | `types.ts` | TypeScript interfaces + level definitions + `getLevelInfo()` |
@@ -212,8 +281,13 @@ src/
 │   ├── dawah/page.tsx        # Comparative dawah with MCP grounding + session persistence
 │   ├── perspective/page.tsx  # Redirects to /dawah
 │   ├── tasks/page.tsx        # Daily tasks
+│   ├── auth/qf-callback/page.tsx # Quran.com OAuth callback handler
 │   └── api/
 │       ├── deepseek/route.ts # AI endpoint (Groq → Mistral → DeepSeek)
+│       ├── qf/
+│       │   ├── token/route.ts # OAuth token exchange (PKCE)
+│       │   ├── bookmark/route.ts # QF bookmark sync (GET/POST/DELETE)
+│       │   └── reading-session/route.ts # QF reading session sync
 │       └── quran/
 │           ├── route.ts      # Quran API proxy
 │           └── search/route.ts # Search proxy

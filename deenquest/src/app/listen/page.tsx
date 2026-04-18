@@ -354,9 +354,9 @@ export default function ListenPage() {
             <button
               onClick={handleGlobalListen}
               disabled={isAnythingLoading || loadingVerses}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all shadow-lg shrink-0 ${
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
                 isAnythingPlaying
-                  ? "bg-secondary text-white shadow-secondary/30"
+                  ? "bg-secondary text-white"
                   : "bg-white/15 text-white hover:bg-white/25"
               }`}
             >

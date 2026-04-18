@@ -15,6 +15,8 @@ import {
   Menu,
   X,
   Headphones,
+  Flame,
+  BookOpen,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -33,7 +35,38 @@ export default function Navbar() {
   const { user, profile, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  if (!user) return null;
+  if (!user) return (
+    <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-64 glass-dark flex-col z-40 rounded-r-2xl">
+      <div className="p-6 border-b border-white/10">
+        <div className="flex items-center gap-3 mb-1">
+          <Image src="/deenQuestLogo.png" alt="DeenQuest" width={36} height={36} className="rounded-xl" />
+          <h1 className="brand-title font-heading text-[1.6rem] font-bold tracking-normal">DeenQuest</h1>
+        </div>
+        <p className="text-sm text-white/70 mt-1">Your Journey Back to the Quran</p>
+      </div>
+      <div className="flex-1 p-6 flex flex-col gap-6">
+        <p className="text-sm text-white/55 leading-relaxed">
+          A gamified Quran companion that helps you rebuild a daily habit of reading, listening, and reflecting — one ayah at a time.
+        </p>
+        <div className="space-y-4">
+          {[
+            { icon: Flame, label: "Daily streaks & XP" },
+            { icon: BookOpen, label: "Mood-based ayahs" },
+            { icon: Trophy, label: "Levels & challenges" },
+            { icon: MessageCircle, label: "AI Islamic guidance" },
+            { icon: Users, label: "Community reflections" },
+          ].map(({ icon: Icon, label }) => (
+            <div key={label} className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-accent/15 flex items-center justify-center shrink-0">
+                <Icon size={14} className="text-accent" />
+              </div>
+              <p className="text-sm text-white/60">{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </aside>
+  );
 
   return (
     <>

@@ -196,6 +196,11 @@ h3 {
   transform: scale(1.05);
 }
 
+.login-btn,
+.login-btn:hover {
+  box-shadow: none;
+}
+
 .stat-card {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(14px);

@@ -50,11 +50,16 @@ export default function ChatbotPage() {
       const fullHistory = [...messages, userMsg];
       // Keep last 8 messages (4 exchanges) to avoid token bloat and rate limits
       const contextWindow = fullHistory.slice(-8);
+      const quranKeywords = ["quran", "ayah", "verse", "surah", "allah", "islam", "prophet", "prayer", "hadith", "tafsir", "ramadan", "dua", "sunnah", "fiqh", "aqeedah"];
+      const lower = text.toLowerCase();
+      const groundingQuery = quranKeywords.some((kw) => lower.includes(kw)) ? text : "";
+
       const res = await fetch("/api/deepseek", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: contextWindow.map(({ role, content }) => ({ role, content })),
+          groundingQuery,
         }),
       });
       const data = await res.json();

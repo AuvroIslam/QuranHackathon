@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE — remove a bookmark by id
+// DELETE — remove a bookmark by chapter/verse
 export async function DELETE(req: NextRequest) {
   const clientId = process.env.QF_CLIENT_ID;
   if (!clientId) return NextResponse.json({ error: "QF_CLIENT_ID not configured" }, { status: 503 });
@@ -90,19 +90,24 @@ export async function DELETE(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "No QF token" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const bookmarkId = body?.bookmarkId;
+  const chapter = Number(body?.chapterNumber);
+  const verse = Number(body?.verseNumber);
 
-  // Only allow alphanumeric IDs with hyphens/underscores — no path traversal
-  if (!bookmarkId || !/^[\w-]{1,64}$/.test(String(bookmarkId))) {
-    return NextResponse.json({ error: "Invalid bookmarkId" }, { status: 400 });
+  if (
+    !Number.isInteger(chapter) || chapter < 1 || chapter > MAX_CHAPTER ||
+    !Number.isInteger(verse) || verse < 1 || verse > MAX_VERSE
+  ) {
+    return NextResponse.json({ error: "Invalid chapter/verse" }, { status: 400 });
   }
 
   try {
-    const res = await qfFetch(`${QF_API}/auth/v1/bookmarks/${bookmarkId}`, {
+    const res = await qfFetch(`${QF_API}/auth/v1/bookmarks`, {
       method: "DELETE",
       headers: qfHeaders(token, clientId),
+      body: JSON.stringify({ key: chapter, verseNumber: verse, type: "ayah", mushaf: 1 }),
     });
-    return NextResponse.json({ success: res.ok }, { status: res.status });
+    const data = await res.json().catch(() => ({}));
+    return NextResponse.json(data, { status: res.status });
   } catch (err: unknown) {
     if (err instanceof Error && err.name === "AbortError") {
       return NextResponse.json({ error: "QF API timeout" }, { status: 504 });

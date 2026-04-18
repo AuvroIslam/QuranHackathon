@@ -10,7 +10,7 @@ import { getAyahsForMood, searchAyahs } from "@/lib/quran";
 import { getTodaysTasks } from "@/lib/tasks-data";
 import { getUserTasksForDate, completeTask } from "@/lib/firestore";
 import { getLevelInfo } from "@/lib/types";
-import { getQFAccessToken, isQFConnected, initiateQFOAuth } from "@/lib/qf-user-auth";
+import { getQFAccessToken, isQFConnected, initiateQFOAuth, clearQFSession } from "@/lib/qf-user-auth";
 import {
   CheckCircle2, ChevronDown, ChevronUp, Circle,
   Star, BookOpen, Flame, Trophy, Loader2, Link2,
@@ -154,6 +154,10 @@ export default function HomePage() {
       if (res.ok) {
         setBookmarkedKey(verseKey);
         toast.success("Verse saved to Quran.com!");
+      } else if (res.status === 401 || res.status === 403) {
+        clearQFSession();
+        setQFConnected(false);
+        toast.error("Session expired — please reconnect Quran.com");
       } else {
         toast.error("Failed to bookmark verse");
       }

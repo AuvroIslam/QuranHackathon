@@ -67,7 +67,7 @@ export async function initiateQFOAuth(): Promise<void> {
     response_type: "code",
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: "openid offline_access bookmark reading_session",
+    scope: "openid offline_access bookmark.read bookmark.create bookmark.delete reading_session.read reading_session.create",
     state,
     code_challenge: challenge,
     code_challenge_method: "S256",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const QF_API = "https://apis.quran.foundation";
+const QF_API = process.env.QF_USER_API_BASE_URL ?? "https://apis.quran.foundation";
 const MAX_CHAPTER = 114;
 const MAX_VERSE = 286;
 

@@ -182,7 +182,7 @@ export default function LoginPage() {
             <p className="text-center text-xs text-white/30 mt-4">
               By signing in you agree to our{" "}
               <a href="/terms" target="_blank" className="text-accent/70 underline hover:text-accent">
-                Terms
+                Terms of Service
               </a>{" "}
               &amp;{" "}
               <a href="/privacy" target="_blank" className="text-accent/70 underline hover:text-accent">

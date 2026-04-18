@@ -45,7 +45,7 @@ export default function Navbar() {
       </div>
       <div className="flex-1 p-6 flex flex-col gap-6">
         <p className="text-sm text-white/55 leading-relaxed">
-          A gamified Quran companion that helps you rebuild a daily habit of reading, listening, and reflecting — one ayah at a time.
+          A gamified Quran companion that helps you rebuild a daily habit of reading, listening, and reflecting, one ayah at a time.
         </p>
         <div className="space-y-4">
           {[

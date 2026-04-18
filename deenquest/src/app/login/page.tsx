@@ -152,6 +152,19 @@ export default function LoginPage() {
 
             {error && <p className="text-sm text-red-400">{error}</p>}
 
+            {isSignUp && (
+              <p className="text-xs text-white/40 leading-relaxed">
+                By creating an account you agree to our{" "}
+                <a href="/terms" target="_blank" className="text-accent underline hover:text-accent/80">
+                  Terms of Service
+                </a>{" "}
+                and{" "}
+                <a href="/privacy" target="_blank" className="text-accent underline hover:text-accent/80">
+                  Privacy Policy
+                </a>.
+              </p>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -164,6 +177,19 @@ export default function LoginPage() {
                 : "Sign in"}
             </button>
           </form>
+
+          {!isSignUp && (
+            <p className="text-center text-xs text-white/30 mt-4">
+              By signing in you agree to our{" "}
+              <a href="/terms" target="_blank" className="text-accent/70 underline hover:text-accent">
+                Terms
+              </a>{" "}
+              &amp;{" "}
+              <a href="/privacy" target="_blank" className="text-accent/70 underline hover:text-accent">
+                Privacy Policy
+              </a>.
+            </p>
+          )}
 
           <p className="text-center text-sm text-white/50 mt-6">
             {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}

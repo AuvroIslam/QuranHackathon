@@ -364,7 +364,7 @@ export default function HomePage() {
                   {bookmarksList.length}
                 </span>
               )}
-              {showBookmarks ? <ChevronUp size={16} className="text-primary/40" /> : <ChevronDown size={16} className="text-primary/40" />}
+              {showBookmarks ? <ChevronUp size={16} className="text-white/60" /> : <ChevronDown size={16} className="text-white/60" />}
             </div>
           </button>
           {showBookmarks && (

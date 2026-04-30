@@ -289,3 +289,16 @@ export async function getChapterProgress(uid: string, chapterId: number): Promis
   const snap = await getDoc(ref);
   return snap.exists() ? (snap.data() as ListeningProgress) : null;
 }
+
+// ─── Daily Goal ───────────────────────────────────────────────
+
+export async function saveDailyGoal(uid: string, verses: number) {
+  await updateDoc(doc(db, "users", uid), { dailyGoal: verses });
+}
+
+export async function getDailyGoal(uid: string): Promise<number | null> {
+  const snap = await getDoc(doc(db, "users", uid));
+  if (!snap.exists()) return null;
+  const val = snap.data()?.dailyGoal;
+  return typeof val === "number" ? val : null;
+}

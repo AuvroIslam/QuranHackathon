@@ -7,6 +7,8 @@ import { getSurahList } from "@/lib/quran";
 import {
   saveListeningProgress,
   getListeningProgress,
+  saveDailyGoal,
+  getDailyGoal,
   type ListeningProgress,
 } from "@/lib/firestore";
 import { getQFAccessToken, isQFConnected } from "@/lib/qf-user-auth";
@@ -96,10 +98,17 @@ export default function ListenPage() {
 
   // Goals state
   const [qfConnected, setQFConnected] = useState(false);
-  const [dailyGoal, setDailyGoal] = useState<number | null>(null);
+  const [dailyGoal, setDailyGoal] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const v = localStorage.getItem("deenquest_daily_goal");
+    return v ? parseInt(v, 10) : null;
+  });
   const [showGoalInput, setShowGoalInput] = useState(false);
-  const [goalInput, setGoalInput] = useState("5");
-  const [savingGoal, setSavingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState(() => {
+    if (typeof window === "undefined") return "5";
+    return localStorage.getItem("deenquest_daily_goal") ?? "5";
+  });
+  const savingGoal = false;
 
   useEffect(() => {
     if (playingKey && verseRefs.current[playingKey]) {
@@ -112,38 +121,35 @@ export default function ListenPage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    const connected = isQFConnected();
-    setQFConnected(connected);
-    if (connected) {
-      const token = getQFAccessToken();
-      if (token) {
-        fetch("/api/qf/goals", { headers: { "x-qf-token": token } })
-          .then((r) => r.ok ? r.json() : null)
-          .then((d) => {
-            const goal = (d?.data ?? []).find((g: { type: string; target: number }) => g.type === "verses");
-            if (goal) { setDailyGoal(goal.target); setGoalInput(String(goal.target)); }
-          })
-          .catch(() => {});
-      }
-    }
+    setQFConnected(isQFConnected());
   }, []);
+
+  // Load goal from Firestore (source of truth), fall back to localStorage
+  useEffect(() => {
+    if (!user) return;
+    getDailyGoal(user.uid).then((goal) => {
+      if (goal) { setDailyGoal(goal); setGoalInput(String(goal)); }
+    }).catch(() => {});
+  }, [user]);
 
   async function saveGoal() {
     const target = parseInt(goalInput, 10);
     if (!target || target < 1 || target > 604) return;
-    const token = getQFAccessToken();
-    if (!token) return;
-    setSavingGoal(true);
-    try {
-      const res = await fetch("/api/qf/goals", {
+    // Primary: localStorage + Firestore
+    try { localStorage.setItem("deenquest_daily_goal", String(target)); } catch {}
+    if (user) saveDailyGoal(user.uid, target).catch(() => {});
+    // Optional: sync to QF goals API (fire-and-forget)
+    const qfToken = getQFAccessToken();
+    if (qfToken) {
+      fetch("/api/qf/goals", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-qf-token": token },
-        body: JSON.stringify({ dailyVerses: target }),
-      });
-      if (res.ok) { setDailyGoal(target); setShowGoalInput(false); toast.success(`Daily goal set: ${target} verses`); }
-      else toast.error("Failed to save goal");
-    } catch { toast.error("Failed to save goal"); }
-    finally { setSavingGoal(false); }
+        headers: { "Content-Type": "application/json", "x-qf-token": qfToken },
+        body: JSON.stringify({ type: "verses", target, period: "day" }),
+      }).catch(() => {});
+    }
+    setDailyGoal(target);
+    setShowGoalInput(false);
+    toast.success(`Daily goal set: ${target} verses`);
   }
 
   useEffect(() => {

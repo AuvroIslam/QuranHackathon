@@ -31,7 +31,7 @@ export default function ChatbotPage() {
   });
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [forceGround, setForceGround] = useState(false);
+  const [forceGround, setForceGround] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -110,13 +110,27 @@ export default function ChatbotPage() {
 
   return (
     <div className="relative flex flex-col h-[calc(100vh-3.5rem)] md:h-screen">
+      <div className="absolute left-4 top-4 z-40">
+        <button
+          type="button"
+          onClick={() => setForceGround((v) => !v)}
+          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all border ${
+            forceGround
+              ? "bg-secondary/20 border-secondary/40 text-secondary"
+              : "bg-white/10 border-white/20 text-primary/50 hover:text-primary/70"
+          }`}
+        >
+          <ShieldCheck size={12} />
+          {forceGround ? "Force MCP: ON" : "Force MCP: OFF"}
+        </button>
+      </div>
       <div className="absolute right-4 top-4 z-40">
         <PageTooltip
           title="Quran Chatbot"
           description={[
             "Ask questions about Islam and Quranic teachings.",
-            "Quran-related questions are verified against Quran MCP.",
-            "Toggle 'Verify with MCP' to always ground answers.",
+            "Quran-related questions auto-verify against Quran MCP.",
+            "Force MCP ON to verify every message, not just Quran topics.",
           ]}
         />
       </div>
@@ -212,18 +226,6 @@ export default function ChatbotPage() {
       {/* Input */}
       <form onSubmit={handleSend} className="px-4 pb-4 pt-2 glass-strong border-t border-white/15">
         <div className="flex flex-col gap-2 max-w-3xl mx-auto">
-          <button
-            type="button"
-            onClick={() => setForceGround((v) => !v)}
-            className={`self-start flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all border ${
-              forceGround
-                ? "bg-secondary/20 border-secondary/40 text-secondary"
-                : "bg-white/10 border-white/20 text-primary/50 hover:text-primary/70"
-            }`}
-          >
-            <ShieldCheck size={12} />
-            {forceGround ? "MCP Verify: ON" : "MCP Verify: OFF"}
-          </button>
           <div className="flex gap-3">
             <input
               type="text"

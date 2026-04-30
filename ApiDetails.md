@@ -4,49 +4,45 @@
 
 ## Environments
 
-### Pre-Production (Testing) ✅ Currently Active
+### Production (Live) ✅ Active — Confirmed by Basit Minhas, Apr 30 2026
 | Field | Value |
 |-------|-------|
 | Client ID | see `.env.local` → `QF_CLIENT_ID` |
 | Client Secret | see `.env.local` → `QF_CLIENT_SECRET` |
-| OAuth Endpoint | `https://prelive-oauth2.quran.foundation` |
-| User API Base | `https://apis-prelive.quran.foundation` |
-| Content API Base | `https://apis.quran.foundation/content/api/v4` |
-
-- All scopes available by default
-- Callback URLs registered (confirmed by Basit Minhas, Apr 19)
-- Limited dataset but full feature set for testing
-
-### Production (Live) ⚠️ Pending Scope Approval
-| Field | Value |
-|-------|-------|
-| Client ID | see `.env.local` → `QF_CONTENT_CLIENT_ID` |
-| Client Secret | see `.env.local` → `QF_CONTENT_CLIENT_SECRET` |
 | OAuth Endpoint | `https://oauth2.quran.foundation` |
 | User API Base | `https://apis.quran.foundation` |
 | Content API Base | `https://apis.quran.foundation/content/api/v4` |
 
-- Full Quran content available
-- **NO user/auth features** until production scope approval
-- To unlock: submit production callback URL to developers@quran.com
+- Full Quran content + all user/auth features enabled
+- User auth scopes granted: `bookmark`, `reading_session`, `activity_day`, `goal`, `collection`
+- Same client ID used for both content (client_credentials) and user (PKCE) flows
+- Callback URL registered: `https://quran-hackathon-omega.vercel.app/auth/qf-callback`
+
+### Pre-Production (Testing) — archived, no longer in use
+| Field | Value |
+|-------|-------|
+| OAuth Endpoint | `https://prelive-oauth2.quran.foundation` |
+| User API Base | `https://apis-prelive.quran.foundation` |
+
+- Credentials still in possession but app is now fully on production
 
 ---
 
-## Environment Variables (`.env.local`)
+## Environment Variables (`.env.local` + Vercel)
 
 ```env
-# Pre-production OAuth (user features) — credentials in .env.local only
-QF_CLIENT_ID=<pre-prod client id>
-QF_CLIENT_SECRET=<pre-prod client secret>
-QF_OAUTH_BASE_URL=https://prelive-oauth2.quran.foundation
-QF_USER_API_BASE_URL=https://apis-prelive.quran.foundation
-NEXT_PUBLIC_QF_CLIENT_ID=<pre-prod client id>
-NEXT_PUBLIC_QF_OAUTH_BASE_URL=https://prelive-oauth2.quran.foundation
+# Production OAuth (user + content — same client)
+QF_CLIENT_ID=<prod client id>
+QF_CLIENT_SECRET=<prod client secret>
+NEXT_PUBLIC_QF_CLIENT_ID=<prod client id>
+QF_OAUTH_BASE_URL=https://oauth2.quran.foundation
+NEXT_PUBLIC_QF_OAUTH_BASE_URL=https://oauth2.quran.foundation
 
-# Production content (no user features yet) — credentials in .env.local only
+# Content API (same production credentials)
 QF_CONTENT_CLIENT_ID=<prod client id>
 QF_CONTENT_CLIENT_SECRET=<prod client secret>
-QF_API_URL=https://api.quran.com/api/v4
+
+# QF_USER_API_BASE_URL is NOT set — all user API routes default to https://apis.quran.foundation
 ```
 
 ---
@@ -68,10 +64,9 @@ QF_API_URL=https://api.quran.com/api/v4
 7. access_token stored in sessionStorage
 ```
 
-**Scopes used:**
+**Scopes (parent scopes only — child scopes cause errors):**
 ```
-openid offline_access bookmark.read bookmark.create bookmark.delete
-reading_session.read reading_session.create
+openid offline_access bookmark reading_session activity_day goal collection
 ```
 
 **Required API Headers:**
@@ -106,43 +101,53 @@ Token cached server-side (~1 hour validity). Public fallback (`api.quran.com/api
 | `GET /chapters` | List all 114 surahs |
 | `GET /verses/by_chapter/{id}` | Verses for a surah |
 | `GET /verses/by_key/{key}` | Single verse by key (e.g. 2:255) |
-| `GET /verses/random` | Random verse |
-| `GET /quran/translations/20` | English translation (Saheeh Int'l) |
 | `GET /recitations/7/by_chapter/{id}` | Audio files (Mishary Alafasy) |
-| `GET /tafsirs/169/by_chapter/{id}` | Ibn Kathir tafsir |
+| `GET /tafsirs/169/by_ayah/{key}` | Ibn Kathir tafsir |
 | `GET /search?q=...` | Full-text verse search |
 
-### User APIs (Pre-production)
+### User APIs (Production)
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/auth/v1/bookmarks` | GET | Fetch user's bookmarks |
 | `/auth/v1/bookmarks` | POST | Add ayah bookmark |
-| `/auth/v1/bookmarks/{id}` | DELETE | Remove bookmark by ID |
+| `/auth/v1/bookmarks` | DELETE | Remove bookmark |
 | `/auth/v1/reading-sessions` | POST | Sync current listening position |
+| `/auth/v1/goals` | GET | Fetch user's daily verse goal |
+| `/auth/v1/goals` | POST | Set daily verse goal |
 
 ### Quran MCP
 | Tool | Purpose |
 |------|---------|
-| `search_quran` | Semantic search for AI grounding (Dawah page) |
+| `search_quran` | Semantic search for AI grounding |
 | `fetch_quran` | Fetch specific verse text |
 | `fetch_translation` | Fetch translation |
 | `fetch_tafsir` | Fetch tafsir |
 
 ---
 
-## Switching to Production
+## Scope Change Notes (Apr 30 2026)
 
-When production scope is approved:
+QF uses **parent scopes only** — requesting child scopes (e.g. `bookmark.read`) causes auth errors.
 
-1. Update Vercel env vars:
-   - `QF_CLIENT_ID` → production client ID
-   - `QF_CLIENT_SECRET` → production secret
-   - `QF_OAUTH_BASE_URL` → `https://oauth2.quran.foundation`
-   - `QF_USER_API_BASE_URL` → `https://apis.quran.foundation`
-   - `NEXT_PUBLIC_QF_CLIENT_ID` → production client ID
-   - `NEXT_PUBLIC_QF_OAUTH_BASE_URL` → `https://oauth2.quran.foundation`
+| Old (broken) | New (correct) |
+|---|---|
+| `bookmark.read`, `bookmark.create`, `bookmark.delete` | `bookmark` |
+| `reading_session.read`, `reading_session.create` | `reading_session` |
+| `activity_days.write` | `activity_day` |
+| `goals.read`, `goals.write` | `goal` |
+| `collections.read`, `collections.write` | `collection` |
 
-2. Register production callback URL with QF:
-   `https://quran-hackathon-omega.vercel.app/auth/qf-callback`
+---
 
-3. No code changes needed — all URLs are env-driven.
+## Vercel Deployment Checklist
+
+Ensure these are set in Vercel project settings → Environment Variables:
+
+- [ ] `QF_CLIENT_ID` → production client ID
+- [ ] `QF_CLIENT_SECRET` → production client secret
+- [ ] `QF_CONTENT_CLIENT_ID` → same as above
+- [ ] `QF_CONTENT_CLIENT_SECRET` → same as above
+- [ ] `NEXT_PUBLIC_QF_CLIENT_ID` → production client ID
+- [ ] `QF_OAUTH_BASE_URL` → `https://oauth2.quran.foundation`
+- [ ] `NEXT_PUBLIC_QF_OAUTH_BASE_URL` → `https://oauth2.quran.foundation`
+- [ ] `QF_USER_API_BASE_URL` → **delete this var** (routes default to production)

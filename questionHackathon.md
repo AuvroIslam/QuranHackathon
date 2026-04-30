@@ -8,12 +8,16 @@ This hackathon challenges participants to:
 
 > Build technology that **strengthens people's connection with the Quran** and helps maintain that connection beyond Ramadan.
 
+**Organized & Sponsored by:** Provision Launch + Quran Foundation
+
 Participants may build:
 
 * Web apps
 * Mobile apps
 * AI-powered tools
 * Developer tools or platforms
+
+Teams: up to 4 members. Open worldwide to developers, designers, students, entrepreneurs, vibe coders, product managers, researchers, OSS contributors.
 
 ---
 
@@ -32,21 +36,17 @@ The goal is to create solutions that:
 
 # 📦 3. Mandatory Technical Requirements
 
-Every project MUST integrate:
+Every project MUST integrate **at least one from each category**:
 
 ## 3.1 Content APIs (Required)
 
-At least one (recommended: multiple) of the following:
+At least one of the following (or Quran MCP):
 
 * Quran APIs (verses, chapters)
 * Audio APIs (recitations)
 * Tafsir APIs (explanations)
 * Translation APIs
 * Post APIs (lessons & reflections)
-
-These APIs provide **read-only access to Quranic content** including verses, translations, and recitations. ([api-docs.quran.foundation][1])
-
----
 
 ## 3.2 User APIs (Required)
 
@@ -58,158 +58,119 @@ At least one of the following:
 * Activity & Goals APIs
 * Post APIs (user-generated reflections)
 
-These APIs manage **user-specific data** such as progress, saved content, and activity. ([api-docs.quran.foundation][1])
-
 ---
 
 # 🔗 4. Quran Foundation API System
 
-## 4.1 Content APIs Capabilities
+## 4.1 Content APIs
 
-The Content APIs provide access to:
+Access to: Quran chapters/verses, translations (50+), audio recitations, tafsir (classical & modern), full-text search.
 
-* Quran chapters and verses
-* Translations in multiple languages
-* Audio recitations
-* Tafsir (classical and modern commentary)
-* Search functionality
+## 4.2 Authentication
 
-They are designed for **seamless app integration and scalable usage**. ([api-docs.quran.foundation][2])
+Content APIs: OAuth2 Client Credentials flow (server-side only).
+User APIs: OAuth2 Authorization Code + PKCE flow.
 
----
+Required headers for all User API calls:
+- `x-auth-token` — JWT access token
+- `x-client-id` — your client ID
 
-## 4.2 Authentication Requirements (IMPORTANT)
+## 4.3 User APIs
 
-Content APIs require:
-
-* OAuth2 Client Credentials flow
-* Secure backend token handling
-* Required headers:
-
-  * `x-auth-token`
-  * `x-client-id`
-
-Key rules:
-
-* Store credentials on backend only
-* Cache tokens (valid ~1 hour)
-* Retry on authentication failure once ([api-docs.quran.foundation][3])
-
----
-
-## 4.3 User APIs Capabilities
-
-User-related APIs enable:
-
-* User preferences
-* Bookmarks
-* Reading sessions
-* Goals and streaks
-* Collections and notes
-
-These APIs are used to create **personalized Quran experiences**. ([api-docs.quran.foundation][2])
+Enable: bookmarks, reading sessions, goals, streaks, collections, notes, preferences.
 
 ---
 
 # 🤖 5. Quran MCP (Model Context Protocol)
 
-## 5.1 What is Quran MCP
+Server: `https://mcp.quran.ai`  
+Protocol: JSON-RPC over streamable HTTP / SSE
 
-Quran MCP is a **Model Context Protocol server** that allows AI systems to access Quran data in a structured and reliable way.
-
-It ensures:
-
-* Accurate Quran text retrieval
-* Verified translations and tafsir
-* Proper citation and grounding
-
-([GitHub][4])
-
----
-
-## 5.2 MCP Capabilities
-
+Capabilities:
 * Quran text (multiple recitations)
 * 50+ translations
 * Tafsir from multiple scholars
-* Full-text search
+* Full-text semantic search
 * Word-level analysis (morphology)
 
----
-
-## 5.3 Purpose in AI Systems
-
-MCP solves a critical issue:
-
-> AI models should not rely on memory for Quranic content but must fetch verified data dynamically. ([GitHub][4])
+> AI models must fetch verified Quran data dynamically via MCP — not rely on training memory.
 
 ---
 
 # ⚙️ 6. Allowed Technology Scope
 
-Participants can use:
-
 * Any frontend framework (React, Next.js, Flutter, etc.)
 * Any backend system
 * AI models (LLMs, assistants)
-* External APIs (as long as Quran Foundation APIs are used)
+* External APIs (as long as QF APIs are used)
 
 ---
 
 # 🧪 7. Judging Criteria (100 Points)
 
-## 7.1 Impact on Quran Engagement (30 pts)
+## 7.1 Impact on Quran Engagement — 30 pts
+How well does the application help users connect more deeply with the Quran?
 
-* Does the solution help users connect deeply with the Quran?
+## 7.2 Product Quality & UX — 20 pts
+Design quality, usability, and accessibility.
 
-## 7.2 Product Quality & UX (20 pts)
+## 7.3 Technical Execution — 20 pts
+Code quality, stability, and overall functionality.
 
-* Design quality
-* Usability
-* Accessibility
+## 7.4 Innovation & Creativity — 15 pts
+Originality of concept and fresh approaches.
 
-## 7.3 Technical Execution (20 pts)
+## 7.5 Effective Use of APIs — 15 pts
+Quality and depth of Quran Foundation API integration.
 
-* Code quality
-* Stability
-* Performance
-
-## 7.4 Innovation & Creativity (15 pts)
-
-* Originality of idea
-* Unique approach
-
-## 7.5 Effective Use of APIs (15 pts)
-
-* Depth and correctness of API integration
+**Tiebreaker:** Higher Impact score wins.
 
 ---
 
-# 📅 8. Timeline
+# 💰 8. Prize Pool — $10,000
 
-* Development Period: Ramadan → Shawwal
-* Submission Deadline: End of Shawwal (April 20, 2026)
-* Judging: 1–2 weeks after submission
-* Winners: Top 7 projects
+| Place | Prize |
+|-------|-------|
+| 1st | $3,000 |
+| 2nd | $2,500 |
+| 3rd | $1,750 |
+| 4th | $1,250 |
+| 5th | $750 |
+| 6th | $500 |
+| 7th | $250 |
 
 ---
 
-# 📤 9. Submission Requirements
+# 📅 9. Timeline
+
+| Phase | Date |
+|-------|------|
+| Launch | Ramadan 2026 |
+| Development | Ramadan — Shawwal 1447 |
+| **Submission Deadline** | **May 20, 2026 (Early Dhu al-Hijjah 1447)** |
+| Judging | 1–2 weeks after deadline |
+| Winners Announced | After judging |
+
+---
+
+# 📤 10. Submission Requirements
 
 Each submission must include:
 
 * Project title
 * Team member names
 * Short description
-* Detailed explanation
-* Live demo or working app
-* GitHub repository (optional but recommended)
+* Detailed explanation of the idea
+* Live demo or working app link
+* GitHub repository (if available)
 * 2–3 minute demo video
-* API usage explanation
+* API usage description
+
+Submit at: https://launch.provisioncapital.com/quran-hackathon
 
 ---
 
-# 🧠 10. Key Technical Expectations
+# 🧠 11. Key Technical Expectations
 
 * Proper use of Quran Foundation APIs
 * Secure API integration (OAuth2 where required)
@@ -219,7 +180,7 @@ Each submission must include:
 
 ---
 
-# 🚨 11. Constraints & Best Practices
+# 🚨 12. Constraints & Best Practices
 
 * Do NOT hardcode Quran text manually
 * Always fetch from APIs or MCP
@@ -229,26 +190,18 @@ Each submission must include:
 
 ---
 
-# 🔗 12. Important Resources
+# 🔗 13. Important Resources
 
-* Hackathon Page
-  https://launch.provisioncapital.com/quran-hackathon
-
-* Quran MCP
-  https://mcp.quran.ai/
-
-* API Documentation
-  https://api-docs.quran.foundation/
+* Hackathon Page: https://launch.provisioncapital.com/quran-hackathon
+* API Documentation: https://api-docs.quran.foundation/
+* Quran MCP: https://mcp.quran.ai/
+* Hackathon Support: Hackathon@quran.com
+* Developer Support: developers@quran.com
 
 ---
 
 # 📌 Final Note
 
-The primary goal of this hackathon is not just technical implementation, but to build meaningful tools that:
+The primary goal is not just technical implementation, but to build meaningful tools that:
 
 > Strengthen long-term engagement with the Quran through technology.
-
-[1]: https://api-docs.quran.foundation/docs/tutorials/faq?utm_source=chatgpt.com "Frequently Asked Questions"
-[2]: https://api-docs.quran.foundation/?utm_source=chatgpt.com "Quran Foundation API Docs"
-[3]: https://api-docs.quran.foundation/docs/quickstart/?utm_source=chatgpt.com "Quran Foundation Content APIs OAuth2 Quickstart"
-[4]: https://github.com/quran/quran-mcp?utm_source=chatgpt.com "quran-mcp"

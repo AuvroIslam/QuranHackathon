@@ -9,10 +9,10 @@ import {
   getListeningProgress,
   type ListeningProgress,
 } from "@/lib/firestore";
-import { getQFAccessToken } from "@/lib/qf-user-auth";
+import { getQFAccessToken, isQFConnected } from "@/lib/qf-user-auth";
 import {
   Play, Pause, ChevronLeft, CheckCircle,
-  Shuffle, BookOpen, Headphones, ScrollText, Loader2,
+  Shuffle, BookOpen, Headphones, ScrollText, Loader2, CloudUpload,
 } from "lucide-react";
 import PageContainer from "../../components/PageContainer";
 import toast from "react-hot-toast";
@@ -91,6 +91,15 @@ export default function ListenPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentWordIdx, setCurrentWordIdx] = useState(-1);
   const [loadingAudioKey, setLoadingAudioKey] = useState<string | null>(null);
+  const [sessionSynced, setSessionSynced] = useState(false);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Goals state
+  const [qfConnected, setQFConnected] = useState(false);
+  const [dailyGoal, setDailyGoal] = useState<number | null>(null);
+  const [showGoalInput, setShowGoalInput] = useState(false);
+  const [goalInput, setGoalInput] = useState("5");
+  const [savingGoal, setSavingGoal] = useState(false);
 
   useEffect(() => {
     if (playingKey && verseRefs.current[playingKey]) {
@@ -101,6 +110,41 @@ export default function ListenPage() {
   useEffect(() => {
     if (!loading && !user) router.push("/");
   }, [loading, user, router]);
+
+  useEffect(() => {
+    const connected = isQFConnected();
+    setQFConnected(connected);
+    if (connected) {
+      const token = getQFAccessToken();
+      if (token) {
+        fetch("/api/qf/goals", { headers: { "x-qf-token": token } })
+          .then((r) => r.ok ? r.json() : null)
+          .then((d) => {
+            const goal = (d?.data ?? []).find((g: { type: string; target: number }) => g.type === "verses");
+            if (goal) { setDailyGoal(goal.target); setGoalInput(String(goal.target)); }
+          })
+          .catch(() => {});
+      }
+    }
+  }, []);
+
+  async function saveGoal() {
+    const target = parseInt(goalInput, 10);
+    if (!target || target < 1 || target > 604) return;
+    const token = getQFAccessToken();
+    if (!token) return;
+    setSavingGoal(true);
+    try {
+      const res = await fetch("/api/qf/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-qf-token": token },
+        body: JSON.stringify({ dailyVerses: target }),
+      });
+      if (res.ok) { setDailyGoal(target); setShowGoalInput(false); toast.success(`Daily goal set: ${target} verses`); }
+      else toast.error("Failed to save goal");
+    } catch { toast.error("Failed to save goal"); }
+    finally { setSavingGoal(false); }
+  }
 
   useEffect(() => {
     async function init() {
@@ -251,6 +295,12 @@ export default function ListenPage() {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-qf-token": qfToken },
             body: JSON.stringify({ chapterNumber: selectedChapter.id, verseNumber: verse.verse_number }),
+          }).then((r) => {
+            if (r.ok) {
+              setSessionSynced(true);
+              if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+              syncTimerRef.current = setTimeout(() => setSessionSynced(false), 2500);
+            }
           }).catch(() => {});
         }
       }
@@ -350,6 +400,13 @@ export default function ListenPage() {
               </div>
               <p className="text-sm font-arabic text-accent/70">{selectedChapter.name_arabic}</p>
             </div>
+            {/* Quran.com sync indicator */}
+            {sessionSynced && (
+              <span className="hidden sm:flex items-center gap-1 text-xs text-secondary animate-pulse shrink-0">
+                <CloudUpload size={13} />
+                Synced
+              </span>
+            )}
             {/* Global Listen / Pause button only */}
             <button
               onClick={handleGlobalListen}
@@ -533,15 +590,49 @@ export default function ListenPage() {
         </div>
       </div>
 
-      {progress.length > 0 && (
-        <div className="glass-card rounded-2xl p-4 flex items-center gap-3">
-          <BookOpen size={20} className="text-secondary" />
-          <div>
-            <p className="text-sm font-medium text-primary">{totalListened} verses listened</p>
-            <p className="text-xs text-secondary">{progress.length} surahs started</p>
+      <div className="flex gap-3 flex-wrap">
+        {progress.length > 0 && (
+          <div className="glass-card rounded-2xl p-4 flex items-center gap-3 flex-1 min-w-40">
+            <BookOpen size={20} className="text-secondary" />
+            <div>
+              <p className="text-sm font-medium text-primary">{totalListened} verses listened</p>
+              <p className="text-xs text-secondary">{progress.length} surahs started</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+        {qfConnected && (
+          <div className="glass-card rounded-2xl p-4 flex items-center gap-3 flex-1 min-w-40">
+            <CheckCircle size={20} className="text-secondary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-primary/50 mb-1">Daily verse goal</p>
+              {showGoalInput ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={604}
+                    value={goalInput}
+                    onChange={(e) => setGoalInput(e.target.value)}
+                    className="w-16 px-2 py-1 bg-white/10 border border-white/20 rounded-lg text-xs text-primary focus:outline-none"
+                  />
+                  <button
+                    onClick={saveGoal}
+                    disabled={savingGoal}
+                    className="text-xs text-secondary font-medium hover:text-white transition-colors"
+                  >
+                    {savingGoal ? "..." : "Save"}
+                  </button>
+                  <button onClick={() => setShowGoalInput(false)} className="text-xs text-primary/40 hover:text-primary/70">✕</button>
+                </div>
+              ) : (
+                <button onClick={() => setShowGoalInput(true)} className="text-sm font-medium text-primary hover:text-secondary transition-colors text-left">
+                  {dailyGoal ? `${dailyGoal} verses/day` : "Set goal"}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       <input
         type="text"
@@ -552,11 +643,26 @@ export default function ListenPage() {
       />
 
       {loadingChapters ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="animate-spin text-secondary" size={24} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 animate-pulse">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="glass-card rounded-xl p-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-white/10 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-white/10 rounded w-2/3" />
+                <div className="h-3 bg-white/10 rounded w-1/3" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <>
+          {filtered.length === 0 && (
+            <div className="text-center py-16 text-primary/40">
+              <BookOpen size={32} className="mx-auto mb-3 opacity-40" />
+              <p className="text-sm">No surahs match &ldquo;{searchQuery}&rdquo;</p>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {filtered.map((ch) => {
             const prog = getProgress(ch.id);
             return (
@@ -582,7 +688,8 @@ export default function ListenPage() {
               </button>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
     </PageContainer>
   );

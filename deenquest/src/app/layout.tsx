@@ -50,16 +50,7 @@ export default function RootLayout({
         <AuthProvider>
           <Navbar />
           <main className="md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0 flex-1 min-h-0 relative overflow-y-auto">
-            <div
-              className="fixed inset-0 md:left-64 z-0 pointer-events-none"
-              style={{
-                backgroundColor: "#10153A",
-                backgroundImage: "url('/kaaba-bg-longer.png')",
-                backgroundSize: "100% auto",
-                backgroundPosition: "top center",
-                backgroundRepeat: "no-repeat",
-              }}
-            />
+            <div className="app-bg fixed inset-0 md:left-64 z-0 pointer-events-none" />
             <div className="bg-overlay" />
             <div className="relative z-10">
               {children}

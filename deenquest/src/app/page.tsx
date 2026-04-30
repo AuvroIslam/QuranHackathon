@@ -1,5 +1,7 @@
 "use client";
 
+"use client";
+
 import { useAuth } from "@/components/AuthProvider";
 import { useEffect, useRef, useState } from "react";
 import MoodSelector from "@/components/MoodSelector";
@@ -8,12 +10,12 @@ import XPBar from "@/components/XPBar";
 import PageContainer from "../components/PageContainer";
 import { getAyahsForMood, searchAyahs } from "@/lib/quran";
 import { getTodaysTasks } from "@/lib/tasks-data";
-import { getUserTasksForDate, completeTask } from "@/lib/firestore";
+import { getUserTasksForDate, completeTask, createPost } from "@/lib/firestore";
 import { getLevelInfo } from "@/lib/types";
 import { getQFAccessToken, isQFConnected, initiateQFOAuth, clearQFSession } from "@/lib/qf-user-auth";
 import {
   CheckCircle2, ChevronDown, ChevronUp, Circle,
-  Star, BookOpen, Flame, Trophy, Loader2, Link2,
+  Star, BookOpen, Flame, Trophy, Loader2, Link2, Share2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import LoginPage from "./login/page";
@@ -36,12 +38,38 @@ export default function HomePage() {
   const [qfConnected, setQFConnected] = useState(false);
   const [bookmarkedKey, setBookmarkedKey] = useState<string | null>(null);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
+  const [existingBookmarkKeys, setExistingBookmarkKeys] = useState<Set<string>>(new Set());
+
+  // Share to community state
+  const [sharingVerse, setSharingVerse] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
-    setQFConnected(isQFConnected());
+    const connected = isQFConnected();
+    setQFConnected(connected);
+    if (connected) fetchExistingBookmarks();
   }, []);
+
+  async function fetchExistingBookmarks() {
+    const token = getQFAccessToken();
+    if (!token) return;
+    try {
+      const res = await fetch("/api/qf/bookmark", {
+        headers: { "x-qf-token": token },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const keys = new Set<string>(
+        (data?.data ?? []).map((b: { key: number; verseNumber?: number }) =>
+          b.verseNumber != null ? `${b.key}:${b.verseNumber}` : null
+        ).filter(Boolean) as string[]
+      );
+      setExistingBookmarkKeys(keys);
+    } catch {
+      // silently ignore
+    }
+  }
 
   useEffect(() => {
     if (user) {
@@ -151,9 +179,20 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json", "x-qf-token": token },
         body: JSON.stringify({ chapterNumber: chapter, verseNumber: verse }),
       });
+      const bData = await res.json().catch(() => ({}));
       if (res.ok) {
         setBookmarkedKey(verseKey);
+        setExistingBookmarkKeys((prev) => new Set(prev).add(verseKey));
         toast.success("Verse saved to Quran.com!");
+        // Also add to default collection using the returned bookmark ID
+        const bookmarkId = bData?.data?.id ?? bData?.id;
+        if (bookmarkId && typeof bookmarkId === "string" && /^[\w-]{1,64}$/.test(bookmarkId)) {
+          fetch("/api/qf/collections", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-qf-token": token },
+            body: JSON.stringify({ bookmarkId, collectionId: "__default__" }),
+          }).catch(() => {});
+        }
       } else if (res.status === 401 || res.status === 403) {
         clearQFSession();
         setQFConnected(false);
@@ -176,6 +215,14 @@ export default function HomePage() {
       await completeTask(user.uid, taskId, today, xpReward);
       refreshProfile().catch(() => undefined);
       toast.success(`+${xpReward} Hasanat earned!`);
+      // Record activity day on QF streak API
+      const qfToken = getQFAccessToken();
+      if (qfToken) {
+        fetch("/api/qf/streak", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-qf-token": qfToken },
+        }).catch(() => {});
+      }
     } catch {
       setCompletedTaskIds((prev) => { const s = new Set(prev); s.delete(taskId); return s; });
       toast.error("Failed to complete task");
@@ -186,6 +233,26 @@ export default function HomePage() {
 
   function toggleHomeTaskDetails(taskId: string) {
     setExpandedHomeTaskId((prev) => (prev === taskId ? null : taskId));
+  }
+
+  async function handleShareToCommunity() {
+    if (!user || !profile || !moodAyah) return;
+    setSharingVerse(true);
+    try {
+      const verseKey = moodAyah.verseKey || `${moodAyah.surah.number}:${moodAyah.numberInSurah}`;
+      const title = `Reflection on ${moodAyah.surah.englishName} ${moodAyah.numberInSurah}`;
+      const content = [
+        `"${moodAyah.translation}"`,
+        `— ${moodAyah.surah.englishName}, Verse ${moodAyah.numberInSurah} (${verseKey})`,
+        moodExplanation ? `\n${moodExplanation}` : "",
+      ].filter(Boolean).join("\n");
+      await createPost(user.uid, profile.name, content, "reflection", title);
+      toast.success("Shared to Community!");
+    } catch {
+      toast.error("Failed to share");
+    } finally {
+      setSharingVerse(false);
+    }
   }
 
   if (loading) {
@@ -202,6 +269,9 @@ export default function HomePage() {
   const currentVerseKey = moodAyah
     ? (moodAyah.verseKey || `${moodAyah.surah.number}:${moodAyah.numberInSurah}`)
     : null;
+  const isCurrentVerseBookmarked = currentVerseKey
+    ? (bookmarkedKey === currentVerseKey || existingBookmarkKeys.has(currentVerseKey))
+    : false;
 
   return (
     <PageContainer
@@ -285,13 +355,21 @@ export default function HomePage() {
         )}
 
         {loadingAyah && (
-          <div className="mt-6 flex items-center justify-center py-8">
-            <div className="w-6 h-6 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
+          <div className="mt-6 glass-card rounded-2xl p-6 space-y-4 animate-pulse">
+            <div className="h-4 w-28 bg-white/10 rounded-full" />
+            <div className="space-y-2">
+              <div className="h-5 bg-white/10 rounded-lg w-full" />
+              <div className="h-5 bg-white/10 rounded-lg w-4/5 ml-auto" />
+              <div className="h-5 bg-white/10 rounded-lg w-3/5 ml-auto" />
+            </div>
+            <div className="h-4 bg-white/10 rounded-lg w-full" />
+            <div className="h-4 bg-white/10 rounded-lg w-3/4" />
+            <div className="h-16 bg-white/10 rounded-xl w-full" />
           </div>
         )}
 
         {moodAyah && !loadingAyah && (
-          <div className="mt-6">
+          <div className="mt-6 space-y-3">
             <AyahCard
               text={moodAyah.text}
               translation={moodAyah.translation}
@@ -301,9 +379,17 @@ export default function HomePage() {
               verseKey={moodAyah.verseKey}
               explanation={moodExplanation}
               explanationLoading={loadingExplanation}
-              bookmarked={bookmarkedKey === currentVerseKey}
+              bookmarked={isCurrentVerseBookmarked}
               onBookmark={bookmarkLoading ? undefined : handleBookmark}
             />
+            <button
+              onClick={handleShareToCommunity}
+              disabled={sharingVerse || !moodExplanation}
+              className="flex items-center gap-2 text-xs text-primary/50 hover:text-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed px-1"
+            >
+              {sharingVerse ? <Loader2 size={13} className="animate-spin" /> : <Share2 size={13} />}
+              {sharingVerse ? "Sharing…" : "Share as Community Reflection"}
+            </button>
           </div>
         )}
       </div>

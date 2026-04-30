@@ -40,10 +40,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden" style={{ backgroundImage: "url('/kaaba-bg.png')", backgroundSize: "cover", backgroundPosition: "center" }}>
-      <div className="overlay" />
+    <div className="relative min-h-screen flex items-center justify-center px-4">
+      <div className="login-bg fixed inset-0 z-0" />
+      <div className="fixed inset-0 z-10" style={{ background: "rgba(15,18,50,0.58)" }} />
 
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-md relative z-20">
         <div className="text-center mb-8">
           <div className="w-16 h-16 mx-auto mb-4">
             <Image src="/deenQuestLogo.png" alt="DeenQuest" width={64} height={64} className="rounded-2xl" />

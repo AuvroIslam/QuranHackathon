@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { BookmarkPlus, BookmarkCheck, Loader2, Volume2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { BookmarkPlus, BookmarkCheck, Loader2, Volume2, PauseCircle } from "lucide-react";
 import { getAyahAudio } from "@/lib/quran";
 
 interface AyahCardProps {
@@ -32,20 +32,40 @@ export default function AyahCard({
   showAudio = true,
 }: AyahCardProps) {
   const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  async function playAudio() {
-    if (playing) return;
-    setPlaying(true);
+  async function toggleAudio() {
+    // Pause if currently playing
+    if (playing && audioRef.current) {
+      audioRef.current.pause();
+      setPlaying(false);
+      return;
+    }
+
+    // Resume if paused mid-verse
+    if (!playing && audioRef.current && !audioRef.current.ended) {
+      await audioRef.current.play();
+      setPlaying(true);
+      return;
+    }
+
+    // Fresh load
+    setLoading(true);
     try {
       const key = verseKey || `${numberInSurah}`;
       const url = await getAyahAudio(key);
-      if (!url) { setPlaying(false); return; }
+      if (!url) { setLoading(false); return; }
       const audio = new Audio(url);
+      audioRef.current = audio;
       audio.onended = () => setPlaying(false);
       audio.onerror = () => setPlaying(false);
       await audio.play();
+      setPlaying(true);
     } catch {
       setPlaying(false);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -58,17 +78,25 @@ export default function AyahCard({
         <div className="flex items-center gap-2">
           {showAudio && (
             <button
-              onClick={playAudio}
-              disabled={playing}
+              onClick={toggleAudio}
+              disabled={loading}
               className="p-2 rounded-lg hover:bg-accent/10 text-secondary transition-all duration-300 disabled:opacity-50"
+              aria-label={playing ? "Pause audio" : "Play audio"}
             >
-              <Volume2 size={18} className={playing ? "animate-pulse" : ""} />
+              {loading ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : playing ? (
+                <PauseCircle size={18} />
+              ) : (
+                <Volume2 size={18} />
+              )}
             </button>
           )}
           {onBookmark && (
             <button
               onClick={onBookmark}
               className="p-2 rounded-lg hover:bg-accent/10 text-secondary transition-all duration-300"
+              aria-label={bookmarked ? "Bookmarked" : "Bookmark verse"}
             >
               {bookmarked ? <BookmarkCheck size={18} /> : <BookmarkPlus size={18} />}
             </button>

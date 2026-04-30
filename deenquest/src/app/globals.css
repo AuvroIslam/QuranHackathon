@@ -278,6 +278,35 @@ body {
   min-height: 100vh;
 }
 
+/* === App Background === */
+.app-bg {
+  background-color: #10153A;
+  background-image: url('/kaaba-bg-longer.png');
+  background-size: 100% auto;
+  background-position: top center;
+  background-repeat: no-repeat;
+}
+
+@media (orientation: portrait) and (max-width: 767px) {
+  .app-bg {
+    background-image: url('/potraitBg.png');
+    background-size: cover;
+    background-position: center top;
+  }
+}
+
+.login-bg {
+  background-image: url('/kaaba-bg.png');
+  background-size: cover;
+  background-position: center;
+}
+
+@media (orientation: portrait) and (max-width: 767px) {
+  .login-bg {
+    background-image: url('/potraitBg.png');
+  }
+}
+
 input::placeholder,
 textarea::placeholder {
   color: var(--surface-text-muted);

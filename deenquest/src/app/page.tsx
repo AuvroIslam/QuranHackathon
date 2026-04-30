@@ -350,22 +350,26 @@ export default function HomePage() {
       {profile && <XPBar xp={profile.xp} />}
 
       {/* Bookmarks */}
-      {qfConnected && (
-        <div className="glass-strong rounded-2xl overflow-hidden">
+      <div className="glass-strong rounded-2xl overflow-hidden">
           <button
-            onClick={() => setShowBookmarks((v) => !v)}
+            onClick={() => {
+              if (!qfConnected) { initiateQFOAuth().catch(() => {}); return; }
+              setShowBookmarks((v) => !v);
+            }}
             className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors"
           >
             <div className="flex items-center gap-2">
               <BookOpen size={16} className="text-secondary" />
               <span className="text-sm font-semibold text-primary">My Quran.com Bookmarks</span>
+            </div>
+            <div className="flex items-center gap-2">
               {bookmarksList.length > 0 && (
                 <span className="text-xs bg-secondary/20 text-secondary px-2 py-0.5 rounded-full">
                   {bookmarksList.length}
                 </span>
               )}
+              {showBookmarks ? <ChevronUp size={16} className="text-primary/40" /> : <ChevronDown size={16} className="text-primary/40" />}
             </div>
-            {showBookmarks ? <ChevronUp size={16} className="text-primary/40" /> : <ChevronDown size={16} className="text-primary/40" />}
           </button>
           {showBookmarks && (
             <div className="border-t border-white/10 px-6 py-4">
@@ -398,7 +402,6 @@ export default function HomePage() {
             </div>
           )}
         </div>
-      )}
 
       {/* Mood Selector */}
       <div className="glass-strong rounded-2xl p-7">

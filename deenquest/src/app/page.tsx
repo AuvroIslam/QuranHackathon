@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { useAuth } from "@/components/AuthProvider";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -53,8 +51,6 @@ export default function HomePage() {
   const [bookmarkedKey, setBookmarkedKey] = useState<string | null>(null);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [existingBookmarkKeys, setExistingBookmarkKeys] = useState<Set<string>>(new Set());
-  const [bookmarksList, setBookmarksList] = useState<{ key: number; verseNumber: number }[]>([]);
-  const [showBookmarks, setShowBookmarks] = useState(false);
 
 
   const today = new Date().toISOString().split("T")[0];
@@ -88,9 +84,6 @@ export default function HomePage() {
         ).filter(Boolean) as string[]
       );
       setExistingBookmarkKeys(keys);
-      setBookmarksList(
-        (data?.data ?? []).filter((b: { key: number; verseNumber?: number }) => b.verseNumber != null)
-      );
     } catch {
       // silently ignore
     }
@@ -345,59 +338,6 @@ export default function HomePage() {
       {/* XP Progress */}
       {profile && <XPBar xp={profile.xp} />}
 
-      {/* Bookmarks */}
-      <div className="glass-strong rounded-2xl overflow-hidden">
-          <button
-            onClick={() => {
-              if (!qfConnected) { initiateQFOAuth().catch(() => {}); return; }
-              setShowBookmarks((v) => !v);
-            }}
-            className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <BookOpen size={16} className="text-secondary" />
-              <span className="text-sm font-semibold text-primary">My Quran.com Bookmarks</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {bookmarksList.length > 0 && (
-                <span className="text-xs bg-secondary/20 text-secondary px-2 py-0.5 rounded-full">
-                  {bookmarksList.length}
-                </span>
-              )}
-              {showBookmarks ? <ChevronUp size={16} className="text-white/60" /> : <ChevronDown size={16} className="text-white/60" />}
-            </div>
-          </button>
-          {showBookmarks && (
-            <div className="border-t border-white/10 px-6 py-4">
-              {bookmarksList.length === 0 ? (
-                <p className="text-sm text-primary/40 text-center py-4">No bookmarks yet. Bookmark a verse to see it here.</p>
-              ) : (
-                <div className="space-y-2">
-                  {bookmarksList.map((b) => (
-                    <a
-                      key={`${b.key}:${b.verseNumber}`}
-                      href={`https://quran.com/${b.key}/${b.verseNumber}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between px-4 py-3 rounded-xl glass hover:bg-white/10 transition-colors group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-secondary/15 flex items-center justify-center">
-                          <BookOpen size={14} className="text-secondary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-primary">Surah {b.key} : {b.verseNumber}</p>
-                          <p className="text-xs text-primary/40">Verse {b.verseNumber}</p>
-                        </div>
-                      </div>
-                      <span className="text-xs text-primary/30 group-hover:text-secondary transition-colors">quran.com →</span>
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
       {/* Mood Selector */}
       <div className="glass-strong rounded-2xl p-7">

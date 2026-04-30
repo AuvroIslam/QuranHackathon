@@ -18,6 +18,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useState } from "react";
+import ProfilePanel from "./ProfilePanel";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
@@ -33,6 +34,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const { user, profile, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   if (!user) return (
     <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-64 glass-dark flex-col z-40 rounded-r-2xl">
@@ -100,15 +102,18 @@ export default function Navbar() {
         </nav>
 
         <div className="p-4 border-t border-white/10">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-9 h-9 rounded-full bg-linear-to-br from-secondary to-secondary-dark flex items-center justify-center text-white font-semibold text-sm shadow-lg shadow-secondary/25">
+          <button
+            onClick={() => setProfileOpen(true)}
+            className="flex items-center gap-3 mb-3 w-full hover:bg-white/5 rounded-xl p-1.5 -mx-1.5 transition-colors group"
+          >
+            <div className="w-9 h-9 rounded-full bg-linear-to-br from-secondary to-secondary-dark flex items-center justify-center text-white font-semibold text-sm shadow-lg shadow-secondary/25 shrink-0">
               {profile?.name?.charAt(0).toUpperCase() || "U"}
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-white truncate">{profile?.name}</p>
+            <div className="min-w-0 text-left">
+              <p className="text-sm font-medium text-white truncate group-hover:text-accent transition-colors">{profile?.name}</p>
               <p className="text-xs text-accent">{profile?.xp} XP</p>
             </div>
-          </div>
+          </button>
           <button
             onClick={signOut}
             className="flex items-center gap-2 text-sm text-slate-400 hover:text-red-400 transition-colors w-full px-2"
@@ -117,6 +122,7 @@ export default function Navbar() {
             Sign out
           </button>
         </div>
+        <ProfilePanel open={profileOpen} onClose={() => setProfileOpen(false)} />
       </aside>
 
       {/* Mobile top bar */}

@@ -401,10 +401,10 @@ export default function ListenPage() {
               <p className="text-sm font-arabic text-accent/70">{selectedChapter.name_arabic}</p>
             </div>
             {/* Quran.com sync indicator */}
-            {sessionSynced && (
-              <span className="hidden sm:flex items-center gap-1 text-xs text-secondary animate-pulse shrink-0">
+            {qfConnected && (
+              <span className={`flex items-center gap-1 text-xs shrink-0 transition-colors duration-300 ${sessionSynced ? "text-secondary animate-pulse" : "text-white/30"}`}>
                 <CloudUpload size={13} />
-                Synced
+                {sessionSynced ? "Synced" : "Quran.com"}
               </span>
             )}
             {/* Global Listen / Pause button only */}

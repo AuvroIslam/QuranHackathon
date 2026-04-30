@@ -264,11 +264,7 @@ export default function HomePage() {
     if (!moodAyah) return;
     const verseKey = moodAyah.verseKey || `${moodAyah.surah.number}:${moodAyah.numberInSurah}`;
     const title = `Reflection on ${moodAyah.surah.englishName} ${moodAyah.numberInSurah}`;
-    const content = [
-      `"${moodAyah.translation}"`,
-      `— ${moodAyah.surah.englishName}, Verse ${moodAyah.numberInSurah} (${verseKey})`,
-      moodExplanation ? `\n${moodExplanation}` : "",
-    ].filter(Boolean).join("\n");
+    const content = `"${moodAyah.translation}"\n— ${moodAyah.surah.englishName}, Verse ${moodAyah.numberInSurah} (${verseKey})`;
     try {
       sessionStorage.setItem(COMMUNITY_PREFILL_KEY, JSON.stringify({ title, content, type: "reflection" }));
     } catch {}

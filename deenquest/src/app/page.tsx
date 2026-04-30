@@ -4,13 +4,14 @@
 
 import { useAuth } from "@/components/AuthProvider";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import MoodSelector from "@/components/MoodSelector";
 import AyahCard from "@/components/AyahCard";
 import XPBar from "@/components/XPBar";
 import PageContainer from "../components/PageContainer";
 import { getAyahsForMood, searchAyahs } from "@/lib/quran";
 import { getTodaysTasks } from "@/lib/tasks-data";
-import { getUserTasksForDate, completeTask, createPost } from "@/lib/firestore";
+import { getUserTasksForDate, completeTask } from "@/lib/firestore";
 import { getLevelInfo } from "@/lib/types";
 import { getQFAccessToken, isQFConnected, initiateQFOAuth, clearQFSession } from "@/lib/qf-user-auth";
 import {
@@ -20,11 +21,24 @@ import {
 import toast from "react-hot-toast";
 import LoginPage from "./login/page";
 
+const AYAH_STORAGE_KEY = "deenquest_home_ayah";
+const COMMUNITY_PREFILL_KEY = "deenquest_community_prefill";
+
 export default function HomePage() {
   const { user, profile, loading, refreshProfile } = useAuth();
-  const [mood, setMood] = useState<string>("");
-  const [moodAyah, setMoodAyah] = useState<any>(null);
-  const [moodExplanation, setMoodExplanation] = useState("");
+  const router = useRouter();
+  const [mood, setMood] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try { return JSON.parse(sessionStorage.getItem(AYAH_STORAGE_KEY) || "{}").mood || ""; } catch { return ""; }
+  });
+  const [moodAyah, setMoodAyah] = useState<any>(() => {
+    if (typeof window === "undefined") return null;
+    try { return JSON.parse(sessionStorage.getItem(AYAH_STORAGE_KEY) || "{}").ayah || null; } catch { return null; }
+  });
+  const [moodExplanation, setMoodExplanation] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try { return JSON.parse(sessionStorage.getItem(AYAH_STORAGE_KEY) || "{}").explanation || ""; } catch { return ""; }
+  });
   const [loadingAyah, setLoadingAyah] = useState(false);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
   const explanationRequestId = useRef(0);
@@ -39,11 +53,19 @@ export default function HomePage() {
   const [bookmarkedKey, setBookmarkedKey] = useState<string | null>(null);
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [existingBookmarkKeys, setExistingBookmarkKeys] = useState<Set<string>>(new Set());
+  const [bookmarksList, setBookmarksList] = useState<{ key: number; verseNumber: number }[]>([]);
+  const [showBookmarks, setShowBookmarks] = useState(false);
 
-  // Share to community state
-  const [sharingVerse, setSharingVerse] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
+
+  useEffect(() => {
+    if (moodAyah) {
+      try {
+        sessionStorage.setItem(AYAH_STORAGE_KEY, JSON.stringify({ mood, ayah: moodAyah, explanation: moodExplanation }));
+      } catch {}
+    }
+  }, [mood, moodAyah, moodExplanation]);
 
   useEffect(() => {
     const connected = isQFConnected();
@@ -66,6 +88,9 @@ export default function HomePage() {
         ).filter(Boolean) as string[]
       );
       setExistingBookmarkKeys(keys);
+      setBookmarksList(
+        (data?.data ?? []).filter((b: { key: number; verseNumber?: number }) => b.verseNumber != null)
+      );
     } catch {
       // silently ignore
     }
@@ -235,24 +260,19 @@ export default function HomePage() {
     setExpandedHomeTaskId((prev) => (prev === taskId ? null : taskId));
   }
 
-  async function handleShareToCommunity() {
-    if (!user || !profile || !moodAyah) return;
-    setSharingVerse(true);
+  function handleShareToCommunity() {
+    if (!moodAyah) return;
+    const verseKey = moodAyah.verseKey || `${moodAyah.surah.number}:${moodAyah.numberInSurah}`;
+    const title = `Reflection on ${moodAyah.surah.englishName} ${moodAyah.numberInSurah}`;
+    const content = [
+      `"${moodAyah.translation}"`,
+      `— ${moodAyah.surah.englishName}, Verse ${moodAyah.numberInSurah} (${verseKey})`,
+      moodExplanation ? `\n${moodExplanation}` : "",
+    ].filter(Boolean).join("\n");
     try {
-      const verseKey = moodAyah.verseKey || `${moodAyah.surah.number}:${moodAyah.numberInSurah}`;
-      const title = `Reflection on ${moodAyah.surah.englishName} ${moodAyah.numberInSurah}`;
-      const content = [
-        `"${moodAyah.translation}"`,
-        `— ${moodAyah.surah.englishName}, Verse ${moodAyah.numberInSurah} (${verseKey})`,
-        moodExplanation ? `\n${moodExplanation}` : "",
-      ].filter(Boolean).join("\n");
-      await createPost(user.uid, profile.name, content, "reflection", title);
-      toast.success("Shared to Community!");
-    } catch {
-      toast.error("Failed to share");
-    } finally {
-      setSharingVerse(false);
-    }
+      sessionStorage.setItem(COMMUNITY_PREFILL_KEY, JSON.stringify({ title, content, type: "reflection" }));
+    } catch {}
+    router.push("/community");
   }
 
   if (loading) {
@@ -329,6 +349,57 @@ export default function HomePage() {
       {/* XP Progress */}
       {profile && <XPBar xp={profile.xp} />}
 
+      {/* Bookmarks */}
+      {qfConnected && (
+        <div className="glass-strong rounded-2xl overflow-hidden">
+          <button
+            onClick={() => setShowBookmarks((v) => !v)}
+            className="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <BookOpen size={16} className="text-secondary" />
+              <span className="text-sm font-semibold text-primary">My Quran.com Bookmarks</span>
+              {bookmarksList.length > 0 && (
+                <span className="text-xs bg-secondary/20 text-secondary px-2 py-0.5 rounded-full">
+                  {bookmarksList.length}
+                </span>
+              )}
+            </div>
+            {showBookmarks ? <ChevronUp size={16} className="text-primary/40" /> : <ChevronDown size={16} className="text-primary/40" />}
+          </button>
+          {showBookmarks && (
+            <div className="border-t border-white/10 px-6 py-4">
+              {bookmarksList.length === 0 ? (
+                <p className="text-sm text-primary/40 text-center py-4">No bookmarks yet. Bookmark a verse to see it here.</p>
+              ) : (
+                <div className="space-y-2">
+                  {bookmarksList.map((b) => (
+                    <a
+                      key={`${b.key}:${b.verseNumber}`}
+                      href={`https://quran.com/${b.key}/${b.verseNumber}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between px-4 py-3 rounded-xl glass hover:bg-white/10 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-secondary/15 flex items-center justify-center">
+                          <BookOpen size={14} className="text-secondary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-primary">Surah {b.key} : {b.verseNumber}</p>
+                          <p className="text-xs text-primary/40">Verse {b.verseNumber}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs text-primary/30 group-hover:text-secondary transition-colors">quran.com →</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Mood Selector */}
       <div className="glass-strong rounded-2xl p-7">
         <MoodSelector
@@ -384,11 +455,11 @@ export default function HomePage() {
             />
             <button
               onClick={handleShareToCommunity}
-              disabled={sharingVerse || !moodExplanation}
+              disabled={!moodExplanation}
               className="flex items-center gap-2 text-xs text-primary/50 hover:text-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed px-1"
             >
-              {sharingVerse ? <Loader2 size={13} className="animate-spin" /> : <Share2 size={13} />}
-              {sharingVerse ? "Sharing…" : "Share as Community Reflection"}
+              <Share2 size={13} />
+              Share as Community Reflection
             </button>
           </div>
         )}

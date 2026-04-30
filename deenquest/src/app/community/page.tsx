@@ -31,6 +31,7 @@ import {
 import toast from "react-hot-toast";
 
 const COMMUNITY_CACHE_KEY = "deenquest_community_cache";
+const COMMUNITY_PREFILL_KEY = "deenquest_community_prefill";
 
 function loadCache() {
   if (typeof window === "undefined") return null;
@@ -57,6 +58,7 @@ export default function CommunityPage() {
   const [replyingTo, setReplyingTo] = useState<{ answerId: string; postId: string; userName: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingPost, setEditingPost] = useState<{ id: string; title: string; content: string } | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -64,6 +66,19 @@ export default function CommunityPage() {
 
   useEffect(() => {
     if (!cache) loadPosts();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(COMMUNITY_PREFILL_KEY);
+      if (!raw) return;
+      sessionStorage.removeItem(COMMUNITY_PREFILL_KEY);
+      const { title, content, type } = JSON.parse(raw);
+      if (title) setNewTitle(title);
+      if (content) setNewContent(content);
+      if (type === "reflection" || type === "question") setNewType(type);
+      setShowNewPost(true);
+    } catch {}
   }, []);
 
   async function loadPosts() {
@@ -163,7 +178,8 @@ export default function CommunityPage() {
   }
 
   async function handleDeletePost(postId: string) {
-    if (!user || !confirm("Delete this post?")) return;
+    if (!user) return;
+    setConfirmDeleteId(null);
     try {
       await deletePost(postId, user.uid);
       setPosts((prev) => {
@@ -382,7 +398,7 @@ export default function CommunityPage() {
                         <button onClick={() => setEditingPost({ id: post.id, title: post.title || "", content: post.content })} className="text-primary/35 hover:text-secondary transition-colors">
                           <Pencil size={14} />
                         </button>
-                        <button onClick={() => handleDeletePost(post.id)} className="text-primary/35 hover:text-red-400 transition-colors">
+                        <button onClick={() => setConfirmDeleteId(post.id)} className="text-primary/35 hover:text-red-400 transition-colors">
                           <Trash2 size={14} />
                         </button>
                       </>
@@ -394,6 +410,24 @@ export default function CommunityPage() {
                   <h3 className="text-base font-semibold text-primary mb-1">{post.title}</h3>
                 )}
                 <p className="text-sm text-primary/70 leading-relaxed">{post.content}</p>
+
+                {confirmDeleteId === post.id && (
+                  <div className="mt-3 flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                    <p className="text-sm text-primary/70 flex-1">Delete this post?</p>
+                    <button
+                      onClick={() => handleDeletePost(post.id)}
+                      className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="text-xs text-primary/40 hover:text-primary/60 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-4 mt-4">
                   <button

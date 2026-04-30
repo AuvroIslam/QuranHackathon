@@ -613,19 +613,22 @@ export default function ListenPage() {
                     max={604}
                     value={goalInput}
                     onChange={(e) => setGoalInput(e.target.value)}
-                    className="w-16 px-2 py-1 bg-white/10 border border-white/20 rounded-lg text-xs text-primary focus:outline-none"
+                    className="w-14 px-2 py-1 bg-white/10 border border-white/20 rounded-lg text-xs text-primary focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <button
                     onClick={saveGoal}
                     disabled={savingGoal}
-                    className="text-xs text-secondary font-medium hover:text-white transition-colors"
+                    className="px-3 py-1 rounded-lg bg-secondary text-white text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-50"
                   >
                     {savingGoal ? "..." : "Save"}
                   </button>
                   <button onClick={() => setShowGoalInput(false)} className="text-xs text-primary/40 hover:text-primary/70">✕</button>
                 </div>
               ) : (
-                <button onClick={() => setShowGoalInput(true)} className="text-sm font-medium text-primary hover:text-secondary transition-colors text-left">
+                <button
+                  onClick={() => setShowGoalInput(true)}
+                  className="px-3 py-1 rounded-lg bg-white/10 border border-white/20 text-xs font-medium text-primary hover:bg-white/20 transition-all text-left"
+                >
                   {dailyGoal ? `${dailyGoal} verses/day` : "Set goal"}
                 </button>
               )}

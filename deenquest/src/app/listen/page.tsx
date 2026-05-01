@@ -123,14 +123,20 @@ export default function ListenPage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    setQFConnected(isQFConnected());
+    const check = () => setQFConnected(isQFConnected());
+    check();
+    // Re-check token every 60s so stale "connected" state is caught
+    const interval = setInterval(check, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
   function applyGoalData(d: Record<string, unknown>) {
     const data = d?.data as Record<string, unknown> | undefined;
     if (!data) return;
     const hasGoal = !!data.hasGoal;
-    const goalId = (data.id ?? data.goalId ?? null) as string | null;
+    const goal = (data.goal ?? data) as Record<string, unknown>;
+    const goalId = (goal.id ?? goal._id ?? goal.goalId ?? data.id ?? null) as string | null;
+    console.log("[DeenQuest] QF goal response goalId:", goalId, "keys:", Object.keys(data));
     setTodayProgress({
       hasGoal,
       goalId,
@@ -189,20 +195,25 @@ export default function ListenPage() {
   async function deleteGoal() {
     const goalId = todayProgress?.goalId;
     const qfToken = getQFAccessToken();
-    if (!qfToken) { await initiateQFOAuth(); return; }
-    if (!goalId) { toast.error("Goal ID not found — refresh and try again"); return; }
+    if (!qfToken) {
+      toast.error("Quran.com session expired — reconnect below");
+      setQFConnected(false);
+      return;
+    }
+    if (!goalId) { toast.error("Goal ID not found — refresh the page and try again"); return; }
     setDeletingGoal(true);
     try {
-      await fetch(`/api/qf/goals?goalId=${encodeURIComponent(goalId)}`, {
+      const res = await fetch(`/api/qf/goals?goalId=${encodeURIComponent(goalId)}`, {
         method: "DELETE",
         headers: { "x-qf-token": qfToken },
       });
+      if (!res.ok) throw new Error(`${res.status}`);
       toast.success("Goal deleted");
       setTodayProgress(null);
       setGoalAmount("10");
       setGoalType("QURAN_TIME");
     } catch {
-      toast.error("Failed to delete goal");
+      toast.error("Failed to delete goal — try again");
     }
     setDeletingGoal(false);
   }

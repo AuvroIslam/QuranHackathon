@@ -104,11 +104,33 @@ export async function DELETE(req: NextRequest) {
   if (!goalId) return NextResponse.json({ error: "goalId is required" }, { status: 400 });
 
   const headers = qfHeaders(token, clientId);
-  const result = await tryBoth(`/v1/goals/${goalId}?mushafId=${MUSHAF_ID}`, {
-    method: "DELETE",
-    headers,
-  });
 
-  if (result) return NextResponse.json(result.data, { status: 200 });
-  return NextResponse.json({ error: "QF API unreachable" }, { status: 502 });
+  // Try path variants — QF may or may not require mushafId on DELETE
+  const paths = [
+    `/v1/goals/${goalId}`,
+    `/v1/goals/${goalId}?mushafId=${MUSHAF_ID}`,
+  ];
+
+  for (const path of paths) {
+    for (const base of [QF_AUTH, QF_API + "/auth"]) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        let res: Response;
+        try {
+          res = await fetch(`${base}${path}`, { method: "DELETE", headers, signal: controller.signal });
+        } finally {
+          clearTimeout(timeout);
+        }
+        // Some DELETE endpoints return 204 No Content (no body)
+        const data = res.status === 204 ? {} : await res.json().catch(() => ({}));
+        console.log(`[QF goals DELETE] ${base}${path} → ${res.status}`, data);
+        if (res.ok) return NextResponse.json(data, { status: 200 });
+      } catch (e) {
+        console.warn(`[QF goals DELETE] ${base}${path} → network error`, e);
+      }
+    }
+  }
+
+  return NextResponse.json({ error: "QF API unreachable — check Vercel logs for QF status" }, { status: 502 });
 }

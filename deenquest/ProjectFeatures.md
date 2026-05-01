@@ -17,7 +17,7 @@
 | Mistral API | `mistral-small-latest` | Secondary AI fallback (free) |
 | DeepSeek Chat API | `deepseek-chat` | Final AI fallback (paid) |
 | Quran Foundation Content API v4 | Auth + Public Fallback | Verses, chapters, translations, recitations, tafsir, search |
-| Quran Foundation User API v1 | OAuth2 PKCE (pre-production) | Bookmarks + reading session sync |
+| Quran Foundation User API v1 | OAuth2 PKCE (production) | Bookmarks, reading sessions, goals, activity days, collections |
 | Quran MCP Server | `mcp.quran.ai` | Verified Quran grounding via JSON-RPC tools |
 | react-markdown | — | Markdown rendering in chatbot |
 | lucide-react | — | Icons |
@@ -37,10 +37,10 @@
 | `QF_API_URL` | Quran Foundation public API base (`https://api.quran.com/api/v4`) |
 | `QF_CONTENT_CLIENT_ID` | QF Content API OAuth client ID (production, server-side only) |
 | `QF_CONTENT_CLIENT_SECRET` | QF Content API OAuth client secret (production, server-side only) |
-| `QF_CLIENT_ID` | QF pre-production OAuth client ID (server-side only) |
-| `QF_CLIENT_SECRET` | QF pre-production OAuth client secret (server-side only) |
-| `QF_OAUTH_BASE_URL` | QF OAuth token exchange base (`https://prelive-oauth2.quran.foundation`) |
-| `QF_USER_API_BASE_URL` | QF User API base (`https://apis-prelive.quran.foundation`) |
+| `QF_CLIENT_ID` | QF production OAuth client ID (server-side only) |
+| `QF_CLIENT_SECRET` | QF production OAuth client secret (server-side only) |
+| `QF_OAUTH_BASE_URL` | QF OAuth token exchange base (`https://oauth2.quran.foundation`) |
+| `QF_AUTH_BASE_URL` | QF goals/activity-days/streaks base (`https://auth.quran.foundation`) |
 | `NEXT_PUBLIC_QF_CLIENT_ID` | QF OAuth client ID used by browser PKCE flow |
 | `NEXT_PUBLIC_QF_OAUTH_BASE_URL` | QF OAuth authorize endpoint base used by browser |
 | `QURAN_MCP_URL` | Quran MCP Server (`https://mcp.quran.ai`) |
@@ -78,15 +78,17 @@ npm run dev
 - Suggested starter questions
 - **Context window** — last 8 messages sent to AI to prevent token bloat
 - **Session persistence** — chat history saved to sessionStorage, survives page navigation
+- **MCP Verify toggle** (top-left) — force Quran MCP grounding on every message, on by default
 
 ### 4. Community (`/community`)
 - **Keyword search bar** — filter posts by title or content
 - Create posts with **title + description** (type: Question or Reflection)
-- **Edit / Delete own posts** — ownership verified server-side in Firestore
+- **Edit / Delete own posts** — inline confirmation UI (no browser confirm dialogs)
 - Upvote posts
 - **Threaded replies** — reply to posts, reply to replies (nested threading)
 - Upvote individual replies
-- **Session persistence** — posts cached in sessionStorage; cache updated on new post / delete
+- **Share from Home** — "Share as Community Reflection" pre-fills the form and navigates here
+- **Session persistence** — posts cached in sessionStorage
 
 ### 5. Levels (`/levels`)
 - Visual spiritual journey through 5 levels:
@@ -107,6 +109,12 @@ npm run dev
 - **Random** — jump to a random surah + random verse
 - **Progress tracking** — per-surah last-verse saved to Firestore; resumes where you left off
 - **Quran.com Reading Session Sync** — posts current verse to QF reading sessions API when connected
+- **Daily Goal** — set time (min/day) or pages/day goal synced to Quran.com account
+  - Goal type: `QURAN_TIME` or `QURAN_PAGES` (correct QF API format)
+  - Saves to localStorage + Firestore + Quran.com simultaneously
+- **Activity Tracking** — each verse played reports ranges + seconds to QF activity-days API
+  - Automatically updates streak, goal progress, and verse count on Quran.com
+- **Live Progress Bar** — fetches today's plan from QF after each verse: % done, verses read, minutes
 - Stats bar: total verses listened, surahs started
 
 ### 7. Dawah (`/dawah`)
@@ -123,6 +131,14 @@ npm run dev
 - 3 tasks per day (rotated from pool of 12)
 - Each task has: title, description, Quran ayah reference, deed benefit
 - Categories: reading, kindness, prayer, charity, memorization, character, listening, dawah, reflection
+
+### 9. Profile Panel (sidebar)
+- Opens by clicking user name in navbar
+- Inline name editing (saved to Firestore)
+- 5-prayer Salah tracker (Fajr, Dhuhr, Asr, Maghrib, Isha) — stored in Firestore per day
+- Daily verse goal display
+- Quran.com connect / disconnect button
+- Bookmarks list (fetches from QF when connected)
 
 ---
 
@@ -150,7 +166,7 @@ All modes use: **Groq → Mistral → DeepSeek**
 
 ### Firebase
 - Authentication (Google + Email/Password)
-- Cloud Firestore (users, tasks, community posts/replies, listening progress)
+- Cloud Firestore (users, tasks, community posts/replies, listening progress, salah, goals)
 
 ### AI Providers
 - Groq: `https://api.groq.com/openai/v1/chat/completions`
@@ -171,15 +187,21 @@ All modes use: **Groq → Mistral → DeepSeek**
   - `GET /recitations/7/by_chapter/{chapterId}`
   - `GET /tafsirs/169/by_chapter/{chapterId}`
 
-### Quran Foundation User APIs (OAuth2 PKCE — Pre-production)
-- OAuth authorize: `https://prelive-oauth2.quran.foundation/oauth2/auth`
-- OAuth token exchange: `https://prelive-oauth2.quran.foundation/oauth2/token`
-- User API base: `https://apis-prelive.quran.foundation`
+### Quran Foundation User APIs (OAuth2 PKCE — Production)
+- OAuth authorize: `https://oauth2.quran.foundation/oauth2/auth`
+- OAuth token exchange: `https://oauth2.quran.foundation/oauth2/token`
+- User API base: `https://apis.quran.foundation`
+- Auth API base: `https://auth.quran.foundation` (goals, activity-days, streaks)
+- Scopes: `openid offline_access bookmark reading_session activity_day goal collection`
 - Endpoints used:
   - `POST /auth/v1/bookmarks` — save ayah bookmark
   - `GET /auth/v1/bookmarks` — fetch user bookmarks
-  - `DELETE /auth/v1/bookmarks/{id}` — remove bookmark
+  - `DELETE /auth/v1/bookmarks` — remove bookmark
   - `POST /auth/v1/reading-sessions` — sync listening position
+  - `POST /v1/goals` — create/update daily reading goal (QURAN_TIME or QURAN_PAGES)
+  - `GET /v1/goals/get-todays-plan` — fetch today's progress toward goal
+  - `POST /v1/activity-days` — report verses read (ranges + seconds → updates streak + goal)
+  - `GET /v1/streaks` — fetch current streak
 
 ### Quran Audio
 - `https://audio.qurancdn.com/` (ayah audio)
@@ -203,6 +225,9 @@ All modes use: **Groq → Mistral → DeepSeek**
 | `/api/qf/token` | POST | OAuth2 PKCE code exchange for Quran.com access token |
 | `/api/qf/bookmark` | GET / POST / DELETE | List/add/remove ayah bookmarks in Quran.com |
 | `/api/qf/reading-session` | POST | Sync current listening position to Quran.com |
+| `/api/qf/goals` | GET / POST | Fetch today's goal progress / create goal on Quran.com |
+| `/api/qf/streak` | GET / POST | Fetch streak / report activity (ranges + seconds) |
+| `/api/qf/collections` | GET / POST | List collections / add bookmark to collection |
 
 ---
 
@@ -210,8 +235,9 @@ All modes use: **Groq → Mistral → DeepSeek**
 
 - **XP (Hasanat)** — Earned by completing daily tasks (8–20 XP each)
 - **5 Spiritual Levels** — Sabr → Shukr → Tawakkul → Ihsan → Taqwa
-- **Daily Streak** — Consecutive login days tracked; resets after >2 day gap
+- **Daily Streak** — Tracked both locally (Firestore) and on Quran.com via activity-days API
 - **Daily Tasks** — 3 rotated per day from pool of 12; all tied to Quran references
+- **Daily Goal** — Set time or page target; live progress bar synced from Quran.com
 
 ---
 
@@ -219,11 +245,12 @@ All modes use: **Groq → Mistral → DeepSeek**
 
 | Collection | Doc ID | Fields |
 |---|---|---|
-| `users` | `{uid}` | name, email, xp, level, streak, lastActive, createdAt |
+| `users` | `{uid}` | name, email, xp, level, streak, lastActive, createdAt, dailyGoal |
 | `userTasks` | auto | userId, taskId, completed, date |
 | `posts` | auto | userId, userName, title, content, type, upvotes, upvotedBy[], createdAt, updatedAt? |
 | `answers` | auto | postId, userId, userName, content, upvotes, upvotedBy[], parentId?, replyToName?, createdAt |
 | `listeningProgress` | `{uid}_{chapterId}` | userId, chapterId, chapterName, lastVerse, totalVerses, updatedAt |
+| `salah` | `{uid}_{date}` | uid, date, Fajr, Dhuhr, Asr, Maghrib, Isha, updatedAt |
 
 ---
 
@@ -233,6 +260,7 @@ All modes use: **Groq → Mistral → DeepSeek**
 |---|---|
 | `AuthProvider` | Firebase auth context — Google/Email login, streak calc, profile management |
 | `Navbar` | Responsive sidebar (desktop) + hamburger menu + bottom tabs (mobile), 7 nav items |
+| `ProfilePanel` | Slide-in panel — name edit, salah tracker, daily goal, bookmarks, Quran.com connect |
 | `MoodSelector` | Mood pills + custom situation text input |
 | `AyahCard` | Arabic text (RTL) + translation + audio + optional AI explanation + bookmark button |
 | `XPBar` | Gradient progress bar with level name + XP remaining |
@@ -250,7 +278,7 @@ All modes use: **Groq → Mistral → DeepSeek**
 | `quran-mcp.ts` | Server-side MCP client — JSON-RPC to `mcp.quran.ai` for AI grounding |
 | `qf-auth.ts` | Server-side OAuth client-credentials token cache for QF Content API |
 | `qf-user-auth.ts` | Client-side Quran.com OAuth2 PKCE flow + token/session storage |
-| `firestore.ts` | All Firestore CRUD — users, tasks, posts, answers, listening progress |
+| `firestore.ts` | All Firestore CRUD — users, tasks, posts, answers, listening progress, salah, goals |
 | `firebase.ts` | Firebase app/auth/db singleton init |
 | `types.ts` | TypeScript interfaces + level definitions + `getLevelInfo()` |
 | `tasks-data.ts` | 12 daily tasks pool + `getTodaysTasks()` rotation logic |
@@ -269,7 +297,7 @@ src/
 │   ├── chatbot/page.tsx            # AI chatbot
 │   ├── community/page.tsx          # Community forum
 │   ├── levels/page.tsx             # Levels display
-│   ├── listen/page.tsx             # Quran recitation player
+│   ├── listen/page.tsx             # Quran recitation player + goal tracking
 │   ├── dawah/page.tsx              # Comparative dawah with MCP grounding
 │   ├── perspective/page.tsx        # Redirects to /dawah
 │   ├── tasks/page.tsx              # Daily tasks
@@ -279,7 +307,10 @@ src/
 │       ├── qf/
 │       │   ├── token/route.ts      # OAuth PKCE token exchange
 │       │   ├── bookmark/route.ts   # QF bookmark sync (GET/POST/DELETE)
-│       │   └── reading-session/route.ts # QF reading session sync
+│       │   ├── reading-session/route.ts  # QF reading session sync
+│       │   ├── goals/route.ts      # QF goals — create + today's progress
+│       │   ├── streak/route.ts     # QF streak + activity-days reporting
+│       │   └── collections/route.ts      # QF collections (GET/POST)
 │       └── quran/
 │           ├── route.ts            # Quran API proxy
 │           └── search/route.ts     # Search proxy

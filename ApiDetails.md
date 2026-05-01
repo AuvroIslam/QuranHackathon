@@ -11,10 +11,11 @@
 | Client Secret | see `.env.local` → `QF_CLIENT_SECRET` |
 | OAuth Endpoint | `https://oauth2.quran.foundation` |
 | User API Base | `https://apis.quran.foundation` |
+| Auth API Base | `https://auth.quran.foundation` (goals, activity-days, streaks) |
 | Content API Base | `https://apis.quran.foundation/content/api/v4` |
 
 - Full Quran content + all user/auth features enabled
-- User auth scopes granted: `bookmark`, `reading_session`, `activity_day`, `goal`, `collection`
+- Scopes granted: `openid offline_access bookmark reading_session activity_day goal collection`
 - Same client ID used for both content (client_credentials) and user (PKCE) flows
 - Callback URL registered: `https://quran-hackathon-omega.vercel.app/auth/qf-callback`
 
@@ -23,8 +24,6 @@
 |-------|-------|
 | OAuth Endpoint | `https://prelive-oauth2.quran.foundation` |
 | User API Base | `https://apis-prelive.quran.foundation` |
-
-- Credentials still in possession but app is now fully on production
 
 ---
 
@@ -42,7 +41,10 @@ NEXT_PUBLIC_QF_OAUTH_BASE_URL=https://oauth2.quran.foundation
 QF_CONTENT_CLIENT_ID=<prod client id>
 QF_CONTENT_CLIENT_SECRET=<prod client secret>
 
-# QF_USER_API_BASE_URL is NOT set — all user API routes default to https://apis.quran.foundation
+# Auth API base — goals, activity-days, streaks
+QF_AUTH_BASE_URL=https://auth.quran.foundation
+
+# QF_USER_API_BASE_URL is NOT set — routes default to https://apis.quran.foundation
 ```
 
 ---
@@ -69,10 +71,16 @@ QF_CONTENT_CLIENT_SECRET=<prod client secret>
 openid offline_access bookmark reading_session activity_day goal collection
 ```
 
-**Required API Headers:**
+**Required API Headers (apis.quran.foundation endpoints):**
 ```
 x-auth-token: <access_token>
 x-client-id: <client_id>
+Content-Type: application/json
+```
+
+**Required API Headers (auth.quran.foundation endpoints):**
+```
+Authorization: Bearer <access_token>
 Content-Type: application/json
 ```
 
@@ -95,7 +103,7 @@ Token cached server-side (~1 hour validity). Public fallback (`api.quran.com/api
 
 ## API Endpoints Used
 
-### Content APIs
+### Content APIs (`apis.quran.foundation/content/api/v4`)
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /chapters` | List all 114 surahs |
@@ -105,15 +113,21 @@ Token cached server-side (~1 hour validity). Public fallback (`api.quran.com/api
 | `GET /tafsirs/169/by_ayah/{key}` | Ibn Kathir tafsir |
 | `GET /search?q=...` | Full-text verse search |
 
-### User APIs (Production)
+### User APIs (`apis.quran.foundation`)
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `/auth/v1/bookmarks` | GET | Fetch user's bookmarks |
 | `/auth/v1/bookmarks` | POST | Add ayah bookmark |
 | `/auth/v1/bookmarks` | DELETE | Remove bookmark |
 | `/auth/v1/reading-sessions` | POST | Sync current listening position |
-| `/auth/v1/goals` | GET | Fetch user's daily verse goal |
-| `/auth/v1/goals` | POST | Set daily verse goal |
+
+### Auth APIs (`auth.quran.foundation`)
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v1/goals?mushafId=4` | POST | Create goal (QURAN_TIME or QURAN_PAGES) |
+| `/v1/goals/get-todays-plan?type=QURAN_TIME` | GET | Today's progress toward goal |
+| `/v1/activity-days` | POST | Report ranges + seconds read (updates streak + goal) |
+| `/v1/streaks` | GET | Fetch current streak |
 
 ### Quran MCP
 | Tool | Purpose |
@@ -122,6 +136,53 @@ Token cached server-side (~1 hour validity). Public fallback (`api.quran.com/api
 | `fetch_quran` | Fetch specific verse text |
 | `fetch_translation` | Fetch translation |
 | `fetch_tafsir` | Fetch tafsir |
+
+---
+
+## Goal API — Correct Format
+
+**Create a goal:**
+```json
+POST https://auth.quran.foundation/v1/goals?mushafId=4
+Authorization: Bearer <token>
+
+{
+  "type": "QURAN_TIME",   // or "QURAN_PAGES"
+  "amount": 600,           // seconds for QURAN_TIME, pages for QURAN_PAGES
+  "category": "QURAN"
+}
+```
+
+**Report activity (updates streak + goal progress):**
+```json
+POST https://auth.quran.foundation/v1/activity-days
+Authorization: Bearer <token>
+x-timezone: Asia/Dhaka
+
+{
+  "type": "QURAN",
+  "seconds": 180,
+  "ranges": ["2:1-2:5"],   // format: "surah:verse-surah:verse"
+  "mushafId": 4
+}
+```
+QF server automatically computes versesRead, pagesRead, and progress % from ranges + seconds.
+
+**Get today's plan:**
+```json
+GET https://auth.quran.foundation/v1/goals/get-todays-plan?type=QURAN_TIME&mushafId=4
+
+Response:
+{
+  "data": {
+    "hasGoal": true,
+    "progress": 0.65,       // 0.0–1.0
+    "versesRead": 12,
+    "secondsRead": 390,
+    "pagesRead": 0.8
+  }
+}
+```
 
 ---
 
@@ -139,15 +200,16 @@ QF uses **parent scopes only** — requesting child scopes (e.g. `bookmark.read`
 
 ---
 
-## Vercel Deployment Checklist
+## Vercel Environment Variables Checklist
 
-Ensure these are set in Vercel project settings → Environment Variables:
-
-- [ ] `QF_CLIENT_ID` → production client ID
-- [ ] `QF_CLIENT_SECRET` → production client secret
-- [ ] `QF_CONTENT_CLIENT_ID` → same as above
-- [ ] `QF_CONTENT_CLIENT_SECRET` → same as above
-- [ ] `NEXT_PUBLIC_QF_CLIENT_ID` → production client ID
-- [ ] `QF_OAUTH_BASE_URL` → `https://oauth2.quran.foundation`
-- [ ] `NEXT_PUBLIC_QF_OAUTH_BASE_URL` → `https://oauth2.quran.foundation`
-- [ ] `QF_USER_API_BASE_URL` → **delete this var** (routes default to production)
+| Variable | Value |
+|---|---|
+| `QF_CLIENT_ID` | production client ID |
+| `QF_CLIENT_SECRET` | production client secret |
+| `QF_CONTENT_CLIENT_ID` | same as above |
+| `QF_CONTENT_CLIENT_SECRET` | same as above |
+| `NEXT_PUBLIC_QF_CLIENT_ID` | production client ID |
+| `QF_OAUTH_BASE_URL` | `https://oauth2.quran.foundation` |
+| `NEXT_PUBLIC_QF_OAUTH_BASE_URL` | `https://oauth2.quran.foundation` |
+| `QF_AUTH_BASE_URL` | `https://auth.quran.foundation` |
+| `QF_USER_API_BASE_URL` | **delete this var** (routes default to production) |

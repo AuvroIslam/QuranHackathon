@@ -188,15 +188,21 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
 
           {/* Daily Goal */}
           <div className="glass rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-3">
               <Target size={14} className="text-secondary" />
               <p className="text-xs text-white/40 uppercase tracking-wider">Daily Verse Goal</p>
             </div>
-            <p className="text-2xl font-bold text-white">
-              {dailyGoal ?? "—"}
-              <span className="text-sm font-normal text-white/40 ml-1">verses / day</span>
-            </p>
-            <p className="text-xs text-white/30 mt-1">Set in the Quran page</p>
+            {dailyGoal ? (
+              <div className="flex items-end gap-2">
+                <span className="text-3xl font-bold text-white">{dailyGoal}</span>
+                <span className="text-sm text-white/40 mb-1">verses / day</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-white/30">
+                <span className="text-sm">No goal set —</span>
+                <span className="text-sm text-secondary/70">go to the Quran page to set one</span>
+              </div>
+            )}
           </div>
 
           {/* Bookmarks */}

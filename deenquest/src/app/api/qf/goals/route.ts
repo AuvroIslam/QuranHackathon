@@ -105,29 +105,35 @@ export async function DELETE(req: NextRequest) {
 
   const headers = qfHeaders(token, clientId);
 
-  // Try path variants — QF may or may not require mushafId on DELETE
-  const paths = [
-    `/v1/goals/${goalId}`,
-    `/v1/goals/${goalId}?mushafId=${MUSHAF_ID}`,
+  // 422 means path is right but body is missing — try all body variants
+  const bodyVariants = [
+    { id: goalId, mushafId: MUSHAF_ID },
+    { goalId, mushafId: MUSHAF_ID },
+    { id: goalId },
+    {},
   ];
 
-  for (const path of paths) {
+  for (const bodyVariant of bodyVariants) {
     for (const base of [QF_AUTH, QF_API + "/auth"]) {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8000);
         let res: Response;
         try {
-          res = await fetch(`${base}${path}`, { method: "DELETE", headers, signal: controller.signal });
+          res = await fetch(`${base}/v1/goals/${goalId}`, {
+            method: "DELETE",
+            headers,
+            body: JSON.stringify(bodyVariant),
+            signal: controller.signal,
+          });
         } finally {
           clearTimeout(timeout);
         }
-        // Some DELETE endpoints return 204 No Content (no body)
         const data = res.status === 204 ? {} : await res.json().catch(() => ({}));
-        console.log(`[QF goals DELETE] ${base}${path} → ${res.status}`, data);
+        console.log(`[QF goals DELETE] ${base} body=${JSON.stringify(bodyVariant)} → ${res.status}`, data);
         if (res.ok) return NextResponse.json(data, { status: 200 });
       } catch (e) {
-        console.warn(`[QF goals DELETE] ${base}${path} → network error`, e);
+        console.warn(`[QF goals DELETE] ${base} → network error`, e);
       }
     }
   }

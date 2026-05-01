@@ -9,24 +9,24 @@ const QF_OAUTH_NONCE_KEY = "qf_oauth_nonce";
 
 export function getQFAccessToken(): string | null {
   if (typeof window === "undefined") return null;
-  const expiresAt = sessionStorage.getItem(QF_TOKEN_EXPIRES_KEY);
+  const expiresAt = localStorage.getItem(QF_TOKEN_EXPIRES_KEY);
   if (expiresAt && Date.now() > parseInt(expiresAt)) {
     clearQFSession();
     return null;
   }
-  return sessionStorage.getItem(QF_ACCESS_TOKEN_KEY);
+  return localStorage.getItem(QF_ACCESS_TOKEN_KEY);
 }
 
 export function setQFSession(accessToken: string, refreshToken: string, expiresIn: number) {
-  sessionStorage.setItem(QF_ACCESS_TOKEN_KEY, accessToken);
-  sessionStorage.setItem(QF_REFRESH_TOKEN_KEY, refreshToken);
-  sessionStorage.setItem(QF_TOKEN_EXPIRES_KEY, String(Date.now() + expiresIn * 1000));
+  localStorage.setItem(QF_ACCESS_TOKEN_KEY, accessToken);
+  localStorage.setItem(QF_REFRESH_TOKEN_KEY, refreshToken);
+  localStorage.setItem(QF_TOKEN_EXPIRES_KEY, String(Date.now() + expiresIn * 1000));
 }
 
 export function clearQFSession() {
-  sessionStorage.removeItem(QF_ACCESS_TOKEN_KEY);
-  sessionStorage.removeItem(QF_REFRESH_TOKEN_KEY);
-  sessionStorage.removeItem(QF_TOKEN_EXPIRES_KEY);
+  localStorage.removeItem(QF_ACCESS_TOKEN_KEY);
+  localStorage.removeItem(QF_REFRESH_TOKEN_KEY);
+  localStorage.removeItem(QF_TOKEN_EXPIRES_KEY);
 }
 
 export function isQFConnected(): boolean {

@@ -74,7 +74,7 @@ function CallbackHandler() {
         setQFSession(accessToken, refreshToken, expiresIn);
         clearOAuthStorage();
         setStatus("Quran.com account connected!");
-        setTimeout(() => router.push("/"), 1200);
+        setTimeout(() => router.push("/listen"), 1200);
       } catch (err) {
         console.error("[QF callback] error:", err);
         setStatus("Connection failed. Please try again.");

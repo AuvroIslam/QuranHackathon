@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// auth.quran.foundation is the correct base for goals and activity-days per QF OpenAPI spec
 const QF_AUTH = process.env.QF_AUTH_BASE_URL ?? "https://auth.quran.foundation";
-const MUSHAF_ID = 4; // UthmaniHafs
+const QF_API = process.env.QF_USER_API_BASE_URL ?? "https://apis.quran.foundation";
+const MUSHAF_ID = 4;
 
-function qfHeaders(token: string) {
+function qfHeaders(token: string, clientId: string) {
   return {
     Authorization: `Bearer ${token}`,
+    "x-auth-token": token,
+    "x-client-id": clientId,
     "Content-Type": "application/json",
     Accept: "application/json",
   };
@@ -22,31 +24,47 @@ async function qfFetch(url: string, options: RequestInit): Promise<Response> {
   }
 }
 
-// GET — fetch today's goal plan (progress toward goal)
+// Try a request against two base URLs, return first success
+async function tryBoth(
+  path: string,
+  options: RequestInit
+): Promise<{ res: Response; data: unknown } | null> {
+  for (const base of [QF_AUTH, QF_API + "/auth"]) {
+    try {
+      const res = await qfFetch(`${base}${path}`, options);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) return { res, data };
+      // Log which URL failed for debugging
+      console.warn(`[QF goals] ${base}${path} → ${res.status}`, data);
+    } catch {
+      console.warn(`[QF goals] ${base}${path} → network error`);
+    }
+  }
+  return null;
+}
+
+// GET — today's goal progress
 export async function GET(req: NextRequest) {
   const token = req.headers.get("x-qf-token");
+  const clientId = process.env.QF_CLIENT_ID ?? "";
   if (!token) return NextResponse.json({ error: "No QF token" }, { status: 401 });
 
   const type = req.nextUrl.searchParams.get("type") ?? "QURAN_TIME";
+  const headers = qfHeaders(token, clientId);
 
-  try {
-    const res = await qfFetch(
-      `${QF_AUTH}/v1/goals/get-todays-plan?type=${type}&mushafId=${MUSHAF_ID}`,
-      { headers: qfHeaders(token) }
-    );
-    const data = await res.json().catch(() => ({ success: false, data: { hasGoal: false } }));
-    return NextResponse.json(data, { status: res.ok ? 200 : res.status });
-  } catch {
-    return NextResponse.json({ success: false, data: { hasGoal: false } }, { status: 200 });
-  }
+  const result = await tryBoth(
+    `/v1/goals/get-todays-plan?type=${type}&mushafId=${MUSHAF_ID}`,
+    { headers }
+  );
+
+  if (result) return NextResponse.json(result.data, { status: 200 });
+  return NextResponse.json({ success: false, data: { hasGoal: false } }, { status: 200 });
 }
 
-// POST — create/update a goal on Quran.com
-// Body: { type: "QURAN_TIME" | "QURAN_PAGES", amount: number, duration?: number }
-// QURAN_TIME: amount = seconds (e.g. 600 = 10 min)
-// QURAN_PAGES: amount = pages (e.g. 1)
+// POST — create/update goal
 export async function POST(req: NextRequest) {
   const token = req.headers.get("x-qf-token");
+  const clientId = process.env.QF_CLIENT_ID ?? "";
   if (!token) return NextResponse.json({ error: "No QF token" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
@@ -64,18 +82,13 @@ export async function POST(req: NextRequest) {
   const payload: Record<string, unknown> = { type, amount, category: "QURAN" };
   if (body?.duration) payload.duration = Number(body.duration);
 
-  try {
-    const res = await qfFetch(`${QF_AUTH}/v1/goals?mushafId=${MUSHAF_ID}`, {
-      method: "POST",
-      headers: qfHeaders(token),
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json().catch(() => ({}));
-    return NextResponse.json(data, { status: res.status });
-  } catch (err: unknown) {
-    if (err instanceof Error && err.name === "AbortError") {
-      return NextResponse.json({ error: "QF API timeout" }, { status: 504 });
-    }
-    return NextResponse.json({ error: "QF API unreachable" }, { status: 502 });
-  }
+  const headers = qfHeaders(token, clientId);
+  const result = await tryBoth(`/v1/goals?mushafId=${MUSHAF_ID}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  if (result) return NextResponse.json(result.data, { status: 200 });
+  return NextResponse.json({ error: "QF API unreachable" }, { status: 502 });
 }

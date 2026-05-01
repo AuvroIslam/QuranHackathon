@@ -105,38 +105,49 @@ export async function DELETE(req: NextRequest) {
 
   const headers = qfHeaders(token, clientId);
 
-  // 422 means path is right but body is missing — try all body variants
-  const bodyVariants = [
-    { id: goalId, mushafId: MUSHAF_ID },
-    { goalId, mushafId: MUSHAF_ID },
-    { id: goalId },
-    {},
+  // Try every plausible path + body combination and surface the first QF error body
+  const attempts: { path: string; body: Record<string, unknown> }[] = [
+    // ID in URL (no body)
+    { path: `/v1/goals/${goalId}`, body: {} },
+    // ID in URL + mushafId in body
+    { path: `/v1/goals/${goalId}`, body: { mushafId: MUSHAF_ID } },
+    // No ID in URL — ID in body only
+    { path: `/v1/goals`, body: { id: goalId, mushafId: MUSHAF_ID } },
+    { path: `/v1/goals`, body: { goalId, mushafId: MUSHAF_ID } },
+    // mushafId as query param
+    { path: `/v1/goals/${goalId}?mushafId=${MUSHAF_ID}`, body: {} },
+    // type in body (some QF endpoints require it)
+    { path: `/v1/goals/${goalId}`, body: { type: "QURAN_TIME", mushafId: MUSHAF_ID } },
   ];
 
-  for (const bodyVariant of bodyVariants) {
+  let lastQFError: unknown = null;
+
+  for (const { path, body } of attempts) {
     for (const base of [QF_AUTH, QF_API + "/auth"]) {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8000);
         let res: Response;
+        const hasBody = Object.keys(body).length > 0;
         try {
-          res = await fetch(`${base}/v1/goals/${goalId}`, {
+          res = await fetch(`${base}${path}`, {
             method: "DELETE",
             headers,
-            body: JSON.stringify(bodyVariant),
+            ...(hasBody ? { body: JSON.stringify(body) } : {}),
             signal: controller.signal,
           });
         } finally {
           clearTimeout(timeout);
         }
         const data = res.status === 204 ? {} : await res.json().catch(() => ({}));
-        console.log(`[QF goals DELETE] ${base} body=${JSON.stringify(bodyVariant)} → ${res.status}`, data);
+        console.log(`[QF goals DELETE] ${base}${path} body=${JSON.stringify(body)} → ${res.status}`, JSON.stringify(data));
         if (res.ok) return NextResponse.json(data, { status: 200 });
+        lastQFError = { status: res.status, path, body, data };
       } catch (e) {
-        console.warn(`[QF goals DELETE] ${base} → network error`, e);
+        console.warn(`[QF goals DELETE] ${base}${path} → network error`, e);
       }
     }
   }
 
-  return NextResponse.json({ error: "QF API unreachable — check Vercel logs for QF status" }, { status: 502 });
+  return NextResponse.json({ error: "QF DELETE failed", qfError: lastQFError }, { status: 502 });
 }

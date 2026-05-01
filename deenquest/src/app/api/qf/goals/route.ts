@@ -105,10 +105,10 @@ export async function DELETE(req: NextRequest) {
 
   const headers = qfHeaders(token, clientId);
 
-  const result = await tryBoth(`/v1/goals/${goalId}`, {
+  // QF ignores DELETE request bodies — pass required fields as query params
+  const result = await tryBoth(`/v1/goals/${goalId}?category=QURAN&mushafId=${MUSHAF_ID}`, {
     method: "DELETE",
     headers,
-    body: JSON.stringify({ category: "QURAN", mushafId: MUSHAF_ID }),
   });
 
   if (result) return NextResponse.json(result.data, { status: 200 });

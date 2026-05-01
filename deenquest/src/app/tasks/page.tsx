@@ -397,7 +397,7 @@ export default function TasksPage() {
         "Take the bonus deed for extra progress.",
       ]}
     >
-        <div className="flex items-start justify-between">
+        <div className="flex items-end justify-between">
           <div>
             <h1 className="text-2xl font-bold text-primary">Daily Deeds</h1>
             <p className="text-primary/50 mt-1">
@@ -550,7 +550,7 @@ export default function TasksPage() {
                           <div>
                             <p className="text-xs font-medium text-secondary">Benefit and reward</p>
                             <p className="text-sm text-primary/75 leading-relaxed mt-1">{task.deedBenefit}</p>
-                            <p className="text-xs text-accent mt-2">Neki reward: +{task.xpReward} Hasanat</p>
+                            
                           </div>
                         </div>
                       ) : null}
@@ -650,7 +650,7 @@ export default function TasksPage() {
                       <div>
                         <p className="text-xs font-medium text-secondary">Benefit and reward</p>
                         <p className="text-sm text-primary/75 leading-relaxed mt-1">{bonusDisplayTask.deedBenefit}</p>
-                        <p className="text-xs text-accent mt-2">Neki reward: +{BONUS_XP_REWARD} Hasanat</p>
+                        
                       </div>
                     </div>
                   ) : null}

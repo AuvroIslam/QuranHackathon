@@ -7,11 +7,9 @@ import { getSurahList } from "@/lib/quran";
 import {
   saveListeningProgress,
   getListeningProgress,
-  saveDailyGoal,
-  getDailyGoal,
   type ListeningProgress,
 } from "@/lib/firestore";
-import { getQFAccessToken, isQFConnected } from "@/lib/qf-user-auth";
+import { getQFAccessToken, isQFConnected, initiateQFOAuth } from "@/lib/qf-user-auth";
 import {
   Play, Pause, ChevronLeft, CheckCircle,
   Shuffle, BookOpen, Headphones, ScrollText, Loader2, CloudUpload,
@@ -96,19 +94,20 @@ export default function ListenPage() {
   const [sessionSynced, setSessionSynced] = useState(false);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Goals state
+  // Goals state — QF is single source of truth, no localStorage/Firestore
   const [qfConnected, setQFConnected] = useState(false);
-  const [dailyGoal, setDailyGoal] = useState<number | null>(() => {
-    if (typeof window === "undefined") return null;
-    const v = localStorage.getItem("deenquest_daily_goal");
-    return v ? parseInt(v, 10) : null;
-  });
   const [showGoalInput, setShowGoalInput] = useState(false);
   const [goalType, setGoalType] = useState<"QURAN_TIME" | "QURAN_PAGES">("QURAN_TIME");
   const [goalAmount, setGoalAmount] = useState("10");
   const [savingGoal, setSavingGoal] = useState(false);
-  const [todayProgress, setTodayProgress] = useState<{ progress: number; versesRead: number; secondsRead: number; hasGoal: boolean } | null>(null);
-  // Activity tracking — verse key → start timestamp
+  const [todayProgress, setTodayProgress] = useState<{
+    hasGoal: boolean;
+    progress: number;
+    versesRead: number;
+    secondsRead: number;
+    dailyTargetSeconds: number;
+    dailyTargetPages: number;
+  } | null>(null);
   const verseStartRef = useRef<{ key: string; startedAt: number } | null>(null);
 
   useEffect(() => {
@@ -125,58 +124,59 @@ export default function ListenPage() {
     setQFConnected(isQFConnected());
   }, []);
 
-  // Load goal from Firestore on mount
-  useEffect(() => {
-    if (!user) return;
-    getDailyGoal(user.uid).then((goal) => {
-      if (goal) { setDailyGoal(goal); setGoalAmount(String(goal)); }
-    }).catch(() => {});
-  }, [user]);
+  function applyGoalData(d: Record<string, unknown>) {
+    const data = d?.data as Record<string, unknown> | undefined;
+    if (!data) return;
+    const hasGoal = !!data.hasGoal;
+    setTodayProgress({
+      hasGoal,
+      progress: Number(data.progress ?? 0),
+      versesRead: Number(data.versesRead ?? 0),
+      secondsRead: Number(data.secondsRead ?? 0),
+      dailyTargetSeconds: Number(data.dailyTargetSeconds ?? 0),
+      dailyTargetPages: Number(data.dailyTargetPages ?? 0),
+    });
+    if (hasGoal) {
+      const secs = Number(data.dailyTargetSeconds ?? 0);
+      const pages = Number(data.dailyTargetPages ?? 0);
+      if (secs > 0) { setGoalType("QURAN_TIME"); setGoalAmount(String(Math.round(secs / 60))); }
+      else if (pages > 0) { setGoalType("QURAN_PAGES"); setGoalAmount(String(Math.round(pages))); }
+    }
+  }
 
-  // Fetch today's QF progress when connected
-  useEffect(() => {
-    if (!qfConnected) return;
+  function fetchGoalProgress() {
     const token = getQFAccessToken();
     if (!token) return;
     fetch(`/api/qf/goals?type=QURAN_TIME`, { headers: { "x-qf-token": token } })
       .then((r) => r.json())
-      .then((d) => {
-        if (d?.data?.hasGoal) {
-          setTodayProgress({
-            hasGoal: true,
-            progress: d.data.progress ?? 0,
-            versesRead: d.data.versesRead ?? 0,
-            secondsRead: d.data.secondsRead ?? 0,
-          });
-        }
-      }).catch(() => {});
+      .then(applyGoalData)
+      .catch(() => {});
+  }
+
+  // Fetch goal from QF on connect — QF is single source of truth
+  useEffect(() => {
+    if (!qfConnected) return;
+    fetchGoalProgress();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qfConnected]);
 
   async function saveGoal() {
     const amount = parseInt(goalAmount, 10);
     if (!amount || amount < 1) return;
     setSavingGoal(true);
-    // Convert minutes → seconds for QURAN_TIME
     const qfAmount = goalType === "QURAN_TIME" ? amount * 60 : amount;
-    // Save locally
-    try { localStorage.setItem("deenquest_daily_goal", String(amount)); } catch {}
-    if (user) saveDailyGoal(user.uid, amount).catch(() => {});
-    setDailyGoal(amount);
-    // Sync to Quran.com
     const qfToken = getQFAccessToken();
-    if (qfToken) {
-      try {
-        await fetch("/api/qf/goals", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-qf-token": qfToken },
-          body: JSON.stringify({ type: goalType, amount: qfAmount }),
-        });
-        toast.success(`Goal synced to Quran.com: ${amount} ${goalType === "QURAN_TIME" ? "min/day" : "pages/day"}`);
-      } catch {
-        toast.success(`Goal saved: ${amount} ${goalType === "QURAN_TIME" ? "min" : "pages"}/day`);
-      }
-    } else {
-      toast.success(`Goal saved: ${amount} ${goalType === "QURAN_TIME" ? "min" : "pages"}/day`);
+    if (!qfToken) { await initiateQFOAuth(); setSavingGoal(false); return; }
+    try {
+      await fetch("/api/qf/goals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-qf-token": qfToken },
+        body: JSON.stringify({ type: goalType, amount: qfAmount }),
+      });
+      toast.success(`Goal set: ${amount} ${goalType === "QURAN_TIME" ? "min/day" : "pages/day"}`);
+      fetchGoalProgress();
+    } catch {
+      toast.error("Failed to save goal");
     }
     setShowGoalInput(false);
     setSavingGoal(false);
@@ -194,21 +194,7 @@ export default function ListenPage() {
         seconds: Math.round(seconds),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }),
-    }).then(() => {
-      // Refresh today's progress after reporting
-      fetch(`/api/qf/goals?type=QURAN_TIME`, { headers: { "x-qf-token": qfToken } })
-        .then((r) => r.json())
-        .then((d) => {
-          if (d?.data?.hasGoal) {
-            setTodayProgress({
-              hasGoal: true,
-              progress: d.data.progress ?? 0,
-              versesRead: d.data.versesRead ?? 0,
-              secondsRead: d.data.secondsRead ?? 0,
-            });
-          }
-        }).catch(() => {});
-    }).catch(() => {});
+    }).then(() => fetchGoalProgress()).catch(() => {});
   }
 
   useEffect(() => {
@@ -717,7 +703,11 @@ export default function ListenPage() {
             ) : (
               <>
                 <p className="text-sm font-semibold text-primary mb-2">
-                  {dailyGoal ? `${dailyGoal} ${goalType === "QURAN_TIME" ? "min" : "pages"}/day` : "No goal set"}
+                  {todayProgress?.hasGoal
+                    ? todayProgress.dailyTargetSeconds > 0
+                      ? `${Math.round(todayProgress.dailyTargetSeconds / 60)} min/day`
+                      : `${Math.round(todayProgress.dailyTargetPages)} pages/day`
+                    : "No goal set"}
                 </p>
                 {todayProgress?.hasGoal && (
                   <>

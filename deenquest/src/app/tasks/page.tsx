@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { getTasksForDate, DAILY_TASKS } from "@/lib/tasks-data";
 import { getUserTasksForDate, completeTask, completeBonusTask } from "@/lib/firestore";
 import PageContainer from "../../components/PageContainer";
-import { CheckCircle2, ChevronDown, ChevronUp, Circle, BookOpen, Sparkles, Loader2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Circle, BookOpen, Sparkles, Loader2, Trophy } from "lucide-react";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import type { Task, UserTask } from "@/lib/types";
 
@@ -396,11 +397,20 @@ export default function TasksPage() {
         "Take the bonus deed for extra progress.",
       ]}
     >
-        <div>
-          <h1 className="text-2xl font-bold text-primary">Daily Deeds</h1>
-          <p className="text-primary/50 mt-1">
-            Complete good deeds inspired by the Quran to earn Hasanat
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-primary">Daily Deeds</h1>
+            <p className="text-primary/50 mt-1">
+              Complete good deeds inspired by the Quran to earn Hasanat
+            </p>
+          </div>
+          <Link
+            href="/levels"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary/20 border border-secondary/30 text-secondary text-sm font-semibold hover:bg-secondary/30 transition-all shrink-0"
+          >
+            <Trophy size={15} />
+            My Levels
+          </Link>
         </div>
 
         {/* Daily Salah */}

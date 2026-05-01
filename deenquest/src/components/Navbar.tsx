@@ -22,7 +22,6 @@ import ProfilePanel from "./ProfilePanel";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/levels", label: "Levels", icon: Trophy },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/listen", label: "Quran", icon: BookOpen },
   { href: "/dawah", label: "Dawah", icon: Moon },

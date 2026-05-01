@@ -92,3 +92,23 @@ export async function POST(req: NextRequest) {
   if (result) return NextResponse.json(result.data, { status: 200 });
   return NextResponse.json({ error: "QF API unreachable" }, { status: 502 });
 }
+
+// DELETE — remove goal by id
+export async function DELETE(req: NextRequest) {
+  const token = req.headers.get("x-qf-token");
+  const clientId = process.env.QF_CLIENT_ID ?? "";
+  if (!token) return NextResponse.json({ error: "No QF token" }, { status: 401 });
+
+  const { searchParams } = req.nextUrl;
+  const goalId = searchParams.get("goalId");
+  if (!goalId) return NextResponse.json({ error: "goalId is required" }, { status: 400 });
+
+  const headers = qfHeaders(token, clientId);
+  const result = await tryBoth(`/v1/goals/${goalId}?mushafId=${MUSHAF_ID}`, {
+    method: "DELETE",
+    headers,
+  });
+
+  if (result) return NextResponse.json(result.data, { status: 200 });
+  return NextResponse.json({ error: "QF API unreachable" }, { status: 502 });
+}

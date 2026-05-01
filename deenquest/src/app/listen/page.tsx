@@ -102,12 +102,14 @@ export default function ListenPage() {
   const [savingGoal, setSavingGoal] = useState(false);
   const [todayProgress, setTodayProgress] = useState<{
     hasGoal: boolean;
+    goalId: string | null;
     progress: number;
     versesRead: number;
     secondsRead: number;
     dailyTargetSeconds: number;
     dailyTargetPages: number;
   } | null>(null);
+  const [deletingGoal, setDeletingGoal] = useState(false);
   const verseStartRef = useRef<{ key: string; startedAt: number } | null>(null);
 
   useEffect(() => {
@@ -128,8 +130,10 @@ export default function ListenPage() {
     const data = d?.data as Record<string, unknown> | undefined;
     if (!data) return;
     const hasGoal = !!data.hasGoal;
+    const goalId = (data.id ?? data.goalId ?? null) as string | null;
     setTodayProgress({
       hasGoal,
+      goalId,
       progress: Number(data.progress ?? 0),
       versesRead: Number(data.versesRead ?? 0),
       secondsRead: Number(data.secondsRead ?? 0),
@@ -180,6 +184,27 @@ export default function ListenPage() {
     }
     setShowGoalInput(false);
     setSavingGoal(false);
+  }
+
+  async function deleteGoal() {
+    const goalId = todayProgress?.goalId;
+    const qfToken = getQFAccessToken();
+    if (!qfToken) { await initiateQFOAuth(); return; }
+    if (!goalId) { toast.error("Goal ID not found — refresh and try again"); return; }
+    setDeletingGoal(true);
+    try {
+      await fetch(`/api/qf/goals?goalId=${encodeURIComponent(goalId)}`, {
+        method: "DELETE",
+        headers: { "x-qf-token": qfToken },
+      });
+      toast.success("Goal deleted");
+      setTodayProgress(null);
+      setGoalAmount("10");
+      setGoalType("QURAN_TIME");
+    } catch {
+      toast.error("Failed to delete goal");
+    }
+    setDeletingGoal(false);
   }
 
   function reportActivity(verseKey: string, seconds: number, chapterId: number, verseNumber: number) {
@@ -664,11 +689,35 @@ export default function ListenPage() {
               <p className="text-xs text-primary/50 flex items-center gap-1.5">
                 <CheckCircle size={13} className="text-secondary" /> Daily Goal
               </p>
-              <button onClick={() => setShowGoalInput(!showGoalInput)} className="text-xs text-secondary hover:brightness-110">
-                {showGoalInput ? "✕" : "Edit"}
-              </button>
+              {todayProgress?.hasGoal && (
+                <button
+                  onClick={deleteGoal}
+                  disabled={deletingGoal}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                >
+                  {deletingGoal ? "..." : "Delete"}
+                </button>
+              )}
             </div>
-            {showGoalInput ? (
+
+            {todayProgress?.hasGoal ? (
+              <>
+                <p className="text-sm font-semibold text-primary mb-2">
+                  {todayProgress.dailyTargetSeconds > 0
+                    ? `${Math.round(todayProgress.dailyTargetSeconds / 60)} min/day`
+                    : `${Math.round(todayProgress.dailyTargetPages)} pages/day`}
+                </p>
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
+                  <div
+                    className="h-full bg-secondary rounded-full transition-all"
+                    style={{ width: `${Math.min(100, Math.round((todayProgress.progress ?? 0) * 100))}%` }}
+                  />
+                </div>
+                <p className="text-xs text-primary/40">
+                  {Math.round((todayProgress.progress ?? 0) * 100)}% done · {todayProgress.versesRead} verses · {Math.round((todayProgress.secondsRead ?? 0) / 60)}min
+                </p>
+              </>
+            ) : showGoalInput ? (
               <div className="space-y-2">
                 <div className="flex gap-1">
                   {(["QURAN_TIME", "QURAN_PAGES"] as const).map((t) => (
@@ -698,31 +747,16 @@ export default function ListenPage() {
                   >
                     {savingGoal ? "..." : "Save"}
                   </button>
+                  <button onClick={() => setShowGoalInput(false)} className="text-xs text-primary/40 hover:text-primary/70">✕</button>
                 </div>
               </div>
             ) : (
-              <>
-                <p className="text-sm font-semibold text-primary mb-2">
-                  {todayProgress?.hasGoal
-                    ? todayProgress.dailyTargetSeconds > 0
-                      ? `${Math.round(todayProgress.dailyTargetSeconds / 60)} min/day`
-                      : `${Math.round(todayProgress.dailyTargetPages)} pages/day`
-                    : "No goal set"}
-                </p>
-                {todayProgress?.hasGoal && (
-                  <>
-                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
-                      <div
-                        className="h-full bg-secondary rounded-full transition-all"
-                        style={{ width: `${Math.min(100, Math.round((todayProgress.progress ?? 0) * 100))}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-primary/40">
-                      {Math.round((todayProgress.progress ?? 0) * 100)}% done · {todayProgress.versesRead} verses · {Math.round((todayProgress.secondsRead ?? 0) / 60)}min
-                    </p>
-                  </>
-                )}
-              </>
+              <button
+                onClick={() => setShowGoalInput(true)}
+                className="text-xs text-secondary hover:brightness-110 transition-colors"
+              >
+                + Set a daily goal
+              </button>
             )}
           </div>
         )}

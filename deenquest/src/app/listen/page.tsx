@@ -510,7 +510,7 @@ export default function ListenPage() {
                     </div>
 
                     {/* Arabic — word by word with highlight */}
-                    <div className="flex flex-wrap gap-x-2 gap-y-2 justify-end" dir="rtl">
+                    <div className="flex flex-wrap gap-x-2 gap-y-2 justify-center" dir="rtl">
                       {wordsOnly.length > 0 ? wordsOnly.map((word, widx) => (
                         <span
                           key={word.id}
@@ -523,7 +523,7 @@ export default function ListenPage() {
                           {word.text_uthmani}
                         </span>
                       )) : (
-                        <p className="text-2xl leading-loose font-arabic text-primary w-full text-right" translate="no">
+                        <p className="text-2xl leading-loose font-arabic text-primary w-full text-center" translate="no">
                           {verse.text_uthmani}
                         </p>
                       )}

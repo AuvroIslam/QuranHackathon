@@ -24,24 +24,15 @@ export async function GET(req: NextRequest) {
   // Try authenticated QF Content API; fall back to public api.quran.com
   const token = await getQFContentToken();
 
-  console.log("[QF DEBUG] token obtained:", !!token);
   if (token) {
     try {
       const res = await fetch(`${AUTH_API}/${path}${query}`, { headers: getQFHeaders(token) });
-      console.log("[QF DEBUG] content API status:", res.status, "url:", `${AUTH_API}/${path}${query}`);
       if (res.ok) {
         const data = await res.json();
-        console.log("[QF DEBUG] content API response keys:", Object.keys(data));
-        if (data.verses?.[0]?.translations) {
-          console.log("[QF DEBUG] verse[0] translation resource_ids:", data.verses[0].translations.map((t: {resource_id: number}) => t.resource_id));
-        }
         return NextResponse.json(data, { status: 200 });
-      } else {
-        const errText = await res.text();
-        console.log("[QF DEBUG] content API error body:", errText.slice(0, 300));
       }
-    } catch (e) {
-      console.log("[QF DEBUG] content API exception:", e);
+    } catch {
+      // fall through to public API
     }
   }
 

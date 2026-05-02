@@ -11,7 +11,7 @@ import {
 } from "@/lib/firestore";
 import { getQFAccessToken } from "@/lib/qf-user-auth";
 import {
-  Play, Pause, ChevronLeft, CheckCircle, ChevronDown,
+  Play, Pause, ChevronLeft, CheckCircle, ChevronDown, AudioLines,
   Shuffle, BookOpen, Headphones, ScrollText, Loader2, CloudUpload,
 } from "lucide-react";
 import PageContainer from "../../components/PageContainer";
@@ -85,6 +85,7 @@ export default function ListenPage() {
   const [openTafsirKeys, setOpenTafsirKeys] = useState<Set<string>>(new Set());
   // Set of verse keys whose meaning (translation) is visible
   const [openMeaningKeys, setOpenMeaningKeys] = useState<Set<string>>(new Set());
+  const [showAllPronunciation, setShowAllPronunciation] = useState(false);
   const [loadingVerses, setLoadingVerses] = useState(false);
   const [loadingTafsirKey, setLoadingTafsirKey] = useState<string | null>(null);
 
@@ -390,7 +391,19 @@ export default function ListenPage() {
               <CloudUpload size={13} />
               {sessionSynced ? "Synced" : "Quran.com"}
             </span>
-            {/* Global Listen / Pause button only */}
+            {/* Pronunciation toggle */}
+            <button
+              onClick={() => setShowAllPronunciation((p) => !p)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+                showAllPronunciation
+                  ? "bg-accent/20 text-accent"
+                  : "bg-white/10 text-white/50 hover:bg-white/20 hover:text-white/80"
+              }`}
+            >
+              <AudioLines size={13} />
+              Pronunciation
+            </button>
+            {/* Global Listen / Pause button only */}}
             <button
               onClick={handleGlobalListen}
               disabled={isAnythingLoading || loadingVerses}
@@ -515,7 +528,7 @@ export default function ListenPage() {
                     </div>
 
                     {/* Transliteration / pronunciation */}
-                    {transliteration && (
+                    {showAllPronunciation && transliteration && (
                       <p className="text-xs text-white/40 italic text-center tracking-wide">
                         {transliteration}
                       </p>

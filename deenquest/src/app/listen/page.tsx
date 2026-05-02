@@ -11,7 +11,7 @@ import {
 } from "@/lib/firestore";
 import { getQFAccessToken } from "@/lib/qf-user-auth";
 import {
-  Play, Pause, ChevronLeft, CheckCircle,
+  Play, Pause, ChevronLeft, CheckCircle, ChevronDown,
   Shuffle, BookOpen, Headphones, ScrollText, Loader2, CloudUpload,
 } from "lucide-react";
 import PageContainer from "../../components/PageContainer";
@@ -455,24 +455,7 @@ export default function ListenPage() {
                         {vk}
                       </span>
                       <div className="flex items-center gap-2">
-                        {/* Meaning (translation) toggle */}
-                        {translation && (
-                          <button
-                            onClick={() => setOpenMeaningKeys((prev) => {
-                              const s = new Set(prev);
-                              s.has(vk) ? s.delete(vk) : s.add(vk);
-                              return s;
-                            })}
-                            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
-                              isMeaningOpen
-                                ? "bg-secondary/20 text-secondary"
-                                : "bg-white/8 text-white/40 hover:bg-white/15 hover:text-white/70"
-                            }`}
-                          >
-                            <BookOpen size={11} />
-                            Meaning
-                          </button>
-                        )}
+
                         {/* Tafsir toggle button */}
                         <button
                           onClick={() => handleVerseTafsir(vk)}
@@ -538,11 +521,34 @@ export default function ListenPage() {
                       </p>
                     )}
 
-                    {/* Translation — only shown when Meaning is toggled open */}
-                    {isMeaningOpen && translation && (
-                      <p className="text-sm text-white/60 leading-relaxed italic border-t border-white/10 pt-3">
-                        &ldquo;{translation}&rdquo;
-                      </p>
+                    {/* Meaning accordion */}
+                    {translation && (
+                      <div className="border-t border-white/10 pt-3">
+                        <button
+                          onClick={() => setOpenMeaningKeys((prev) => {
+                            const s = new Set(prev);
+                            s.has(vk) ? s.delete(vk) : s.add(vk);
+                            return s;
+                          })}
+                          className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors w-full group"
+                        >
+                          <BookOpen size={11} className="shrink-0" />
+                          <span className="flex-1 text-left font-medium">
+                            {isMeaningOpen ? "Hide meaning" : "Show meaning"}
+                          </span>
+                          <ChevronDown
+                            size={13}
+                            className={`shrink-0 transition-transform duration-200 ${
+                              isMeaningOpen ? "rotate-180" : ""
+                            }`}
+                          />
+                        </button>
+                        {isMeaningOpen && (
+                          <p className="mt-2 text-sm text-white/65 leading-relaxed italic">
+                            &ldquo;{translation}&rdquo;
+                          </p>
+                        )}
+                      </div>
                     )}
 
                     {/* Tafsir panel — inline per verse */}

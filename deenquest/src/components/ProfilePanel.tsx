@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Edit2, Check, BookOpen, Target, Wifi, WifiOff } from "lucide-react";
+import { X, Edit2, Check, BookOpen, Wifi, WifiOff } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import { updateUserName, saveSalahPrayers, getSalahPrayers } from "@/lib/firestore";
 import { getQFAccessToken, isQFConnected, initiateQFOAuth, clearQFSession } from "@/lib/qf-user-auth";
@@ -26,18 +26,12 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
   const [bookmarks, setBookmarks] = useState<{ key: number; verseNumber: number }[]>([]);
   const [loadingBookmarks, setLoadingBookmarks] = useState(false);
   const [qfConnected, setQFConnected] = useState(false);
-  const [dailyGoal, setDailyGoal] = useState<number | null>(null);
 
   useEffect(() => {
     if (!open || !user) return;
     setNameInput(profile?.name || "");
     const connected = isQFConnected();
     setQFConnected(connected);
-
-    try {
-      const stored = localStorage.getItem("deenquest_daily_goal");
-      if (stored) setDailyGoal(parseInt(stored, 10));
-    } catch {}
 
     getSalahPrayers(user.uid, today).then(setPrayers).catch(() => {});
 
@@ -184,25 +178,6 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Daily Goal */}
-          <div className="glass rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Target size={14} className="text-secondary" />
-              <p className="text-xs text-white/40 uppercase tracking-wider">Daily Verse Goal</p>
-            </div>
-            {dailyGoal ? (
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-bold text-white">{dailyGoal}</span>
-                <span className="text-sm text-white/40 mb-1">verses / day</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-white/30">
-                <span className="text-sm">No goal set —</span>
-                <span className="text-sm text-secondary/70">go to the Quran page to set one</span>
-              </div>
-            )}
           </div>
 
           {/* Bookmarks */}

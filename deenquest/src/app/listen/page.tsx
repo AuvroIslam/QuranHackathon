@@ -9,7 +9,7 @@ import {
   getListeningProgress,
   type ListeningProgress,
 } from "@/lib/firestore";
-import { getQFAccessToken, isQFConnected, initiateQFOAuth } from "@/lib/qf-user-auth";
+import { getQFAccessToken } from "@/lib/qf-user-auth";
 import {
   Play, Pause, ChevronLeft, CheckCircle,
   Shuffle, BookOpen, Headphones, ScrollText, Loader2, CloudUpload,
@@ -39,6 +39,7 @@ interface Verse {
   text_uthmani: string;
   words: Word[];
   translations: { text: string }[];
+  transliterations?: { text: string }[];
 }
 
 interface AudioFile {
@@ -83,6 +84,8 @@ export default function ListenPage() {
   const [tafsirMap, setTafsirMap] = useState<Record<string, string>>({});
   // Set of verse keys whose tafsir panel is open
   const [openTafsirKeys, setOpenTafsirKeys] = useState<Set<string>>(new Set());
+  // Set of verse keys whose meaning (translation) is visible
+  const [openMeaningKeys, setOpenMeaningKeys] = useState<Set<string>>(new Set());
   const [loadingVerses, setLoadingVerses] = useState(false);
   const [loadingTafsirKey, setLoadingTafsirKey] = useState<string | null>(null);
 
@@ -94,22 +97,6 @@ export default function ListenPage() {
   const [sessionSynced, setSessionSynced] = useState(false);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Goals state — QF is single source of truth, no localStorage/Firestore
-  const [qfConnected, setQFConnected] = useState(false);
-  const [showGoalInput, setShowGoalInput] = useState(false);
-  const [goalType, setGoalType] = useState<"QURAN_TIME" | "QURAN_PAGES">("QURAN_TIME");
-  const [goalAmount, setGoalAmount] = useState("10");
-  const [savingGoal, setSavingGoal] = useState(false);
-  const [todayProgress, setTodayProgress] = useState<{
-    hasGoal: boolean;
-    goalId: string | null;
-    progress: number;
-    versesRead: number;
-    secondsRead: number;
-    dailyTargetSeconds: number;
-    dailyTargetPages: number;
-  } | null>(null);
-  const [deletingGoal, setDeletingGoal] = useState(false);
   const verseStartRef = useRef<{ key: string; startedAt: number } | null>(null);
 
   useEffect(() => {
@@ -121,102 +108,6 @@ export default function ListenPage() {
   useEffect(() => {
     if (!loading && !user) router.push("/");
   }, [loading, user, router]);
-
-  useEffect(() => {
-    const check = () => setQFConnected(isQFConnected());
-    check();
-    // Re-check token every 60s so stale "connected" state is caught
-    const interval = setInterval(check, 60_000);
-    return () => clearInterval(interval);
-  }, []);
-
-  function applyGoalData(d: Record<string, unknown>) {
-    const data = d?.data as Record<string, unknown> | undefined;
-    if (!data) return;
-    const hasGoal = !!data.hasGoal;
-    const goal = (data.goal ?? data) as Record<string, unknown>;
-    const goalId = (goal.id ?? goal._id ?? goal.goalId ?? data.id ?? null) as string | null;
-    console.log("[DeenQuest] QF goal response goalId:", goalId, "keys:", Object.keys(data));
-    setTodayProgress({
-      hasGoal,
-      goalId,
-      progress: Number(data.progress ?? 0),
-      versesRead: Number(data.versesRead ?? 0),
-      secondsRead: Number(data.secondsRead ?? 0),
-      dailyTargetSeconds: Number(data.dailyTargetSeconds ?? 0),
-      dailyTargetPages: Number(data.dailyTargetPages ?? 0),
-    });
-    if (hasGoal) {
-      const secs = Number(data.dailyTargetSeconds ?? 0);
-      const pages = Number(data.dailyTargetPages ?? 0);
-      if (secs > 0) { setGoalType("QURAN_TIME"); setGoalAmount(String(Math.round(secs / 60))); }
-      else if (pages > 0) { setGoalType("QURAN_PAGES"); setGoalAmount(String(Math.round(pages))); }
-    }
-  }
-
-  function fetchGoalProgress() {
-    const token = getQFAccessToken();
-    if (!token) return;
-    fetch(`/api/qf/goals?type=QURAN_TIME`, { headers: { "x-qf-token": token } })
-      .then((r) => r.json())
-      .then(applyGoalData)
-      .catch(() => {});
-  }
-
-  // Fetch goal from QF on connect — QF is single source of truth
-  useEffect(() => {
-    if (!qfConnected) return;
-    fetchGoalProgress();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qfConnected]);
-
-  async function saveGoal() {
-    const amount = parseInt(goalAmount, 10);
-    if (!amount || amount < 1) return;
-    setSavingGoal(true);
-    const qfAmount = goalType === "QURAN_TIME" ? amount * 60 : amount;
-    const qfToken = getQFAccessToken();
-    if (!qfToken) { await initiateQFOAuth(); setSavingGoal(false); return; }
-    try {
-      await fetch("/api/qf/goals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-qf-token": qfToken },
-        body: JSON.stringify({ type: goalType, amount: qfAmount }),
-      });
-      toast.success(`Goal set: ${amount} ${goalType === "QURAN_TIME" ? "min/day" : "pages/day"}`);
-      fetchGoalProgress();
-    } catch {
-      toast.error("Failed to save goal");
-    }
-    setShowGoalInput(false);
-    setSavingGoal(false);
-  }
-
-  async function deleteGoal() {
-    const goalId = todayProgress?.goalId;
-    const qfToken = getQFAccessToken();
-    if (!qfToken) {
-      toast.error("Quran.com session expired — reconnect below");
-      setQFConnected(false);
-      return;
-    }
-    if (!goalId) { toast.error("Goal ID not found — refresh the page and try again"); return; }
-    setDeletingGoal(true);
-    try {
-      const res = await fetch(`/api/qf/goals?goalId=${encodeURIComponent(goalId)}`, {
-        method: "DELETE",
-        headers: { "x-qf-token": qfToken },
-      });
-      if (!res.ok) throw new Error(`${res.status}`);
-      toast.success("Goal deleted");
-      setTodayProgress(null);
-      setGoalAmount("10");
-      setGoalType("QURAN_TIME");
-    } catch {
-      toast.error("Failed to delete goal — try again");
-    }
-    setDeletingGoal(false);
-  }
 
   function reportActivity(verseKey: string, seconds: number, chapterId: number, verseNumber: number) {
     const qfToken = getQFAccessToken();
@@ -230,7 +121,7 @@ export default function ListenPage() {
         seconds: Math.round(seconds),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }),
-    }).then(() => fetchGoalProgress()).catch(() => {});
+    }).catch(() => {});
   }
 
   useEffect(() => {
@@ -269,6 +160,7 @@ export default function ListenPage() {
     audioFilesRef.current = {};
     setTafsirMap({});
     setOpenTafsirKeys(new Set());
+    setOpenMeaningKeys(new Set());
     setLoadingVerses(true);
 
     try {
@@ -276,6 +168,7 @@ export default function ListenPage() {
         words: "true",
         word_fields: "text_uthmani,char_type_name",
         translations: "131",
+        transliterations: "57",
         per_page: "300",
       });
       const loadedVerses = verseData.verses ?? [];
@@ -495,12 +388,10 @@ export default function ListenPage() {
               <p className="text-sm font-arabic text-accent/70">{selectedChapter.name_arabic}</p>
             </div>
             {/* Quran.com sync indicator */}
-            {qfConnected && (
-              <span className={`flex items-center gap-1 text-xs shrink-0 transition-colors duration-300 ${sessionSynced ? "text-secondary animate-pulse" : "text-white/30"}`}>
-                <CloudUpload size={13} />
-                {sessionSynced ? "Synced" : "Quran.com"}
-              </span>
-            )}
+            <span className={`flex items-center gap-1 text-xs shrink-0 transition-colors duration-300 ${sessionSynced ? "text-secondary animate-pulse" : "text-white/30"}`}>
+              <CloudUpload size={13} />
+              {sessionSynced ? "Synced" : "Quran.com"}
+            </span>
             {/* Global Listen / Pause button only */}
             <button
               onClick={handleGlobalListen}
@@ -544,6 +435,7 @@ export default function ListenPage() {
                 const isThisLoading = loadingAudioKey === vk;
                 const isThisTafsirLoading = loadingTafsirKey === vk;
                 const isTafsirOpen = openTafsirKeys.has(vk);
+                const isMeaningOpen = openMeaningKeys.has(vk);
                 const tafsirText = tafsirMap[vk];
                 const translation = stripHtml(verse.translations?.[0]?.text ?? "");
                 const wordsOnly = verse.words?.filter((w) => w.char_type_name === "word") ?? [];
@@ -564,6 +456,24 @@ export default function ListenPage() {
                         {vk}
                       </span>
                       <div className="flex items-center gap-2">
+                        {/* Meaning (translation) toggle */}
+                        {translation && (
+                          <button
+                            onClick={() => setOpenMeaningKeys((prev) => {
+                              const s = new Set(prev);
+                              s.has(vk) ? s.delete(vk) : s.add(vk);
+                              return s;
+                            })}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                              isMeaningOpen
+                                ? "bg-secondary/20 text-secondary"
+                                : "bg-white/8 text-white/40 hover:bg-white/15 hover:text-white/70"
+                            }`}
+                          >
+                            <BookOpen size={11} />
+                            Meaning
+                          </button>
+                        )}
                         {/* Tafsir toggle button */}
                         <button
                           onClick={() => handleVerseTafsir(vk)}
@@ -622,8 +532,15 @@ export default function ListenPage() {
                       )}
                     </div>
 
-                    {/* Translation */}
-                    {translation && (
+                    {/* Transliteration / pronunciation */}
+                    {verse.transliterations?.[0]?.text && (
+                      <p className="text-xs text-white/40 italic text-center tracking-wide">
+                        {verse.transliterations[0].text}
+                      </p>
+                    )}
+
+                    {/* Translation — only shown when Meaning is toggled open */}
+                    {isMeaningOpen && translation && (
                       <p className="text-sm text-white/60 leading-relaxed italic border-t border-white/10 pt-3">
                         &ldquo;{translation}&rdquo;
                       </p>
@@ -692,83 +609,6 @@ export default function ListenPage() {
               <p className="text-sm font-medium text-primary">{totalListened} verses listened</p>
               <p className="text-xs text-secondary">{progress.length} surahs started</p>
             </div>
-          </div>
-        )}
-        {qfConnected && (
-          <div className="glass-card rounded-2xl p-4 flex-1 min-w-52">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-primary/50 flex items-center gap-1.5">
-                <CheckCircle size={13} className="text-secondary" /> Daily Goal
-              </p>
-              {todayProgress?.hasGoal && (
-                <button
-                  onClick={deleteGoal}
-                  disabled={deletingGoal}
-                  className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
-                >
-                  {deletingGoal ? "..." : "Delete"}
-                </button>
-              )}
-            </div>
-
-            {todayProgress?.hasGoal ? (
-              <>
-                <p className="text-sm font-semibold text-primary mb-2">
-                  {todayProgress.dailyTargetSeconds > 0
-                    ? `${Math.round(todayProgress.dailyTargetSeconds / 60)} min/day`
-                    : `${Math.round(todayProgress.dailyTargetPages)} pages/day`}
-                </p>
-                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-1">
-                  <div
-                    className="h-full bg-secondary rounded-full transition-all"
-                    style={{ width: `${Math.min(100, Math.round((todayProgress.progress ?? 0) * 100))}%` }}
-                  />
-                </div>
-                <p className="text-xs text-primary/40">
-                  {Math.round((todayProgress.progress ?? 0) * 100)}% done · {todayProgress.versesRead} verses · {Math.round((todayProgress.secondsRead ?? 0) / 60)}min
-                </p>
-              </>
-            ) : showGoalInput ? (
-              <div className="space-y-2">
-                <div className="flex gap-1">
-                  {(["QURAN_TIME", "QURAN_PAGES"] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setGoalType(t)}
-                      className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all ${goalType === t ? "bg-secondary text-white" : "bg-white/10 text-primary/50 hover:bg-white/20"}`}
-                    >
-                      {t === "QURAN_TIME" ? "⏱ Time" : "📄 Pages"}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={goalType === "QURAN_TIME" ? 120 : 20}
-                    value={goalAmount}
-                    onChange={(e) => setGoalAmount(e.target.value)}
-                    className="w-14 px-2 py-1 bg-white/10 border border-white/20 rounded-lg text-xs text-primary focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <span className="text-xs text-primary/40">{goalType === "QURAN_TIME" ? "min/day" : "pages/day"}</span>
-                  <button
-                    onClick={saveGoal}
-                    disabled={savingGoal}
-                    className="ml-auto px-3 py-1 rounded-lg bg-secondary text-white text-xs font-semibold hover:brightness-110 transition-all disabled:opacity-50"
-                  >
-                    {savingGoal ? "..." : "Save"}
-                  </button>
-                  <button onClick={() => setShowGoalInput(false)} className="text-xs text-primary/40 hover:text-primary/70">✕</button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowGoalInput(true)}
-                className="text-xs text-secondary hover:brightness-110 transition-colors"
-              >
-                + Set a daily goal
-              </button>
-            )}
           </div>
         )}
       </div>

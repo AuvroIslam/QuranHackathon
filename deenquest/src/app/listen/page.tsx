@@ -38,8 +38,7 @@ interface Verse {
   verse_number: number;
   text_uthmani: string;
   words: Word[];
-  translations: { text: string }[];
-  transliterations?: { text: string }[];
+  translations: { resource_id: number; text: string }[];
 }
 
 interface AudioFile {
@@ -167,8 +166,7 @@ export default function ListenPage() {
       const verseData = await qfProxy(`verses/by_chapter/${chapter.id}`, {
         words: "true",
         word_fields: "text_uthmani,char_type_name",
-        translations: "131",
-        transliterations: "57",
+        translations: "57,131",
         per_page: "300",
       });
       const loadedVerses = verseData.verses ?? [];
@@ -437,7 +435,8 @@ export default function ListenPage() {
                 const isTafsirOpen = openTafsirKeys.has(vk);
                 const isMeaningOpen = openMeaningKeys.has(vk);
                 const tafsirText = tafsirMap[vk];
-                const translation = stripHtml(verse.translations?.[0]?.text ?? "");
+                const transliteration = verse.translations?.find((t) => t.resource_id === 57)?.text ?? "";
+                const translation = stripHtml(verse.translations?.find((t) => t.resource_id === 131)?.text ?? "");
                 const wordsOnly = verse.words?.filter((w) => w.char_type_name === "word") ?? [];
 
                 return (
@@ -533,9 +532,9 @@ export default function ListenPage() {
                     </div>
 
                     {/* Transliteration / pronunciation */}
-                    {verse.transliterations?.[0]?.text && (
+                    {transliteration && (
                       <p className="text-xs text-white/40 italic text-center tracking-wide">
-                        {verse.transliterations[0].text}
+                        {transliteration}
                       </p>
                     )}
 

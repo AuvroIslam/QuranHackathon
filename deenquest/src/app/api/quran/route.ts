@@ -32,6 +32,9 @@ export async function GET(req: NextRequest) {
       if (res.ok) {
         const data = await res.json();
         console.log("[QF DEBUG] content API response keys:", Object.keys(data));
+        if (data.verses?.[0]?.translations) {
+          console.log("[QF DEBUG] verse[0] translation resource_ids:", data.verses[0].translations.map((t: {resource_id: number}) => t.resource_id));
+        }
         return NextResponse.json(data, { status: 200 });
       } else {
         const errText = await res.text();

@@ -166,7 +166,7 @@ export default function ListenPage() {
       const verseData = await qfProxy(`verses/by_chapter/${chapter.id}`, {
         words: "true",
         word_fields: "text_uthmani,char_type_name",
-        translations: "57,20",
+        translations: "57,131",
         per_page: "300",
       });
       const loadedVerses = verseData.verses ?? [];
@@ -436,7 +436,7 @@ export default function ListenPage() {
                 const isMeaningOpen = openMeaningKeys.has(vk);
                 const tafsirText = tafsirMap[vk];
                 const transliteration = verse.translations?.find((t) => t.resource_id === 57)?.text ?? "";
-                const translation = stripHtml(verse.translations?.find((t) => t.resource_id === 20)?.text ?? "");
+                const translation = stripHtml(verse.translations?.find((t) => t.resource_id === 131)?.text ?? "");
                 const wordsOnly = verse.words?.filter((w) => w.char_type_name === "word") ?? [];
 
                 return (

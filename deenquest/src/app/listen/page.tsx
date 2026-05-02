@@ -403,7 +403,7 @@ export default function ListenPage() {
               <AudioLines size={13} />
               Pronunciation
             </button>
-            {/* Global Listen / Pause button only */}}
+            {/* Global Listen / Pause button only */}
             <button
               onClick={handleGlobalListen}
               disabled={isAnythingLoading || loadingVerses}

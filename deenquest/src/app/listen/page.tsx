@@ -164,19 +164,21 @@ export default function ListenPage() {
     setLoadingVerses(true);
 
     try {
-      const verseData = await qfProxy(`verses/by_chapter/${chapter.id}`, {
-        words: "true",
-        word_fields: "text_uthmani,char_type_name",
-        translations: "57,20",
-        per_page: "300",
-      });
+      const [verseData, audioData] = await Promise.all([
+        qfProxy(`verses/by_chapter/${chapter.id}`, {
+          words: "true",
+          word_fields: "text_uthmani,char_type_name",
+          translations: "57,20",
+          per_page: "300",
+        }),
+        qfProxy(`recitations/7/by_chapter/${chapter.id}`, { per_page: "300" }).catch(() => null),
+      ]);
+
       const loadedVerses = verseData.verses ?? [];
       setVerses(loadedVerses);
       versesRef.current = loadedVerses;
 
-      // Audio — non-fatal if it fails
-      try {
-        const audioData = await qfProxy(`recitations/7/by_chapter/${chapter.id}`, { per_page: "300" });
+      if (audioData) {
         const BASE = "https://verses.quran.com/";
         const aMap: Record<string, AudioFile> = {};
         for (const af of audioData.audio_files ?? []) {
@@ -186,7 +188,7 @@ export default function ListenPage() {
           };
         }
         audioFilesRef.current = aMap;
-      } catch {
+      } else {
         toast.error("Audio unavailable for this surah");
       }
     } catch {

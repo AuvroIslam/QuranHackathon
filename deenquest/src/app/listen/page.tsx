@@ -53,7 +53,7 @@ interface TafsirEntry {
 }
 
 function stripHtml(html: string) {
-  return html.replace(/<[^>]+>/g, "").trim();
+  return html.replace(/<sup[^>]*>.*?<\/sup>/gi, "").replace(/<[^>]+>/g, "").trim();
 }
 
 async function qfProxy(path: string, extra: Record<string, string> = {}) {

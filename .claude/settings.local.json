@@ -15,7 +15,10 @@
       "Bash(sed -i \"s/Continue →/Continue/g\" \"d:/Quranhackathon/deenQuestApplication/src/components/steps/SpeakStep.tsx\")",
       "Read(//c/Users/oitij/.claude/**)",
       "Bash(dir /b \"d:\\\\Quranhackathon\\\\deenquest\\\\public\")",
-      "Bash(dir /b \"d:\\\\Quranhackathon\\\\elementsApp\")"
+      "Bash(dir /b \"d:\\\\Quranhackathon\\\\elementsApp\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\oitij\\.claude"

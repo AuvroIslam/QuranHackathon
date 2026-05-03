@@ -226,7 +226,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
         <View style={styles.sectionHeader}>
           <BookOpen size={16} color={COLORS.primary} />
           <Text style={styles.sectionTitle}>Today's Tasks</Text>
-          <Text style={styles.sectionSub}>Complete all 3 for bonus XP</Text>
+          <Text style={styles.sectionSub}>Earn XP for each deed</Text>
         </View>
 
         {loadingTasks ? (

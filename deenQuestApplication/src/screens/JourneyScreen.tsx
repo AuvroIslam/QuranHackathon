@@ -25,10 +25,12 @@ import {
   completeJourney,
   getDailySessionCount,
   getUserProfile,
+  getUserTasksForDate,
   incrementCurrentDay,
   incrementDailySession,
   updateQuranProgress,
 } from '../lib/firestore';
+import { getStreakStatus } from '../lib/streakUtils';
 import { getLesson } from '../lib/lessons-data';
 import { getAyahByMood } from '../services/api';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
@@ -59,6 +61,9 @@ export default function JourneyScreen() {
   });
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [sessionsToday, setSessionsToday] = useState(0);
+  const [firestoreStreak, setFirestoreStreak] = useState(0);
+  const [lastSessionDate, setLastSessionDate] = useState<string | null>(null);
+  const [recoveryTasksDoneToday, setRecoveryTasksDoneToday] = useState(0);
 
   useEffect(() => {
     if (!uid) return;
@@ -80,15 +85,19 @@ export default function JourneyScreen() {
 
   useEffect(() => {
     if (!uid) return;
-    getUserProfile(uid)
-      .then((profile) => {
+    const today = new Date().toISOString().split('T')[0];
+    Promise.all([getUserProfile(uid), getUserTasksForDate(uid, today)])
+      .then(([profile, todayTasks]) => {
         if (profile) {
           setUserGoal(profile.goal ?? 'learn');
           setUserLevel(profile.level ?? null);
           setUserTimePerDay(profile.timePerDay ?? null);
           setCurrentDay(profile.currentDay ?? 1);
           if (profile.quranProgress) setQuranProgress(profile.quranProgress);
+          setFirestoreStreak(profile.streak ?? 0);
+          setLastSessionDate(profile.lastSessionDate ?? null);
         }
+        setRecoveryTasksDoneToday(todayTasks.filter((t) => t.isStreakRecovery).length);
       })
       .catch(() => {})
       .finally(() => setProfileLoaded(true));
@@ -141,17 +150,23 @@ export default function JourneyScreen() {
   const handleComplete = () => {
     animateTo(1, complete);
     if (uid) {
+      const today = new Date().toISOString().split('T')[0];
+      const sessionKey = `${SESSION_KEY_PREFIX}_${uid}`;
+      const streakStatus = getStreakStatus(lastSessionDate, firestoreStreak);
+      const isStreakRecoveryComplete =
+        streakStatus.status === 'recovery'
+          ? recoveryTasksDoneToday >= streakStatus.tasksNeeded
+          : false;
+
       incrementDailySession(uid).then((newCount) => {
         setSessionsToday(newCount);
-        const today = new Date().toISOString().split('T')[0];
-        const sessionKey = `${SESSION_KEY_PREFIX}_${uid}`;
         AsyncStorage.setItem(sessionKey, JSON.stringify({ date: today, count: newCount })).catch(() => {});
-      }).catch(() => {
-        // Fallback: update local only
-        const newCount = sessionsToday + 1;
-        setSessionsToday(newCount);
-      });
-      completeJourney(uid, state.xpEarned + 10).catch(() => {});
+      }).catch(() => { setSessionsToday((s) => s + 1); });
+
+      completeJourney(uid, state.xpEarned + 10, isStreakRecoveryComplete)
+        .then(({ newStreak }) => setFirestoreStreak(newStreak))
+        .catch(() => {});
+
       if (userGoal === 'learn' && currentDay <= 10) {
         incrementCurrentDay(uid).catch(() => {});
         setCurrentDay((d) => d + 1);
@@ -267,7 +282,7 @@ export default function JourneyScreen() {
       case 'completion': return (
         <CompletionStep
           xpEarned={state.xpEarned}
-          streak={state.streak}
+          streak={firestoreStreak}
           sessionsToday={sessionsToday}
           maxSessions={MAX_SESSIONS}
           onContinue={handleContinue}

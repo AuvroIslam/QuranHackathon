@@ -26,9 +26,11 @@ export default function HomePage() {
   const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(new Set());
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [sessionsToday, setSessionsToday] = useState(0);
+  const [sessionInProgress, setSessionInProgress] = useState(false);
 
   useEffect(() => {
     if (!user) return;
+    setSessionInProgress(sessionStorage.getItem("deenquest_session_in_progress") === "true");
     Promise.all([
       getUserTasksForDate(user.uid, today),
       getDailySessionCount(user.uid),
@@ -87,7 +89,8 @@ export default function HomePage() {
   }
 
   let buttonLabel = "Begin Now";
-  if (sessionDone) buttonLabel = "Keep Going";
+  if (sessionInProgress && !sessionDone) buttonLabel = "Continue";
+  else if (sessionDone) buttonLabel = "Keep Going";
 
   return (
     <PageContainer size="wide" className="space-y-8">

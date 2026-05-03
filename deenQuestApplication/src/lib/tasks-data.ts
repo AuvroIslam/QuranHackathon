@@ -14,6 +14,7 @@ export interface UserTask {
   taskId: string;
   completed: boolean;
   date: string;
+  isStreakRecovery?: boolean;
 }
 
 export const DAILY_TASKS: Task[] = [

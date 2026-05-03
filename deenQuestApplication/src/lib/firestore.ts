@@ -55,10 +55,10 @@ export async function addXP(uid: string, amount: number) {
 }
 
 // Called on journey completion — persists XP, updates lastSessionDate, handles streak
-export async function completeJourney(uid: string, xpEarned: number, isStreakRecoveryComplete = false) {
+export async function completeJourney(uid: string, xpEarned: number, isStreakRecoveryComplete = false): Promise<{ newStreak: number }> {
   const ref = doc(db, 'users', uid);
   const snap = await getDoc(ref);
-  if (!snap.exists()) return;
+  if (!snap.exists()) return { newStreak: 1 };
 
   const data = snap.data();
   const today = new Date().toISOString().split('T')[0];
@@ -89,6 +89,7 @@ export async function completeJourney(uid: string, xpEarned: number, isStreakRec
     lastSessionDate: today,
     streak: newStreak,
   });
+  return { newStreak };
 }
 
 export async function saveUserGoal(

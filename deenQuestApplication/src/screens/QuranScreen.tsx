@@ -1,5 +1,5 @@
 import { Audio } from 'expo-av';
-import { BookOpen, ChevronRight, Pause, Play, ScrollText, Search } from 'lucide-react-native';
+import { BookOpen, ChevronRight, Loader, Pause, Play, ScrollText, Search } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, FlatList, Pressable,
@@ -9,7 +9,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_BASE } from '../services/api';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 
-// Route through the same Vercel proxy as the web app (QF Content API + public fallback)
 function qfProxy(path: string, params: Record<string, string> = {}): string {
   const p = new URLSearchParams({ path, ...params });
   return `${API_BASE}/api/quran?${p.toString()}`;
@@ -47,7 +46,13 @@ export default function QuranScreen() {
   const [ayahs, setAyahs] = useState<Ayah[]>([]);
   const [loadingAyahs, setLoadingAyahs] = useState(false);
   const [playingKey, setPlayingKey] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const ayahsRef = useRef<Ayah[]>([]);
+
+  // Keep ref in sync so auto-advance closure always sees latest list
+  useEffect(() => { ayahsRef.current = ayahs; }, [ayahs]);
 
   useEffect(() => {
     fetch(qfProxy('chapters'))
@@ -68,7 +73,90 @@ export default function QuranScreen() {
     ));
   }, [query, chapters]);
 
+  useEffect(() => {
+    return () => { soundRef.current?.unloadAsync().catch(() => {}); };
+  }, []);
+
+  const stopAudio = async () => {
+    if (soundRef.current) {
+      await soundRef.current.stopAsync().catch(() => {});
+      await soundRef.current.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    }
+    setPlayingKey(null);
+    setIsPlaying(false);
+    setLoadingKey(null);
+  };
+
+  const playVerseByKey = async (verseKey: string) => {
+    if (soundRef.current) {
+      await soundRef.current.stopAsync().catch(() => {});
+      await soundRef.current.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    }
+    setPlayingKey(verseKey);
+    setIsPlaying(true);
+    setLoadingKey(verseKey);
+    try {
+      const [s, a] = verseKey.split(':').map(Number);
+      const uri = `https://everyayah.com/data/Alafasy_128kbps/${pad3(s)}${pad3(a)}.mp3`;
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+      const { sound } = await Audio.Sound.createAsync({ uri }, { shouldPlay: true });
+      soundRef.current = sound;
+      setLoadingKey(null);
+      sound.setOnPlaybackStatusUpdate((st) => {
+        if (!st.isLoaded) return;
+        if (st.didJustFinish) {
+          sound.unloadAsync();
+          soundRef.current = null;
+          const all = ayahsRef.current;
+          const idx = all.findIndex((v) => v.verseKey === verseKey);
+          if (idx >= 0 && idx < all.length - 1) {
+            playVerseByKey(all[idx + 1].verseKey);
+          } else {
+            setPlayingKey(null);
+            setIsPlaying(false);
+          }
+        }
+      });
+    } catch {
+      setPlayingKey(null);
+      setIsPlaying(false);
+      setLoadingKey(null);
+    }
+  };
+
+  const handleVersePlay = async (verseKey: string) => {
+    if (playingKey === verseKey) {
+      if (isPlaying) {
+        await soundRef.current?.pauseAsync().catch(() => {});
+        setIsPlaying(false);
+      } else {
+        await soundRef.current?.playAsync().catch(() => {});
+        setIsPlaying(true);
+      }
+      return;
+    }
+    await playVerseByKey(verseKey);
+  };
+
+  const handleGlobalPlayPause = async () => {
+    if (!ayahs.length || loadingAyahs) return;
+    if (playingKey && soundRef.current) {
+      if (isPlaying) {
+        await soundRef.current.pauseAsync().catch(() => {});
+        setIsPlaying(false);
+      } else {
+        await soundRef.current.playAsync().catch(() => {});
+        setIsPlaying(true);
+      }
+      return;
+    }
+    await playVerseByKey(ayahs[0].verseKey);
+  };
+
   const openChapter = async (chapter: Chapter) => {
+    await stopAudio();
     setSelectedChapter(chapter);
     setLoadingAyahs(true);
     setAyahs([]);
@@ -89,7 +177,6 @@ export default function QuranScreen() {
       const verses: any[] = verseData?.verses ?? [];
       const tafsirList: any[] = tafsirData?.tafsirs ?? [];
 
-      // Build tafsir lookup by verse_key
       const tafsirMap: Record<string, string> = {};
       for (const t of tafsirList) {
         tafsirMap[t.verse_key] = stripHtml(t.text ?? '');
@@ -99,7 +186,6 @@ export default function QuranScreen() {
         verseKey: v.verse_key as string,
         verseNumber: v.verse_number as number,
         arabic: v.text_uthmani as string,
-        // resource_id 57 = transliteration, 20 = Saheeh International English
         transliteration: v.translations?.find((t: any) => t.resource_id === 57)?.text ?? '',
         translation: stripHtml(v.translations?.find((t: any) => t.resource_id === 20)?.text ?? ''),
         tafsir: tafsirMap[v.verse_key] ?? '',
@@ -110,40 +196,12 @@ export default function QuranScreen() {
     setLoadingAyahs(false);
   };
 
-  const playAyah = async (verseKey: string) => {
-    if (soundRef.current) {
-      await soundRef.current.stopAsync().catch(() => {});
-      await soundRef.current.unloadAsync().catch(() => {});
-      soundRef.current = null;
-    }
-    if (playingKey === verseKey) { setPlayingKey(null); return; }
-    setPlayingKey(verseKey);
-    try {
-      const [s, a] = verseKey.split(':').map(Number);
-      const uri = `https://everyayah.com/data/Alafasy_128kbps/${pad3(s)}${pad3(a)}.mp3`;
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const { sound } = await Audio.Sound.createAsync({ uri }, { shouldPlay: true });
-      soundRef.current = sound;
-      sound.setOnPlaybackStatusUpdate((st) => {
-        if (st.isLoaded && st.didJustFinish) {
-          setPlayingKey(null);
-          sound.unloadAsync();
-          soundRef.current = null;
-        }
-      });
-    } catch { setPlayingKey(null); }
-  };
-
-  useEffect(() => {
-    return () => { soundRef.current?.unloadAsync().catch(() => {}); };
-  }, []);
-
   if (selectedChapter) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.surahHeader}>
           <Pressable
-            onPress={() => { setSelectedChapter(null); setPlayingKey(null); soundRef.current?.unloadAsync(); }}
+            onPress={() => { stopAudio(); setSelectedChapter(null); }}
             style={styles.backBtn}
           >
             <ChevronRight size={20} color={COLORS.primary} style={{ transform: [{ rotate: '180deg' }] }} />
@@ -152,7 +210,19 @@ export default function QuranScreen() {
             <Text style={styles.surahHeaderName}>{selectedChapter.name_simple}</Text>
             <Text style={styles.surahHeaderAr}>{selectedChapter.name_arabic}</Text>
           </View>
-          <Text style={styles.surahHeaderMeta}>{selectedChapter.verses_count} ayahs</Text>
+          <Pressable
+            onPress={handleGlobalPlayPause}
+            disabled={loadingAyahs}
+            style={[styles.globalPlayBtn, isPlaying && styles.globalPlayBtnActive]}
+          >
+            {loadingKey ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : isPlaying ? (
+              <Pause size={17} color={COLORS.white} fill={COLORS.white} />
+            ) : (
+              <Play size={17} color={isPlaying ? COLORS.white : COLORS.primary} fill={isPlaying ? COLORS.white : COLORS.primary} />
+            )}
+          </Pressable>
         </View>
 
         {loadingAyahs ? (
@@ -168,8 +238,10 @@ export default function QuranScreen() {
             renderItem={({ item }) => (
               <AyahCard
                 ayah={item}
-                isPlaying={playingKey === item.verseKey}
-                onPlay={() => playAyah(item.verseKey)}
+                isSelected={playingKey === item.verseKey}
+                isPlaying={playingKey === item.verseKey && isPlaying}
+                isLoading={loadingKey === item.verseKey}
+                onPlay={() => handleVersePlay(item.verseKey)}
               />
             )}
           />
@@ -223,45 +295,44 @@ export default function QuranScreen() {
   );
 }
 
-function AyahCard({ ayah, isPlaying, onPlay }: {
-  ayah: Ayah; isPlaying: boolean; onPlay: () => void;
+function AyahCard({ ayah, isSelected, isPlaying, isLoading, onPlay }: {
+  ayah: Ayah; isSelected: boolean; isPlaying: boolean; isLoading: boolean; onPlay: () => void;
 }) {
   const [tafsirOpen, setTafsirOpen] = useState(false);
   const [meaningOpen, setMeaningOpen] = useState(false);
 
   return (
-    <View style={styles.ayahCard}>
-      {/* Top row: play (left) + number (right) */}
+    <View style={[styles.ayahCard, isSelected && styles.ayahCardActive]}>
       <View style={styles.ayahTopRow}>
         <Pressable
           onPress={onPlay}
           style={[styles.playAyahBtn, isPlaying && styles.playAyahBtnActive]}
         >
-          {isPlaying
-            ? <Pause size={15} color={COLORS.white} fill={COLORS.white} />
-            : <Play size={15} color={COLORS.primary} fill={COLORS.primary} />}
+          {isLoading ? (
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          ) : isPlaying ? (
+            <Pause size={15} color={COLORS.white} fill={COLORS.white} />
+          ) : (
+            <Play size={15} color={isSelected ? COLORS.primary : COLORS.primary} fill={isSelected ? COLORS.primary : COLORS.primary} />
+          )}
         </Pressable>
-        <View style={styles.ayahNumBadge}>
-          <Text style={styles.ayahNum}>{ayah.verseNumber}</Text>
+        <View style={[styles.ayahNumBadge, isSelected && styles.ayahNumBadgeActive]}>
+          <Text style={[styles.ayahNum, isSelected && styles.ayahNumActive]}>{ayah.verseNumber}</Text>
         </View>
       </View>
 
-      {/* Arabic */}
       <Text style={styles.ayahArabic}>{ayah.arabic}</Text>
 
-      {/* English pronunciation */}
       {!!ayah.transliteration && (
         <Text style={styles.ayahTranslit}>{ayah.transliteration}</Text>
       )}
 
-      {/* Translation — hidden until "Meaning" pressed */}
       {meaningOpen && !!ayah.translation && (
         <View style={styles.meaningBox}>
           <Text style={styles.meaningText}>"{ayah.translation}"</Text>
         </View>
       )}
 
-      {/* Action row */}
       <View style={styles.ayahActions}>
         {!!ayah.translation && (
           <Pressable
@@ -288,7 +359,6 @@ function AyahCard({ ayah, isPlaying, onPlay }: {
         )}
       </View>
 
-      {/* Ibn Kathir Tafsir — expandable */}
       {tafsirOpen && !!ayah.tafsir && (
         <View style={styles.tafsirBox}>
           <Text style={styles.tafsirLabel}>📖 Ibn Kathir Tafsir</Text>
@@ -342,7 +412,18 @@ const styles = StyleSheet.create({
   surahHeaderText: { flex: 1 },
   surahHeaderName: { color: COLORS.text, fontSize: 18, fontWeight: '800' },
   surahHeaderAr: { color: COLORS.primary, fontSize: 14 },
-  surahHeaderMeta: { color: COLORS.textMuted, fontSize: 12 },
+
+  globalPlayBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: COLORS.primaryBg,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
+    alignItems: 'center', justifyContent: 'center',
+    ...SHADOW.card,
+  },
+  globalPlayBtnActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
 
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { color: COLORS.textMuted, fontSize: 14 },
@@ -355,6 +436,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     ...SHADOW.card,
   },
+  ayahCardActive: {
+    borderColor: `${COLORS.primary}55`,
+    backgroundColor: COLORS.primaryBg,
+  },
 
   ayahTopRow: {
     flexDirection: 'row',
@@ -365,7 +450,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryBg, width: 30, height: 30,
     borderRadius: 15, alignItems: 'center', justifyContent: 'center',
   },
+  ayahNumBadgeActive: { backgroundColor: COLORS.primary },
   ayahNum: { color: COLORS.primary, fontSize: 12, fontWeight: '800' },
+  ayahNumActive: { color: COLORS.white },
   ayahArabic: {
     color: COLORS.text, fontSize: 24, textAlign: 'right',
     lineHeight: 44, writingDirection: 'rtl',
@@ -388,7 +475,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryBg, borderRadius: RADIUS.full,
     padding: 9, borderWidth: 1, borderColor: COLORS.cardBorder,
   },
-  playAyahBtnActive: { backgroundColor: COLORS.primary },
+  playAyahBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   actionBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 11, paddingVertical: 7,

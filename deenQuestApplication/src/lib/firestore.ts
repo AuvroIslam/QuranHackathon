@@ -107,6 +107,30 @@ export async function updateQuranProgress(uid: string, surahNumber: number, ayah
   });
 }
 
+// --- Daily session tracking (stored in Firestore for cross-device sync) ---
+
+export async function getDailySessionCount(uid: string): Promise<number> {
+  const today = new Date().toISOString().split('T')[0];
+  const ref = doc(db, 'users', uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return 0;
+  const data = snap.data();
+  if (data.sessionDate === today) return data.sessionsToday ?? 0;
+  return 0;
+}
+
+export async function incrementDailySession(uid: string): Promise<number> {
+  const today = new Date().toISOString().split('T')[0];
+  const ref = doc(db, 'users', uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return 1;
+  const data = snap.data();
+  const isToday = data.sessionDate === today;
+  const newCount = isToday ? (data.sessionsToday ?? 0) + 1 : 1;
+  await updateDoc(ref, { sessionDate: today, sessionsToday: newCount });
+  return newCount;
+}
+
 // Called on app open — increments streak once per calendar day
 export async function checkDailyStreak(uid: string) {
   const ref = doc(db, 'users', uid);

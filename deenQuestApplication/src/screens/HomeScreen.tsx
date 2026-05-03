@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BookOpen, CheckCircle, Circle, Flame, Moon, Star, Zap } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Image,
@@ -13,11 +14,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { completeTask, getUserProfile, getUserTasksForDate } from '../lib/firestore';
+import { completeTask, getDailySessionCount, getUserProfile, getUserTasksForDate } from '../lib/firestore';
 import { getTodaysTasks, Task } from '../lib/tasks-data';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
 
-const SESSION_KEY = '@deenquest_daily_sessions';
+const SESSION_KEY_PREFIX = '@deenquest_daily_sessions';
 
 interface Props {
   onStartLesson: () => void;
@@ -35,17 +36,40 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   const [lessonPressed, setLessonPressed] = useState(false);
   const [ayahPressed, setAyahPressed] = useState(false);
   const [sessionsToday, setSessionsToday] = useState(0);
+  const [hasInProgress, setHasInProgress] = useState(false);
   const today = new Date().toISOString().split('T')[0];
 
-  useEffect(() => {
-    AsyncStorage.getItem(SESSION_KEY).then((raw) => {
-      if (!raw) return;
-      try {
-        const { date, count } = JSON.parse(raw);
-        if (date === today) setSessionsToday(count);
-      } catch {}
-    });
-  }, [today]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!uid) return;
+      const sessionKey = `${SESSION_KEY_PREFIX}_${uid}`;
+      // Fast local read first
+      AsyncStorage.getItem(sessionKey).then((raw) => {
+        if (!raw) { setSessionsToday(0); return; }
+        try {
+          const { date, count } = JSON.parse(raw);
+          const todayStr = new Date().toISOString().split('T')[0];
+          setSessionsToday(date === todayStr ? count : 0);
+        } catch {}
+      });
+      // Authoritative Firestore read (cross-device)
+      getDailySessionCount(uid).then((count) => {
+        setSessionsToday(count);
+        const todayStr = new Date().toISOString().split('T')[0];
+        AsyncStorage.setItem(sessionKey, JSON.stringify({ date: todayStr, count })).catch(() => {});
+      }).catch(() => {});
+
+      // Check if there's an in-progress journey step saved
+      AsyncStorage.getItem(`@deenquest_journey_${uid}`).then((raw) => {
+        if (!raw) { setHasInProgress(false); return; }
+        try {
+          const saved = JSON.parse(raw);
+          const mid = saved.step && saved.step !== 'mood' && saved.step !== 'completion';
+          setHasInProgress(mid);
+        } catch { setHasInProgress(false); }
+      });
+    }, [uid])
+  );
 
   const loadData = useCallback(async () => {
     setTasks(getTodaysTasks());
@@ -129,7 +153,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                   onPress={onGetAyah}
                   style={[styles.lessonBtn, styles.lessonBtnAyah, DEPTH.button, ayahPressed && DEPTH.buttonPressed]}
                 >
-                  <Text style={styles.lessonBtnText}>Get an Ayah →</Text>
+                  <Text style={styles.lessonBtnText}>Get an Ayah</Text>
                 </Pressable>
               </>
             ) : (
@@ -147,8 +171,16 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                     style={styles.lessonChar}
                   />
                   <View style={styles.lessonText}>
-                    <Text style={styles.lessonTitle}>Start Today's Quran Journey</Text>
-                    <Text style={styles.lessonSub}>Personalised ayah based on your mood</Text>
+                    <Text style={styles.lessonTitle}>
+                      {hasInProgress ? 'Continue Your Journey' : 'Start Today\'s Quran Journey'}
+                    </Text>
+                    <Text style={styles.lessonSub}>
+                      {hasInProgress
+                        ? 'Pick up where you left off'
+                        : sessionsToday > 0
+                          ? 'Another session, another step closer'
+                          : 'Personalised ayah based on your mood'}
+                    </Text>
                   </View>
                 </View>
                 <Pressable
@@ -157,7 +189,9 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                   onPress={onStartLesson}
                   style={[styles.lessonBtn, DEPTH.button, lessonPressed && DEPTH.buttonPressed]}
                 >
-                  <Text style={styles.lessonBtnText}>Begin Now →</Text>
+                  <Text style={styles.lessonBtnText}>
+                    {hasInProgress ? 'Continue' : sessionsToday > 0 ? 'Keep Going' : 'Begin Now'}
+                  </Text>
                 </Pressable>
               </>
             )}

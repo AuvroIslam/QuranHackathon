@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { X, Zap } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -23,8 +23,10 @@ import { useAuth } from '../context/AuthContext';
 import { useJourney } from '../hooks/useJourney';
 import {
   completeJourney,
+  getDailySessionCount,
   getUserProfile,
   incrementCurrentDay,
+  incrementDailySession,
   updateQuranProgress,
 } from '../lib/firestore';
 import { getLesson } from '../lib/lessons-data';
@@ -32,7 +34,7 @@ import { getAyahByMood } from '../services/api';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
 import { Ayah, Mood, TimePerDay, UserGoal, UserLevel } from '../types';
 
-const SESSION_KEY = '@deenquest_daily_sessions';
+const SESSION_KEY_PREFIX = '@deenquest_daily_sessions';
 const MAX_SESSIONS = 3;
 
 function levelToLessonKey(level: UserLevel | null): 'beginner' | 'intermediate' | 'fluent' {
@@ -59,13 +61,22 @@ export default function JourneyScreen() {
   const [sessionsToday, setSessionsToday] = useState(0);
 
   useEffect(() => {
-    AsyncStorage.getItem(SESSION_KEY).then((raw) => {
+    if (!uid) return;
+    const sessionKey = `${SESSION_KEY_PREFIX}_${uid}`;
+    // Fast local read first
+    AsyncStorage.getItem(sessionKey).then((raw) => {
       if (!raw) return;
       const { date, count } = JSON.parse(raw);
       const today = new Date().toISOString().split('T')[0];
       if (date === today) setSessionsToday(count);
     }).catch(() => {});
-  }, []);
+    // Authoritative Firestore read (cross-device)
+    getDailySessionCount(uid).then((count) => {
+      setSessionsToday(count);
+      const today = new Date().toISOString().split('T')[0];
+      AsyncStorage.setItem(sessionKey, JSON.stringify({ date: today, count })).catch(() => {});
+    }).catch(() => {});
+  }, [uid]);
 
   useEffect(() => {
     if (!uid) return;
@@ -88,6 +99,7 @@ export default function JourneyScreen() {
     stepIndex,
     totalSteps,
     selectMood,
+    skipMood,
     nextStep,
     setSpeechResult,
     setAnswer,
@@ -112,6 +124,11 @@ export default function JourneyScreen() {
 
   const handleCustomText = (text: string) => handleMoodSelect('justHere', text);
 
+  const handleSkip = () => {
+    const { ayah, question } = getAyahByMood('justHere');
+    animateTo(1, () => skipMood('justHere', ayah, question));
+  };
+
   const handleLessonBegin = () => {
     const lessonKey = levelToLessonKey(userLevel);
     const lesson = getLesson(lessonKey, currentDay);
@@ -123,21 +140,29 @@ export default function JourneyScreen() {
 
   const handleComplete = () => {
     animateTo(1, complete);
-    const newCount = sessionsToday + 1;
-    setSessionsToday(newCount);
-    const today = new Date().toISOString().split('T')[0];
-    AsyncStorage.setItem(SESSION_KEY, JSON.stringify({ date: today, count: newCount })).catch(() => {});
     if (uid) {
+      incrementDailySession(uid).then((newCount) => {
+        setSessionsToday(newCount);
+        const today = new Date().toISOString().split('T')[0];
+        const sessionKey = `${SESSION_KEY_PREFIX}_${uid}`;
+        AsyncStorage.setItem(sessionKey, JSON.stringify({ date: today, count: newCount })).catch(() => {});
+      }).catch(() => {
+        // Fallback: update local only
+        const newCount = sessionsToday + 1;
+        setSessionsToday(newCount);
+      });
       completeJourney(uid, state.xpEarned + 10).catch(() => {});
       if (userGoal === 'learn' && currentDay <= 10) {
         incrementCurrentDay(uid).catch(() => {});
         setCurrentDay((d) => d + 1);
       }
+    } else {
+      setSessionsToday((s) => s + 1);
     }
   };
 
   const handleContinue = () => animateTo(-1, restart);
-  const handleRestart = () => animateTo(-1, restart);
+  const handleRestart = () => navigation.navigate('Home');
 
   const handleSpeakResult = (result: Parameters<typeof setSpeechResult>[0]) => {
     setSpeechResult(result);
@@ -169,8 +194,8 @@ export default function JourneyScreen() {
       case 'ayah': return { show: true, label: ayahOnly ? 'Back to Home' : 'Continue' };
       case 'listen': return { show: true, label: 'Ready to speak' };
       case 'speak': return { show: false, label: '' };
-      case 'mcq': return { show: state.selectedAnswer !== undefined, label: 'Continue' };
-      case 'action': return { show: !!state.action, label: 'Complete session' };
+      case 'mcq': return { show: true, label: 'Continue' };
+      case 'action': return { show: true, label: 'Complete session' };
       case 'reading': return { show: false, label: '' };
       case 'completion': return { show: false, label: '' };
       default: return { show: false, label: '' };
@@ -183,6 +208,12 @@ export default function JourneyScreen() {
     else handleNext();
   };
 
+  const isContinueDisabled = () => {
+    if (state.step === 'mcq') return state.selectedAnswer === undefined;
+    if (state.step === 'action') return !state.action;
+    return false;
+  };
+
   const { show: showBtn, label: btnLabel } = showContinue();
   const isCompletion = state.step === 'completion';
 
@@ -192,7 +223,7 @@ export default function JourneyScreen() {
   const renderStep = () => {
     switch (state.step) {
       case 'mood':
-        if (isLessonDay && todayLesson) {
+        if (isLessonDay && todayLesson && !ayahOnly) {
           return (
             <LessonIntroStep
               lesson={todayLesson}
@@ -202,7 +233,12 @@ export default function JourneyScreen() {
             />
           );
         }
-        return <MoodSelection onSelect={handleMoodSelect} onCustomText={handleCustomText} />;
+        return (
+          <MoodSelection
+            onSelect={handleMoodSelect}
+            onCustomText={handleCustomText}
+          />
+        );
 
       case 'ayah': return state.ayah ? <AyahDisplay ayah={state.ayah} /> : null;
       case 'listen': return state.ayah ? <ListenStep ayah={state.ayah} /> : null;
@@ -249,7 +285,7 @@ export default function JourneyScreen() {
         {!isCompletion && (
           <View style={styles.header}>
             <Pressable
-              onPress={() => { restart(); navigation.navigate('Home'); }}
+              onPress={() => navigation.navigate('Home')}
               hitSlop={12}
               style={styles.closeBtn}
             >
@@ -260,10 +296,20 @@ export default function JourneyScreen() {
               <Animated.View style={[styles.progressFill, { width: `${progressPct}%` }]} />
             </View>
 
-            <View style={styles.xpBadge}>
-              <Zap size={14} color={COLORS.accent} fill={COLORS.accent} />
-              <Text style={styles.xpText}>{state.xpEarned}</Text>
-            </View>
+            {state.step === 'mood' ? (
+              <Pressable
+                onPress={handleSkip}
+                disabled={ayahOnly}
+                hitSlop={8}
+                style={[styles.skipHeaderBtn, ayahOnly && styles.skipHeaderBtnDisabled]}
+              >
+                <Text style={[styles.skipHeaderBtnText, ayahOnly && styles.skipHeaderBtnTextDisabled]}>
+                  Skip
+                </Text>
+              </Pressable>
+            ) : (
+              <View />
+            )}
           </View>
         )}
 
@@ -275,7 +321,7 @@ export default function JourneyScreen() {
         {/* Continue button */}
         {showBtn && (
           <View style={styles.footer}>
-            <ContinueButton label={btnLabel} onPress={handleContinuePress} />
+            <ContinueButton label={btnLabel} onPress={handleContinuePress} disabled={isContinueDisabled()} />
           </View>
         )}
       </View>
@@ -283,16 +329,19 @@ export default function JourneyScreen() {
   );
 }
 
-function ContinueButton({ label, onPress }: { label: string; onPress: () => void }) {
+function ContinueButton({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
   const [pressed, setPressed] = useState(false);
   return (
     <Pressable
-      onPressIn={() => setPressed(true)}
+      onPressIn={() => { if (!disabled) setPressed(true); }}
       onPressOut={() => setPressed(false)}
-      onPress={onPress}
-      style={[styles.continueBtn, DEPTH.button, pressed && DEPTH.buttonPressed]}
+      onPress={disabled ? undefined : onPress}
+      style={[
+        styles.continueBtn,
+        disabled ? styles.continueBtnDisabled : [DEPTH.button, pressed && DEPTH.buttonPressed],
+      ]}
     >
-      <Text style={styles.continueBtnText}>{label} →</Text>
+      <Text style={styles.continueBtnText}>{label}</Text>
     </Pressable>
   );
 }
@@ -345,12 +394,26 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
+  skipHeaderBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+    borderBottomWidth: 4,
+    borderBottomColor: `${COLORS.primary}55`,
+  },
+  skipHeaderBtnDisabled: { opacity: 0.35 },
+  skipHeaderBtnText: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
+  skipHeaderBtnTextDisabled: { color: COLORS.textMuted },
+
   stepArea: { flex: 1 },
 
   footer: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
-    paddingTop: 8,
+    paddingBottom: 8,
+    paddingTop: 0,
   },
   continueBtn: {
     backgroundColor: COLORS.primary,
@@ -359,10 +422,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...SHADOW.glow(COLORS.primary),
   },
+  continueBtnDisabled: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.xl,
+    paddingVertical: 17,
+    alignItems: 'center',
+    opacity: 0.38,
+  },
   continueBtnText: {
     color: COLORS.white,
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+  continueBtnTextDisabled: {
+    color: COLORS.white,
   },
 });

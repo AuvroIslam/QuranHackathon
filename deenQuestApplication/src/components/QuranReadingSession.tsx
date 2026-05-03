@@ -40,7 +40,11 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
   const [error, setError] = useState(false);
   const [totalInSurah, setTotalInSurah] = useState(0);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
+  const ayahsRef = useRef<AyahData[]>([]);
+
+  useEffect(() => { ayahsRef.current = ayahs; }, [ayahs]);
 
   useEffect(() => {
     fetchAyahs();
@@ -87,37 +91,71 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
     }
   };
 
-  const playAyah = async (index: number) => {
-    if (index < 0 || index >= ayahs.length) return;
+  const startPlaying = async (index: number) => {
+    const all = ayahsRef.current;
+    if (index < 0 || index >= all.length) return;
+    if (soundRef.current) {
+      await soundRef.current.stopAsync().catch(() => {});
+      await soundRef.current.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    }
+    setPlayingIndex(index);
+    setIsAudioPlaying(true);
     try {
-      if (soundRef.current) {
-        await soundRef.current.stopAsync().catch(() => {});
-        await soundRef.current.unloadAsync().catch(() => {});
-        soundRef.current = null;
-      }
-      if (playingIndex === index) {
-        setPlayingIndex(null);
-        return;
-      }
-      setPlayingIndex(index);
       await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
       const { sound } = await Audio.Sound.createAsync(
-        { uri: ayahs[index].audioUrl },
+        { uri: all[index].audioUrl },
         { shouldPlay: true }
       );
       soundRef.current = sound;
       sound.setOnPlaybackStatusUpdate((status) => {
         if (!status.isLoaded) return;
         if (status.didJustFinish) {
-          setPlayingIndex(null);
           sound.unloadAsync();
           soundRef.current = null;
           markRead(index);
+          const next = index + 1;
+          if (next < ayahsRef.current.length) {
+            startPlaying(next);
+          } else {
+            setPlayingIndex(null);
+            setIsAudioPlaying(false);
+          }
         }
       });
     } catch {
       setPlayingIndex(null);
+      setIsAudioPlaying(false);
     }
+  };
+
+  const playAyah = async (index: number) => {
+    if (playingIndex === index && soundRef.current) {
+      if (isAudioPlaying) {
+        await soundRef.current.pauseAsync().catch(() => {});
+        setIsAudioPlaying(false);
+      } else {
+        await soundRef.current.playAsync().catch(() => {});
+        setIsAudioPlaying(true);
+      }
+      return;
+    }
+    await startPlaying(index);
+  };
+
+  const handleGlobalPlayPause = async () => {
+    if (playingIndex !== null && soundRef.current) {
+      if (isAudioPlaying) {
+        await soundRef.current.pauseAsync().catch(() => {});
+        setIsAudioPlaying(false);
+      } else {
+        await soundRef.current.playAsync().catch(() => {});
+        setIsAudioPlaying(true);
+      }
+      return;
+    }
+    const firstUnread = ayahsRef.current.findIndex((a) => !a.read);
+    await startPlaying(firstUnread >= 0 ? firstUnread : 0);
   };
 
   const markRead = (index: number) => {
@@ -167,22 +205,34 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>Today's Reading</Text>
-      <Text style={styles.sub}>{surahName} · Ayahs {startAyah}–{startAyah + ayahs.length - 1}</Text>
+      <View style={styles.titleRow}>
+        <View>
+          <Text style={styles.title}>Today's Reading</Text>
+          <Text style={styles.sub}>{surahName} · Ayahs {startAyah}–{startAyah + ayahs.length - 1}</Text>
+        </View>
+        <Pressable
+          onPress={handleGlobalPlayPause}
+          style={[styles.globalPlayBtn, (playingIndex !== null && isAudioPlaying) && styles.globalPlayBtnActive]}
+        >
+          {(playingIndex !== null && isAudioPlaying)
+            ? <Pause size={18} color={COLORS.white} fill={COLORS.white} />
+            : <Play size={18} color={COLORS.primary} fill={COLORS.primary} />}
+        </Pressable>
+      </View>
 
       {ayahs.map((ayah, index) => (
         <View key={ayah.numberInSurah} style={[styles.ayahCard, ayah.read && styles.ayahCardRead]}>
           <View style={styles.ayahHeader}>
             <View style={[styles.ayahNumBadge, ayah.read && styles.ayahNumBadgeRead]}>
               {ayah.read
-                ? <CheckCircle size={14} color={COLORS.success} />
+                ? <CheckCircle size={14} color={COLORS.primary} />
                 : <Text style={styles.ayahNum}>{ayah.numberInSurah}</Text>}
             </View>
             <Pressable
               onPress={() => playAyah(index)}
               style={[styles.playBtn, playingIndex === index && styles.playBtnActive]}
             >
-              {playingIndex === index
+              {playingIndex === index && isAudioPlaying
                 ? <Pause size={16} color={COLORS.primary} fill={COLORS.primary} />
                 : <Play size={16} color={COLORS.primary} fill={COLORS.primary} />}
             </Pressable>
@@ -206,17 +256,8 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
         onPress={handleComplete}
         style={[styles.completeBtn, !allRead && styles.completeBtnDim]}
       >
-        <CheckCircle size={18} color={COLORS.white} />
-        <Text style={styles.completeBtnText}>
-          {allRead ? 'Complete Session' : `Read all ${ayahs.length} ayahs to complete`}
-        </Text>
+        <Text style={styles.completeBtnText}>Complete Session</Text>
       </Pressable>
-
-      {!allRead && (
-        <Pressable onPress={handleComplete} style={styles.skipLink}>
-          <Text style={styles.skipText}>Skip and complete anyway</Text>
-        </Pressable>
-      )}
     </ScrollView>
   );
 }
@@ -232,22 +273,31 @@ const styles = StyleSheet.create({
   },
   retryText: { color: COLORS.primary, fontWeight: '600' },
 
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  globalPlayBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: COLORS.primaryBg,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
+    alignItems: 'center', justifyContent: 'center',
+    ...SHADOW.card,
+  },
+  globalPlayBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   title: { color: COLORS.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
-  sub: { color: COLORS.textSub, fontSize: 14, marginTop: -8 },
+  sub: { color: COLORS.textSub, fontSize: 14, marginTop: 2 },
 
   ayahCard: {
     backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
     borderWidth: 1.5, borderColor: COLORS.cardBorder,
     padding: 16, gap: 10, ...SHADOW.card,
   },
-  ayahCardRead: { borderColor: `${COLORS.success}55`, backgroundColor: `${COLORS.success}08` },
+  ayahCardRead: { borderColor: `${COLORS.primary}66`, backgroundColor: COLORS.primaryBg },
   ayahHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   ayahNumBadge: {
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: COLORS.primaryBg,
     alignItems: 'center', justifyContent: 'center',
   },
-  ayahNumBadgeRead: { backgroundColor: `${COLORS.success}18` },
+  ayahNumBadgeRead: { backgroundColor: `${COLORS.primary}25` },
   ayahNum: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
   playBtn: {
     width: 36, height: 36, borderRadius: 18,

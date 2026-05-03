@@ -59,19 +59,19 @@ function ActionCard({ action, selected, dimmed, onPress }: {
   }, [selected]);
 
   return (
-    <Animated.View style={[{ transform: [{ scale }] }, dimmed && styles.dimmed]}>
+    <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
         onPressIn={() => { if (dimmed) return; Animated.spring(scale, { toValue: 0.94, useNativeDriver: true, speed: 30 }).start(); }}
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20 }).start()}
         onPress={onPress}
-        style={[styles.card, selected && styles.cardSelected, SHADOW.card]}
+        style={[styles.card, selected && styles.cardSelected, dimmed && styles.cardDimmed, !dimmed && SHADOW.card]}
       >
         <View style={[styles.iconWrap, selected && styles.iconWrapSelected]}>
           {action.icon}
         </View>
         <View style={styles.cardText}>
-          <Text style={[styles.cardLabel, selected && styles.cardLabelSelected]}>{action.label}</Text>
-          <Text style={styles.cardSub}>{action.sub}</Text>
+          <Text style={[styles.cardLabel, selected && styles.cardLabelSelected, dimmed && styles.cardLabelDimmed]}>{action.label}</Text>
+          <Text style={[styles.cardSub, dimmed && styles.cardSubDimmed]}>{action.sub}</Text>
         </View>
         {selected && (
           <Animated.View style={[styles.check, { transform: [{ scale: checkAnim }] }]}>
@@ -102,7 +102,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   cardSelected: { backgroundColor: COLORS.primaryBg, borderColor: COLORS.primary },
-  dimmed: { opacity: 0.35 },
+  cardDimmed: { borderColor: COLORS.cardBorder, backgroundColor: COLORS.card },
+  dimmed: { opacity: 0.55 },
   iconWrap: {
     width: 48, height: 48, borderRadius: RADIUS.md,
     backgroundColor: COLORS.primaryBg,
@@ -112,7 +113,9 @@ const styles = StyleSheet.create({
   cardText: { flex: 1, gap: 3 },
   cardLabel: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
   cardLabelSelected: { color: COLORS.primaryDark },
+  cardLabelDimmed: { color: COLORS.textMuted },
   cardSub: { color: COLORS.textSub, fontSize: 13 },
+  cardSubDimmed: { color: COLORS.textMuted },
   check: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: COLORS.primary,

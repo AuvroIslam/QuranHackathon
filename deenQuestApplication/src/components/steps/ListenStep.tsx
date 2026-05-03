@@ -1,7 +1,8 @@
 import { Audio } from 'expo-av';
-import { Check, Loader, Pause, Play, RotateCcw } from 'lucide-react-native';
+import { Loader, Pause, Play } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Circle, Svg } from 'react-native-svg';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { Ayah } from '../../types';
 
@@ -13,22 +14,15 @@ type PlayState = 'idle' | 'loading' | 'playing' | 'done';
 
 export default function ListenStep({ ayah }: Props) {
   const [playState, setPlayState] = useState<PlayState>('idle');
+  const progressAnim = useRef(new Animated.Value(0)).current;
   const soundRef = useRef<Audio.Sound | null>(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const startPulse = () => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      ])
-    ).start();
-  };
-
-  const stopPulse = () => {
-    pulseAnim.stopAnimation();
-    Animated.spring(pulseAnim, { toValue: 1, useNativeDriver: true }).start();
-  };
+  const RADIUS_VAL = 52;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS_VAL;
+  const strokeDashoffset = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [CIRCUMFERENCE, 0],
+  });
 
   useEffect(() => {
     return () => { soundRef.current?.unloadAsync().catch(() => {}); };
@@ -43,102 +37,142 @@ export default function ListenStep({ ayah }: Props) {
       soundRef.current = sound;
       sound.setOnPlaybackStatusUpdate((status) => {
         if (!status.isLoaded) return;
-        if (status.isPlaying) { setPlayState('playing'); startPulse(); }
-        if (status.didJustFinish) { setPlayState('done'); stopPulse(); sound.unloadAsync(); soundRef.current = null; }
+        if (status.isPlaying) {
+          setPlayState('playing');
+          if (status.durationMillis && status.durationMillis > 0) {
+            const target = status.positionMillis / status.durationMillis;
+            Animated.timing(progressAnim, {
+              toValue: target,
+              duration: 150,
+              useNativeDriver: false,
+            }).start();
+          }
+        }
+        if (status.didJustFinish) {
+          setPlayState('idle');
+          progressAnim.setValue(0);
+          sound.unloadAsync();
+          soundRef.current = null;
+        }
       });
       await sound.playAsync();
     } catch {
       setPlayState('idle');
-      stopPulse();
+      progressAnim.setValue(0);
     }
   };
 
   const stopAudio = async () => {
-    stopPulse();
+    progressAnim.setValue(0);
     await soundRef.current?.stopAsync().catch(() => {});
     await soundRef.current?.unloadAsync().catch(() => {});
     soundRef.current = null;
     setPlayState('idle');
   };
 
-  const btnColor = playState === 'done' ? COLORS.success : COLORS.primary;
-
   const BtnIcon = () => {
     if (playState === 'loading') return <Loader size={34} color={COLORS.white} />;
     if (playState === 'playing') return <Pause size={34} color={COLORS.white} fill={COLORS.white} />;
-    if (playState === 'done') return <Check size={34} color={COLORS.white} strokeWidth={3} />;
     return <Play size={34} color={COLORS.white} fill={COLORS.white} />;
   };
+
+  // Circular progress: circumference of circle r=52
+  const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
   const hintText = {
     idle: 'Tap to play the recitation',
     loading: 'Loading…',
     playing: 'Playing — listen closely',
-    done: 'Done! Continue when ready',
-  }[playState];
+    done: 'Tap to play again',
+  }[playState] ?? 'Tap to play the recitation';
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Listen to the Ayah</Text>
-      <Text style={styles.sub}>Listen carefully before you recite</Text>
-
-      <View style={styles.cardRow}>
-        <View style={styles.arabicCard}>
-          <View style={styles.cardBar} />
-          <Text style={styles.arabic}>{ayah.arabic}</Text>
-          <Text style={styles.translation}>{ayah.translation}</Text>
+      <View style={styles.titleRow}>
+        <View style={styles.titleBlock}>
+          <Text style={styles.title}>Listen to the Ayah</Text>
+          <Text style={styles.sub}>Listen carefully before you recite</Text>
         </View>
         <Image source={require('../../../elementsApp/listening-removebg-preview.png')} style={styles.character} />
       </View>
 
+      <View style={styles.arabicCard}>
+        <View style={styles.cardBar} />
+        <Text style={styles.arabic}>{ayah.arabic}</Text>
+        {ayah.transliteration && (
+          <Text style={styles.transliteration}>{ayah.transliteration}</Text>
+        )}
+        <Text style={styles.translation}>{ayah.translation}</Text>
+      </View>
+
       <View style={styles.btnWrap}>
-        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+        <View style={styles.ringWrap}>
+          {/* Circular progress bar — track + fill */}
+          <Svg width={114} height={114} viewBox="0 0 114 114" style={styles.ringContainer}>
+            {/* Track */}
+            <Circle cx={57} cy={57} r={RADIUS_VAL} stroke={COLORS.primaryBg} strokeWidth={5} fill="none" />
+            {/* Progress fill */}
+            {playState === 'playing' && (
+              <AnimatedCircle
+                cx={57} cy={57} r={RADIUS_VAL}
+                stroke={COLORS.primary}
+                strokeWidth={5}
+                fill="none"
+                strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                rotation="-90"
+                origin="57,57"
+              />
+            )}
+          </Svg>
           <Pressable
             onPress={playState === 'playing' ? stopAudio : playAudio}
-            style={[styles.playBtn, { backgroundColor: btnColor }, SHADOW.glow(btnColor)]}
+            style={[styles.playBtn, SHADOW.glow(COLORS.primary)]}
           >
             <BtnIcon />
           </Pressable>
-        </Animated.View>
+        </View>
 
         <Text style={styles.hint}>{hintText}</Text>
-
-        {playState === 'done' && (
-          <Pressable onPress={playAudio} style={styles.replayBtn}>
-            <RotateCcw size={15} color={COLORS.primary} />
-            <Text style={styles.replayText}>Replay</Text>
-          </Pressable>
-        )}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, gap: 16 },
+  container: { flex: 1, padding: 16, paddingTop: 32, gap: 16 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  titleBlock: { flex: 1, gap: 4 },
   title: { color: COLORS.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
-  sub: { color: COLORS.textSub, fontSize: 14, marginTop: -8 },
-  cardRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  sub: { color: COLORS.textSub, fontSize: 14 },
   arabicCard: {
-    flex: 1, backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
     borderWidth: 1, borderColor: COLORS.cardBorder, overflow: 'hidden', ...SHADOW.card,
   },
   cardBar: { height: 5, backgroundColor: COLORS.primary },
   arabic: {
-    color: COLORS.text, fontSize: 24, textAlign: 'right',
-    lineHeight: 44, padding: 16, paddingBottom: 8, writingDirection: 'rtl',
+    color: COLORS.text, fontSize: 26, textAlign: 'right',
+    lineHeight: 48, padding: 20, paddingBottom: 8, writingDirection: 'rtl',
+  },
+  transliteration: {
+    color: COLORS.textMuted, fontSize: 12, textAlign: 'center',
+    fontStyle: 'italic', paddingHorizontal: 16, paddingBottom: 4,
   },
   translation: {
-    color: COLORS.textSub, fontSize: 12, textAlign: 'center',
-    fontStyle: 'italic', paddingHorizontal: 14, paddingBottom: 14,
+    color: COLORS.textSub, fontSize: 13, textAlign: 'center',
+    fontStyle: 'italic', paddingHorizontal: 16, paddingBottom: 16,
   },
-  character: { width: 100, height: 110, resizeMode: 'contain' },
-  btnWrap: { alignItems: 'center', gap: 12, marginTop: 8 },
+  character: { width: 90, height: 100, resizeMode: 'contain' },
+  btnWrap: { alignItems: 'center', gap: 12, marginTop: 44 },
+  ringWrap: { width: 114, height: 114, alignItems: 'center', justifyContent: 'center' },
+  ringContainer: { position: 'absolute', top: 0, left: 0 },
   playBtn: {
     width: 90, height: 90, borderRadius: 45,
+    backgroundColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  hint: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center' },
+  hint: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', paddingTop: 10 },
   replayBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
     paddingHorizontal: 22, paddingVertical: 10,

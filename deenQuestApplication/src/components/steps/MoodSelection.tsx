@@ -1,4 +1,3 @@
-import { Send } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import {
   Animated,
@@ -6,12 +5,13 @@ import {
   Image,
   ImageBackground,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
 import { Mood } from '../../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -37,6 +37,8 @@ interface Props {
 export default function MoodSelection({ onSelect, onCustomText }: Props) {
   const [selected, setSelected] = useState<Mood | null>(null);
   const [situation, setSituation] = useState('');
+  const [findPressed, setFindPressed] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   const handleMoodPress = (mood: Mood) => {
     setSelected(mood);
@@ -54,7 +56,12 @@ export default function MoodSelection({ onSelect, onCustomText }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      ref={scrollRef}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       {/* Hero banner */}
       <ImageBackground
         source={require('../../../elementsApp/cardBg1.png')}
@@ -94,7 +101,7 @@ export default function MoodSelection({ onSelect, onCustomText }: Props) {
         <View style={styles.dividerLine} />
       </View>
 
-      {/* Custom text box — single row, compact */}
+      {/* Custom text box */}
       <View style={styles.textBoxWrap}>
         <TextInput
           style={styles.textInput}
@@ -102,19 +109,31 @@ export default function MoodSelection({ onSelect, onCustomText }: Props) {
           placeholderTextColor={COLORS.textMuted}
           value={situation}
           onChangeText={setSituation}
-          returnKeyType="send"
+          returnKeyType="done"
           onSubmitEditing={handleCustomSubmit}
+          multiline={false}
+          onFocus={() => {
+            setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+          }}
         />
-        <Pressable
-          onPress={handleCustomSubmit}
-          disabled={!situation.trim()}
-          style={[styles.sendBtn, !situation.trim() && styles.sendBtnDisabled]}
-        >
-          <Send size={15} color={COLORS.white} />
-          <Text style={styles.sendBtnText}>Find Ayah</Text>
-        </Pressable>
       </View>
-    </View>
+
+      {/* Find Ayah — 3D button */}
+      <Pressable
+        onPressIn={() => { if (situation.trim()) setFindPressed(true); }}
+        onPressOut={() => setFindPressed(false)}
+        onPress={handleCustomSubmit}
+        disabled={!situation.trim()}
+        style={[
+          styles.findBtn,
+          situation.trim()
+            ? [DEPTH.button, findPressed && DEPTH.buttonPressed]
+            : styles.findBtnDisabled,
+        ]}
+      >
+        <Text style={styles.findBtnText}>Find Ayah</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
@@ -147,7 +166,8 @@ function MoodCard({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingBottom: 8 },
+  container: { flex: 1 },
+  scrollContent: { paddingBottom: 12, flexGrow: 1 },
 
   hero: {
     marginHorizontal: H_PADDING,
@@ -157,11 +177,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   heroBg: { borderRadius: RADIUS.xl },
+
   heroContent: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: 14,
-    minHeight: 120,
+    minHeight: 100,
   },
   heroChar: { width: 90, height: 110, resizeMode: 'contain' },
   heroText: { flex: 1, paddingLeft: 10, paddingBottom: 6 },
@@ -219,7 +240,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: H_PADDING,
     marginTop: 10,
-    marginBottom: 8,
+    marginBottom: 12,
     gap: 8,
   },
   dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.cardBorder },
@@ -232,27 +253,24 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.cardBorder,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    paddingVertical: 12,
     ...SHADOW.card,
   },
   textInput: {
-    flex: 1,
     color: COLORS.text,
     fontSize: 14,
+    minHeight: 40,
   },
-  sendBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  findBtn: {
+    marginHorizontal: H_PADDING,
+    marginTop: 12,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: RADIUS.full,
-    ...SHADOW.glow(COLORS.primary),
+    borderRadius: RADIUS.xl,
+    paddingVertical: 17,
+    alignItems: 'center',
   },
-  sendBtnDisabled: { opacity: 0.4 },
-  sendBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  findBtnDisabled: {
+    opacity: 0.38,
+  },
+  findBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
 });

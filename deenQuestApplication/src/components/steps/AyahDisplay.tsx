@@ -1,6 +1,6 @@
 import { BookOpen, Lightbulb } from 'lucide-react-native';
-import React, { useEffect, useRef } from 'react';
-import { Animated, Image, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { Ayah } from '../../types';
 
@@ -9,18 +9,9 @@ interface Props {
 }
 
 export default function AyahDisplay({ ayah }: Props) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 50, friction: 10 }),
-    ]).start();
-  }, []);
-
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
       {/* Header row */}
       <View style={styles.topRow}>
         <View style={styles.labelBlock}>
@@ -56,12 +47,14 @@ export default function AyahDisplay({ ayah }: Props) {
         </View>
         <Text style={styles.reflection}>{ayah.explanation}</Text>
       </View>
-    </Animated.View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, gap: 14 },
+  container: { flex: 1 },
+  scrollContent: { padding: 16, gap: 14, paddingBottom: 8 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   labelBlock: { gap: 6 },
   refBadge: {

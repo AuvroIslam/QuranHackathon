@@ -78,7 +78,7 @@ export default function LessonIntroStep({ lesson, currentDay, totalDays, onBegin
         onPress={onBegin}
         style={[styles.beginBtn, DEPTH.button, pressed && DEPTH.buttonPressed]}
       >
-        <Text style={styles.beginText}>Begin Lesson →</Text>
+        <Text style={styles.beginText}>Begin Lesson</Text>
       </Pressable>
     </Animated.View>
   );

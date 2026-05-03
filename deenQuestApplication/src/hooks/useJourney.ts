@@ -16,6 +16,7 @@ const INITIAL_STATE: JourneyState = {
 
 type Action =
   | { type: 'SET_MOOD'; mood: Mood; ayah: Ayah; question: MCQData; customText?: string }
+  | { type: 'SKIP_MOOD'; mood: Mood; ayah: Ayah; question: MCQData; stepOrder: JourneyStep[] }
   | { type: 'NEXT_STEP'; stepOrder: JourneyStep[] }
   | { type: 'SET_SPEECH_RESULT'; result: SpeechResult }
   | { type: 'SET_ANSWER'; index: number }
@@ -35,6 +36,11 @@ function reducer(state: JourneyState, action: Action): JourneyState {
         ayah: action.ayah,
         question: action.question,
       };
+    case 'SKIP_MOOD': {
+      const ayahIdx = action.stepOrder.indexOf('ayah');
+      const nextStep = action.stepOrder[ayahIdx + 1] ?? 'completion';
+      return { ...state, step: nextStep, mood: action.mood, ayah: action.ayah, question: action.question };
+    }
     case 'NEXT_STEP': {
       const currentIndex = action.stepOrder.indexOf(state.step);
       const nextStep = action.stepOrder[currentIndex + 1] ?? 'completion';
@@ -119,6 +125,10 @@ export function useJourney(goal?: UserGoal | null, uid?: string | null) {
     dispatch({ type: 'SET_MOOD', mood, ayah, question, customText });
   }, []);
 
+  const skipMood = useCallback((mood: Mood, ayah: Ayah, question: MCQData) => {
+    dispatch({ type: 'SKIP_MOOD', mood, ayah, question, stepOrder });
+  }, [stepOrder]);
+
   const nextStep = useCallback(() => {
     dispatch({ type: 'NEXT_STEP', stepOrder });
   }, [stepOrder]);
@@ -151,6 +161,7 @@ export function useJourney(goal?: UserGoal | null, uid?: string | null) {
     stepIndex,
     totalSteps,
     selectMood,
+    skipMood,
     nextStep,
     setSpeechResult,
     setAnswer,

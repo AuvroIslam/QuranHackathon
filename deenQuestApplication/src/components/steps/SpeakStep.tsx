@@ -1,12 +1,28 @@
 import { Audio } from 'expo-av';
-import { ArrowRight, Mic, Play, RotateCw, Square, Volume2 } from 'lucide-react-native';
+import { Loader, Mic, Pause, Play, RotateCw, Square } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { checkSpeech } from '../../services/api';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
 import { Ayah, SpeechResult, WordResult } from '../../types';
 
 type SpeakState = 'idle' | 'recording' | 'checking' | 'correct' | 'wrong' | 'done';
+
+function scoreLabel(score: number, correct: boolean): string {
+  const pct = Math.round(score * 100);
+  if (correct) return pct === 100 ? 'Perfect! 🌟' : 'Well done!';
+  if (pct < 25) return 'Keep going!';
+  if (pct < 50) return 'Getting there!';
+  if (pct < 75) return 'Almost there!';
+  return 'So close!';
+}
+
+function pctColor(score: number): string {
+  const pct = Math.round(score * 100);
+  if (pct < 25) return COLORS.error;
+  if (pct < 50) return COLORS.accent;
+  return COLORS.accent;
+}
 
 interface Props {
   ayah: Ayah;
@@ -93,6 +109,13 @@ export default function SpeakStep({
     }
   };
 
+  const stopAudio = async () => {
+    await soundRef.current?.stopAsync().catch(() => {});
+    await soundRef.current?.unloadAsync().catch(() => {});
+    soundRef.current = null;
+    setPlayState('idle');
+  };
+
   const startRecording = async () => {
     try {
       if (soundRef.current) { await soundRef.current.stopAsync().catch(() => {}); await soundRef.current.unloadAsync().catch(() => {}); soundRef.current = null; setPlayState('idle'); }
@@ -128,7 +151,6 @@ export default function SpeakStep({
       if (isCorrect) {
         setSpeakState('correct');
         animateResult(true);
-        setTimeout(() => onSkip(), 2000);
       } else if (attempts === 0) {
         setSpeakState('wrong');
         animateResult(false);
@@ -150,7 +172,7 @@ export default function SpeakStep({
     return require('../../../elementsApp/reciting-removebg-preview.png');
   };
 
-  const micBtnColor = speakState === 'recording' ? COLORS.error : COLORS.primary;
+  const micBtnColor = COLORS.primary;
 
   const MicBtnIcon = () => {
     if (speakState === 'checking') return <Mic size={36} color={COLORS.white} />;
@@ -164,12 +186,36 @@ export default function SpeakStep({
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>Now, say it yourself</Text>
-      <Text style={styles.sub}>Tap the mic and repeat the ayah</Text>
+      <View style={styles.titleRow}>
+        <View style={styles.titleBlock}>
+          <Text style={styles.title}>Now, say it yourself</Text>
+          <Text style={styles.sub}>Tap the mic and repeat the ayah</Text>
+        </View>
+        <Image source={characterImg()} style={styles.character} />
+      </View>
 
-      <View style={styles.cardRow}>
-        <View style={styles.arabicCard}>
+      <View style={styles.arabicCard}>
           <View style={styles.cardBar} />
+          <View style={styles.cardTopRow}>
+            <Pressable
+              onPress={playState === 'playing' ? stopAudio : playAyah}
+              disabled={speakState === 'recording' || speakState === 'checking'}
+              style={[styles.cardPlayBtn, playState === 'playing' && styles.cardPlayBtnActive]}
+            >
+              {playState === 'loading' ? (
+                <Loader size={12} color={COLORS.primary} />
+              ) : playState === 'playing' ? (
+                <Pause size={12} color={COLORS.white} fill={COLORS.white} />
+              ) : (
+                <Play size={12} color={COLORS.primary} fill={COLORS.primary} />
+              )}
+            </Pressable>
+            {result && speakState !== 'checking' && (
+              <Text style={[styles.cardScoreLabel, { color: result.correct ? COLORS.success : pctColor(result.score) }]}>
+                {scoreLabel(result.score, result.correct)}
+              </Text>
+            )}
+          </View>
           {result?.words && result.words.length > 0 ? (
             <View style={styles.wordRow}>
               {[...result.words].reverse().map((w, i) => <WordChip key={i} wordResult={w} revealed />)}
@@ -186,8 +232,6 @@ export default function SpeakStep({
           )}
           <Text style={styles.translation}>{ayah.translation}</Text>
         </View>
-        <Image source={characterImg()} style={styles.character} />
-      </View>
 
       {result && (
         <Animated.View style={[styles.scoreRow, { opacity: resultAnim }]}>
@@ -203,41 +247,10 @@ export default function SpeakStep({
         </Animated.View>
       )}
 
-      {result && speakState !== 'checking' && (
-        <Animated.View
-          style={[
-            styles.feedbackBox,
-            result.correct ? styles.feedbackGreen : speakState === 'done' ? styles.feedbackOrange : styles.feedbackRed,
-            { transform: [{ scale: resultAnim }, { translateX: shakeAnim }] },
-          ]}
-        >
-          <Text style={styles.feedbackTitle}>
-            {result.correct ? 'Excellent!' : speakState === 'done' ? 'Keep practicing!' : 'Almost there!'}
-          </Text>
-          <Text style={styles.feedbackSub}>
-            {result.correct ? 'Well recited' : speakState === 'done' ? "You'll get it next time" : 'Try once more'}
-          </Text>
-        </Animated.View>
-      )}
+
 
       {speakState !== 'correct' && speakState !== 'done' && (
-        <View style={styles.micArea}>
-          {/* Hear it again button */}
-          <Pressable
-            onPress={playAyah}
-            disabled={playState === 'loading' || speakState === 'recording' || speakState === 'checking'}
-            style={[styles.hearBtn, (playState !== 'idle') && styles.hearBtnActive]}
-          >
-            {playState === 'playing' ? (
-              <Volume2 size={16} color={COLORS.primary} />
-            ) : (
-              <Play size={16} color={COLORS.primary} fill={COLORS.primary} />
-            )}
-            <Text style={styles.hearBtnText}>
-              {playState === 'loading' ? 'Loading…' : playState === 'playing' ? 'Playing…' : 'Hear it again'}
-            </Text>
-          </Pressable>
-
+        <View style={[styles.micArea, !result && { marginTop: 44 }]}>
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
             <Pressable
               onPress={handleMicPress}
@@ -257,12 +270,20 @@ export default function SpeakStep({
         </View>
       )}
 
-      {(speakState === 'wrong' || speakState === 'done') && (
-        <Pressable onPress={onSkip} style={styles.skipBtn}>
-          <Text style={styles.skipText}>{speakState === 'done' ? 'Continue anyway' : 'Skip for now'}</Text>
-          <ArrowRight size={14} color={COLORS.textMuted} />
+      <View style={styles.continueWrap}>
+        <Pressable
+          onPress={onSkip}
+          disabled={speakState !== 'wrong' && speakState !== 'done' && speakState !== 'correct'}
+          style={[
+            styles.continueBtn,
+            (speakState === 'wrong' || speakState === 'done' || speakState === 'correct') ? DEPTH.button : styles.continueBtnDisabled,
+          ]}
+        >
+          <Text style={[styles.continueBtnText, (speakState !== 'wrong' && speakState !== 'done' && speakState !== 'correct') && styles.continueBtnTextDisabled]}>
+            {speakState === 'done' && result && result.score < 0.5 ? 'Skip' : 'Continue'}
+          </Text>
         </Pressable>
-      )}
+      </View>
     </ScrollView>
   );
 }
@@ -316,16 +337,17 @@ function Dot({ delay }: { delay: number }) {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 16, paddingBottom: 40 },
+  container: { padding: 16, paddingTop: 32, gap: 16, paddingBottom: 40 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  titleBlock: { flex: 1, gap: 4 },
   title: { color: COLORS.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
-  sub: { color: COLORS.textSub, fontSize: 14, marginTop: -8 },
-  cardRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  sub: { color: COLORS.textSub, fontSize: 14 },
   arabicCard: {
-    flex: 1, backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
+    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
     borderWidth: 1, borderColor: COLORS.cardBorder, overflow: 'hidden', ...SHADOW.card,
   },
   cardBar: { height: 5, backgroundColor: COLORS.primary },
-  wordRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, padding: 14, paddingBottom: 6 },
+  wordRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, padding: 14, paddingTop: 6, paddingBottom: 6 },
   wordChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.md, borderWidth: 1 },
   wordChipPending: { backgroundColor: COLORS.surfaceDark, borderColor: COLORS.cardBorder },
   wordChipCorrect: { backgroundColor: `${COLORS.success}22`, borderColor: `${COLORS.success}66` },
@@ -339,18 +361,21 @@ const styles = StyleSheet.create({
     fontStyle: 'italic', paddingHorizontal: 12, paddingBottom: 4,
   },
   translation: { color: COLORS.textSub, fontSize: 12, textAlign: 'center', fontStyle: 'italic', paddingHorizontal: 12, paddingBottom: 12 },
-  character: { width: 100, height: 110, resizeMode: 'contain' },
+  cardTopRow: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cardScoreLabel: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  cardPlayBtn: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: COLORS.primaryBg,
+    borderWidth: 1.5, borderColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cardPlayBtnActive: { backgroundColor: COLORS.primary },
+  character: { width: 90, height: 100, resizeMode: 'contain' },
   scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   scoreTrack: { flex: 1, height: 8, backgroundColor: COLORS.surfaceDark, borderRadius: 4, overflow: 'hidden' },
   scoreFill: { height: '100%', borderRadius: 4 },
   scorePct: { color: COLORS.textSub, fontSize: 13, fontWeight: '700', minWidth: 36, textAlign: 'right' },
-  feedbackBox: { padding: 14, borderRadius: RADIUS.lg, borderWidth: 1, gap: 4 },
-  feedbackGreen: { backgroundColor: `${COLORS.success}15`, borderColor: `${COLORS.success}55` },
-  feedbackRed: { backgroundColor: `${COLORS.error}15`, borderColor: `${COLORS.error}55` },
-  feedbackOrange: { backgroundColor: `${COLORS.accent}15`, borderColor: `${COLORS.accent}55` },
-  feedbackTitle: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
-  feedbackSub: { color: COLORS.textSub, fontSize: 13 },
-  micArea: { alignItems: 'center', gap: 14 },
+  micArea: { alignItems: 'center', gap: 12 },
   hearBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 20, paddingVertical: 10,
@@ -360,9 +385,12 @@ const styles = StyleSheet.create({
   hearBtnActive: { backgroundColor: `${COLORS.primary}18` },
   hearBtnText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
   micBtn: { width: 90, height: 90, borderRadius: 45, alignItems: 'center', justifyContent: 'center' },
-  micHint: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center' },
+  micHint: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', paddingTop: 10 },
   dotsRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.error },
-  skipBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'center' },
-  skipText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '500' },
+  continueWrap: { paddingTop: 8 },
+  continueBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.xl, paddingVertical: 17, alignItems: 'center' },
+  continueBtnDisabled: { opacity: 0.38 },
+  continueBtnText: { color: COLORS.white, fontSize: 17, fontWeight: '700', letterSpacing: 0.3 },
+  continueBtnTextDisabled: {},
 });

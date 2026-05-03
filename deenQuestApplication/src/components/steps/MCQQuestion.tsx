@@ -74,31 +74,31 @@ function OptionButton({ text, index, answered, isCorrect, isSelected, onPress }:
 
   const bgColor = () => {
     if (!answered) return COLORS.card;
-    if (isCorrect) return `${COLORS.success}18`;
+    if (isCorrect) return COLORS.primaryBg;
     if (isSelected) return `${COLORS.error}18`;
     return COLORS.card;
   };
   const borderColor = () => {
     if (!answered) return COLORS.cardBorder;
-    if (isCorrect) return COLORS.success;
+    if (isCorrect) return COLORS.primary;
     if (isSelected) return COLORS.error;
     return `${COLORS.cardBorder}66`;
   };
   const textColor = () => {
     if (!answered) return COLORS.text;
-    if (isCorrect) return COLORS.success;
+    if (isCorrect) return COLORS.primary;
     if (isSelected) return COLORS.error;
     return COLORS.textMuted;
   };
 
   const BulletContent = () => {
-    if (answered && isCorrect) return <Check size={14} color={COLORS.white} strokeWidth={3} />;
+    if (answered && isCorrect) return <Check size={14} color={COLORS.primary} strokeWidth={3} />;
     if (answered && isSelected) return <X size={14} color={COLORS.white} strokeWidth={3} />;
     return <Text style={[styles.bulletLetter, { color: COLORS.primary }]}>{String.fromCharCode(65 + index)}</Text>;
   };
 
   const bulletBg = () => {
-    if (answered && isCorrect) return COLORS.success;
+    if (answered && isCorrect) return COLORS.primaryBg;
     if (answered && isSelected) return COLORS.error;
     return COLORS.primaryBg;
   };
@@ -112,7 +112,7 @@ function OptionButton({ text, index, answered, isCorrect, isSelected, onPress }:
         style={[
           styles.option,
           { backgroundColor: bgColor(), borderColor: borderColor() },
-          answered && !isCorrect && !isSelected && { opacity: 0.45 },
+          answered && !isCorrect && !isSelected && { opacity: 0.55 },
         ]}
       >
         <View style={[styles.bullet, { backgroundColor: bulletBg() }]}>
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: COLORS.primary, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
   question: { color: COLORS.text, fontSize: 20, fontWeight: '700', lineHeight: 28, letterSpacing: -0.3 },
-  character: { width: 80, height: 100, resizeMode: 'contain' },
+  character: { width: 90, height: 100, resizeMode: 'contain' },
   options: { gap: 10 },
   option: {
     flexDirection: 'row',
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   feedback: {
     padding: 14, borderRadius: RADIUS.lg, borderWidth: 1,
   },
-  feedbackCorrect: { backgroundColor: `${COLORS.success}15`, borderColor: `${COLORS.success}55` },
+  feedbackCorrect: { backgroundColor: COLORS.primaryBg, borderColor: COLORS.primary + '55' },
   feedbackWrong: { backgroundColor: COLORS.primaryBg, borderColor: COLORS.cardBorder },
   feedbackText: { color: COLORS.textSub, fontSize: 14, lineHeight: 20 },
 });

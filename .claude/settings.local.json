@@ -9,7 +9,10 @@
       "Bash(del \"d:\\\\Quranhackathon\\\\deenquest\\\\src\\\\app\\\\api\\\\qf\\\\goals\\\\route.ts\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.get\\('exports',{}\\).keys\\(\\)\\)[:20]\\)\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); exports=d.get\\('exports',{}\\); [print\\(k,'->',list\\(v.keys\\(\\)\\) if isinstance\\(v,dict\\) else v\\) for k,v in exports.items\\(\\)]\")",
-      "WebFetch(domain:docs.expo.dev)"
+      "WebFetch(domain:docs.expo.dev)",
+      "Bash(sed -i \"s/{label} →/{label}/g\" \"d:/Quranhackathon/deenQuestApplication/src/screens/JourneyScreen.tsx\")",
+      "Bash(sed -i \"s/Begin Lesson →/Begin Lesson/g\" \"d:/Quranhackathon/deenQuestApplication/src/components/steps/LessonIntroStep.tsx\")",
+      "Bash(sed -i \"s/Continue →/Continue/g\" \"d:/Quranhackathon/deenQuestApplication/src/components/steps/SpeakStep.tsx\")"
     ]
   }
 }

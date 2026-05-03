@@ -11,15 +11,17 @@ import {
 } from "@/lib/firestore";
 import { getLesson } from "@/lib/lessons-data";
 import { getStreakStatus } from "@/lib/streakUtils";
+import { getAyahsForMood } from "@/lib/quran";
 import {
   CheckCircle2, Loader2, Volume2, X, Star, Flame,
-  Play, Pause,
+  Play, Pause, BookOpen, Lightbulb,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 const SESSION_IN_PROGRESS_KEY = "deenquest_session_in_progress";
 
 type Phase = "loading" | "session" | "complete";
+type JourneyStep = "mood" | "ayah" | "reading";
 
 interface AyahData {
   surahNumber: number;
@@ -28,14 +30,37 @@ interface AyahData {
   transliteration: string;
   translation: string;
   audioUrl: string;
-  read: boolean;
 }
+
+interface MoodAyah {
+  verseKey: string;
+  arabic: string;
+  translation: string;
+  surahName: string;
+}
+
+const MOODS = [
+  { key: "sad",      label: "Sad",      emoji: "😔" },
+  { key: "anxious",  label: "Anxious",  emoji: "😰" },
+  { key: "grateful", label: "Grateful", emoji: "🤲" },
+  { key: "hopeful",  label: "Hopeful",  emoji: "✨" },
+  { key: "angry",    label: "Angry",    emoji: "😤" },
+  { key: "lost",     label: "Lost",     emoji: "🌙" },
+  { key: "happy",    label: "Happy",    emoji: "😊" },
+  { key: "lonely",   label: "Lonely",   emoji: "💙" },
+];
+
 
 function pad3(n: number) { return String(n).padStart(3, "0"); }
 function stripHtml(html: string) {
   return html.replace(/<sup[^>]*>.*?<\/sup>/gi, "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
-
+function formatTime(sec: number): string {
+  if (!isFinite(sec) || sec < 0) return "0:00";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 function levelToKey(level: string | null | undefined): "beginner" | "intermediate" | "fluent" {
   if (level === "newbie") return "beginner";
   if (level === "fluent") return "fluent";
@@ -47,34 +72,33 @@ export default function SessionPage() {
   const { user, profile, refreshProfile } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("loading");
+  const [journeyStep, setJourneyStep] = useState<JourneyStep>("mood");
   const [ayahs, setAyahs] = useState<AyahData[]>([]);
   const [mcqAnswer, setMcqAnswer] = useState<number | null>(null);
   const [completing, setCompleting] = useState(false);
   const [newStreak, setNewStreak] = useState(0);
   const [xpGained] = useState(20);
+  const [moodAyah, setMoodAyah] = useState<MoodAyah | null>(null);
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [fetchingAyah, setFetchingAyah] = useState(false);
+  const [loadingRead, setLoadingRead] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const isLearn = profile?.goal === "learn";
   const timePerDay = profile?.timePerDay ?? 5;
-  const ayahCount = Math.max(3, timePerDay);
-
+  const ayahCount = timePerDay === 10 ? 15 : timePerDay === 5 ? 8 : 5;
   const lesson = isLearn
     ? getLesson(levelToKey(profile?.level), profile?.currentDay ?? 1)
     : null;
 
   useEffect(() => {
     if (!profile) return;
-    if (isLearn) {
-      sessionStorage.setItem(SESSION_IN_PROGRESS_KEY, "true");
-      setPhase("session");
-      return;
-    }
-    const start = profile.quranProgress ?? { surahNumber: 1, ayahNumber: 1 };
-    loadAyahs(start.surahNumber, start.ayahNumber, ayahCount);
+    sessionStorage.setItem(SESSION_IN_PROGRESS_KEY, "true");
+    setPhase("session");
   }, [profile]);
 
   async function loadAyahs(startSurah: number, startAyah: number, count: number) {
-    setPhase("loading");
+    setLoadingRead(true);
     try {
       const params = new URLSearchParams({
         path: `verses/by_chapter/${startSurah}`,
@@ -89,8 +113,7 @@ export default function SessionPage() {
       const total = verses.length;
       const safeStart = Math.max(1, Math.min(startAyah, total));
       const slice = verses.slice(safeStart - 1, safeStart - 1 + count);
-
-      const loaded: AyahData[] = slice.map((v: any) => {
+      setAyahs(slice.map((v: any) => {
         const [s, a] = (v.verse_key as string).split(":").map(Number);
         return {
           surahNumber: s,
@@ -99,17 +122,50 @@ export default function SessionPage() {
           transliteration: stripHtml(v.translations?.find((t: any) => t.resource_id === 57)?.text ?? ""),
           translation: stripHtml(v.translations?.find((t: any) => t.resource_id === 20)?.text ?? ""),
           audioUrl: `https://everyayah.com/data/Alafasy_128kbps/${pad3(s)}${pad3(a)}.mp3`,
-          read: false,
         };
-      });
-
-      setAyahs(loaded);
-      sessionStorage.setItem(SESSION_IN_PROGRESS_KEY, "true");
-      setPhase("session");
+      }));
     } catch {
       toast.error("Failed to load ayahs");
-      setPhase("session");
+    } finally {
+      setLoadingRead(false);
     }
+  }
+
+  async function fetchMoodAyah(mood: string) {
+    setFetchingAyah(true);
+    try {
+      const results = await getAyahsForMood(mood);
+      if (results.length > 0) {
+        const r = results[0];
+        setMoodAyah({
+          verseKey: r.verseKey,
+          arabic: r.text,
+          translation: r.translation,
+          surahName: r.surah.englishName,
+        });
+      }
+    } catch {
+      // continue without mood ayah
+    } finally {
+      setFetchingAyah(false);
+    }
+  }
+
+  async function handleMoodSelect(mood: string) {
+    setSelectedMood(mood);
+    await fetchMoodAyah(mood);
+    setJourneyStep("ayah");
+  }
+
+  async function handleSkipMood() {
+    await fetchMoodAyah("hopeful");
+    setJourneyStep("ayah");
+  }
+
+  function handleGoToReading() {
+    const start = profile?.quranProgress ?? { surahNumber: 1, ayahNumber: 1 };
+    loadAyahs(start.surahNumber, start.ayahNumber, ayahCount);
+    setJourneyStep("reading");
   }
 
   function playLearnAudio(url: string) {
@@ -120,7 +176,7 @@ export default function SessionPage() {
     }
   }
 
-  async function handleComplete(readCount?: number) {
+  async function handleComplete() {
     if (!user || completing) return;
     setCompleting(true);
     try {
@@ -147,10 +203,15 @@ export default function SessionPage() {
   }
 
   function handleExit() {
-    // keep in-progress flag set so home shows "Continue"
     router.push("/");
   }
 
+  // ── Progress for journey steps ──
+  const STEP_ORDER: JourneyStep[] = ["mood", "ayah", "reading"];
+  const stepIdx = STEP_ORDER.indexOf(journeyStep);
+  const progressPct = journeyStep === "reading" ? 100 : (stepIdx / 2) * 100;
+
+  // ── Loading ──
   if (!profile || phase === "loading") {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -159,6 +220,7 @@ export default function SessionPage() {
     );
   }
 
+  // ── Complete screen ──
   if (phase === "complete") {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -175,7 +237,7 @@ export default function SessionPage() {
             <p className="text-white/55 mt-1 text-sm">
               {isLearn
                 ? `Day ${profile.currentDay ?? 1} lesson done. Keep it up!`
-                : "Keep reading — every ayah counts."}
+                : "Every ayah brings you closer. Keep going!"}
             </p>
           </div>
           <div className="flex justify-center gap-4">
@@ -196,7 +258,7 @@ export default function SessionPage() {
           </div>
           <button
             onClick={() => router.push("/")}
-            className="w-full py-3.5 rounded-2xl font-bold text-sm text-white transition-all"
+            className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
             style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
           >
             Back to Home
@@ -206,58 +268,248 @@ export default function SessionPage() {
     );
   }
 
+  // ── Learn mode: simple lesson view ──
+  if (isLearn) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <audio ref={audioRef} />
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+          <button onClick={handleExit} className="w-9 h-9 rounded-full bg-white/8 flex items-center justify-center text-white/50 hover:text-white">
+            <X size={18} />
+          </button>
+          <p className="text-sm font-semibold text-white/70">Day {profile.currentDay ?? 1} Lesson</p>
+          <div className="w-9" />
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 md:p-6 max-w-2xl mx-auto w-full">
+            {lesson ? (
+              <>
+                <LearnSession
+                  lesson={lesson}
+                  mcqAnswer={mcqAnswer}
+                  onMcqAnswer={setMcqAnswer}
+                  onPlayAudio={playLearnAudio}
+                />
+                <div className="mt-6 pb-6">
+                  <button
+                    onClick={handleComplete}
+                    disabled={completing || mcqAnswer === null}
+                    className="w-full py-3.5 rounded-2xl font-bold text-sm text-white transition-all disabled:opacity-40"
+                    style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
+                  >
+                    {completing
+                      ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" />Saving...</span>
+                      : "Complete Lesson"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="text-center text-white/40 text-sm py-12">No lesson available.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Complete-Quran mode: full journey ──
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Hidden audio element for learn mode */}
-      <audio ref={audioRef} />
-
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10">
-        <button onClick={handleExit} className="text-white/50 hover:text-white transition-colors">
-          <X size={22} />
+      {/* Header with Duolingo-style progress bar */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10">
+        <button
+          onClick={handleExit}
+          className="w-9 h-9 rounded-full bg-white/8 flex items-center justify-center text-white/50 hover:text-white shrink-0 transition-colors"
+        >
+          <X size={18} />
         </button>
-        <p className="text-sm font-semibold text-white/70">
-          {isLearn ? `Day ${profile.currentDay ?? 1} Lesson` : `Today's Reading`}
-        </p>
-        <div className="w-6" />
+        <div className="flex-1 h-3 bg-white/10 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-accent rounded-full transition-all duration-500"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+        {journeyStep === "mood" ? (
+          <button
+            onClick={handleSkipMood}
+            disabled={fetchingAyah}
+            className="text-xs font-bold text-white/50 hover:text-white/80 px-3 py-1.5 rounded-full bg-white/8 shrink-0 disabled:opacity-40 transition-colors"
+          >
+            Skip
+          </button>
+        ) : (
+          <div className="w-16 shrink-0" />
+        )}
       </div>
 
-      {/* Session content */}
+      {/* Step content */}
       <div className="flex-1 overflow-y-auto">
-        {isLearn && lesson ? (
-          <div className="p-4 md:p-6 max-w-2xl mx-auto w-full">
-            <LearnSession
-              lesson={lesson}
-              mcqAnswer={mcqAnswer}
-              onMcqAnswer={setMcqAnswer}
-              onPlayAudio={playLearnAudio}
-            />
-            <div className="mt-6">
-              <button
-                onClick={() => handleComplete()}
-                disabled={completing || mcqAnswer === null}
-                className="w-full py-3.5 rounded-2xl font-bold text-sm text-white transition-all disabled:opacity-40"
-                style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
-              >
-                {completing
-                  ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" />Saving...</span>
-                  : "Complete Lesson"}
-              </button>
+
+        {/* Fetching ayah overlay */}
+        {fetchingAyah && (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center space-y-3">
+              <Loader2 size={32} className="text-accent animate-spin mx-auto" />
+              <p className="text-sm text-white/40">Finding your ayah…</p>
             </div>
           </div>
-        ) : (
-          <ReadSession
-            ayahs={ayahs}
-            completing={completing}
-            onComplete={handleComplete}
+        )}
+
+        {!fetchingAyah && journeyStep === "mood" && (
+          <MoodStep onSelect={handleMoodSelect} />
+        )}
+
+        {!fetchingAyah && journeyStep === "ayah" && (
+          <AyahStep
+            ayah={moodAyah}
+            mood={selectedMood}
+            onContinue={handleGoToReading}
           />
+        )}
+
+        {journeyStep === "reading" && (
+          loadingRead ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 size={32} className="text-accent animate-spin" />
+            </div>
+          ) : (
+            <ReadSession
+              ayahs={ayahs}
+              completing={completing}
+              onComplete={handleComplete}
+            />
+          )
         )}
       </div>
     </div>
   );
 }
 
-// ─── Read Session (Complete Quran goal) ──────────────────────────────────────
+// ─── Mood Step ────────────────────────────────────────────────────────────────
+
+function MoodStep({ onSelect }: { onSelect: (mood: string) => void }) {
+  return (
+    <div className="p-5 md:p-6 max-w-lg mx-auto w-full space-y-6 pt-8">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-extrabold text-white">How are you feeling?</h2>
+          <p className="text-white/50 text-sm mt-1">We&apos;ll find an ayah just for you</p>
+        </div>
+        <Image
+          src="/waving_onboarding-removebg-preview.png"
+          alt=""
+          width={80}
+          height={90}
+          className="object-contain shrink-0"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {MOODS.map(({ key, label, emoji }) => (
+          <button
+            key={key}
+            onClick={() => onSelect(key)}
+            className="flex items-center gap-3 px-4 py-4 rounded-2xl border border-white/15 glass hover:border-accent/40 hover:bg-accent/5 transition-all text-left group"
+          >
+            <span className="text-2xl">{emoji}</span>
+            <span className="font-semibold text-white/85 group-hover:text-white transition-colors">{label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Ayah Step ────────────────────────────────────────────────────────────────
+
+function AyahStep({
+  ayah,
+  mood,
+  onContinue,
+}: {
+  ayah: MoodAyah | null;
+  mood: string | null;
+  onContinue: () => void;
+}) {
+  const moodLabel = MOODS.find((m) => m.key === mood)?.label ?? "";
+
+  return (
+    <div className="p-5 md:p-6 max-w-lg mx-auto w-full space-y-5 pt-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/15 border border-accent/25 mb-2">
+            <BookOpen size={11} className="text-accent" />
+            <span className="text-[10px] font-bold text-accent uppercase tracking-wider">Today&apos;s Ayah</span>
+          </div>
+          <p className="text-sm text-white/55">
+            {moodLabel
+              ? `For when you're feeling ${moodLabel.toLowerCase()}`
+              : "Allah's guidance for you today"}
+          </p>
+        </div>
+        <Image
+          src="/reading-removebg-preview.png"
+          alt=""
+          width={72}
+          height={72}
+          className="object-contain shrink-0"
+        />
+      </div>
+
+      {ayah ? (
+        <>
+          {/* Arabic card */}
+          <div className="glass-card rounded-2xl overflow-hidden">
+            <div className="h-1.5 bg-accent" />
+            <div className="p-5">
+              <p className="text-right text-2xl leading-loose text-white font-arabic" dir="rtl">
+                {ayah.arabic}
+              </p>
+            </div>
+          </div>
+
+          {/* Translation */}
+          <div className="rounded-2xl border border-accent/20 bg-accent/8 p-4">
+            <p className="text-[10px] font-bold text-accent uppercase tracking-widest mb-2">Translation</p>
+            <p className="text-sm text-white/80 leading-relaxed italic">&quot;{ayah.translation}&quot;</p>
+          </div>
+
+          {/* Reference */}
+          {ayah.verseKey && (
+            <p className="text-xs text-white/30 text-right">
+              {ayah.surahName} · {ayah.verseKey}
+            </p>
+          )}
+        </>
+      ) : (
+        <div className="glass-card rounded-2xl p-8 text-center">
+          <p className="text-white/40 text-sm">No ayah found — continue with today&apos;s reading</p>
+        </div>
+      )}
+
+      {/* Reflection */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Lightbulb size={13} className="text-yellow-400" />
+          <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Reflection</p>
+        </div>
+        <p className="text-sm text-white/60 leading-relaxed">
+          Take a moment to sit with this ayah. Let it settle in your heart before you begin reading.
+        </p>
+      </div>
+
+      <button
+        onClick={onContinue}
+        className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
+        style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
+      >
+        Continue
+      </button>
+    </div>
+  );
+}
+
+// ─── Read Session ─────────────────────────────────────────────────────────────
 
 function ReadSession({
   ayahs,
@@ -271,6 +523,8 @@ function ReadSession({
   const [readSet, setReadSet] = useState<Set<number>>(new Set());
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ayahRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -285,18 +539,21 @@ function ReadSession({
     audio.src = ayahs[index].audioUrl;
     setPlayingIndex(index);
     setIsPlaying(true);
+    setCurrentTime(0);
+    setDuration(0);
     audio.play().catch(() => setIsPlaying(false));
-
-    // scroll into view
     setTimeout(() => {
       ayahRefs.current[index]?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 100);
   }, [ayahs]);
 
-  // Auto-advance when audio ends
+  // Audio event listeners
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
+
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onLoaded = () => setDuration(audio.duration);
     const onEnded = () => {
       setPlayingIndex((idx) => {
         if (idx === null) return null;
@@ -310,8 +567,15 @@ function ReadSession({
         return null;
       });
     };
+
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoaded);
     audio.addEventListener("ended", onEnded);
-    return () => audio.removeEventListener("ended", onEnded);
+    return () => {
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoaded);
+      audio.removeEventListener("ended", onEnded);
+    };
   }, [ayahs.length, markRead, startPlaying]);
 
   function handleGlobalPlayPause() {
@@ -345,6 +609,13 @@ function ReadSession({
     startPlaying(index);
   }
 
+  function handleSeek(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!audioRef.current) return;
+    const t = Number(e.target.value);
+    audioRef.current.currentTime = t;
+    setCurrentTime(t);
+  }
+
   if (ayahs.length === 0) {
     return (
       <div className="flex items-center justify-center h-48">
@@ -355,45 +626,69 @@ function ReadSession({
 
   const allRead = readSet.size === ayahs.length;
   const readCount = readSet.size;
+  const nowPlaying = playingIndex !== null ? ayahs[playingIndex] : null;
 
   return (
     <div className="flex flex-col">
       <audio ref={audioRef} />
 
-      {/* Sticky play bar */}
-      <div className="sticky top-0 z-10 glass-dark border-b border-white/10 px-4 py-3 flex items-center justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-white/40 truncate">
-            {ayahs[0]?.surahNumber ? `Surah ${ayahs[0].surahNumber}` : ""}
-            {" · "}Ayah {ayahs[0]?.ayahNumber}–{ayahs[ayahs.length - 1]?.ayahNumber}
-          </p>
-          {/* Read progress bar */}
-          <div className="flex gap-1 mt-1.5">
-            {ayahs.map((_, i) => (
-              <div
-                key={i}
-                className={`h-1 flex-1 rounded-full transition-colors ${
-                  readSet.has(i) ? "bg-accent" : playingIndex === i ? "bg-accent/50 animate-pulse" : "bg-white/15"
-                }`}
-              />
-            ))}
+      {/* ── Sticky player bar ── */}
+      <div className="sticky top-0 z-10 border-b border-white/10 px-4 pt-3 pb-3"
+        style={{ background: "rgba(18,8,30,0.92)", backdropFilter: "blur(12px)" }}>
+
+        {/* Track info + play button */}
+        <div className="flex items-center gap-3 mb-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-white/70 truncate">
+              {nowPlaying
+                ? `Surah ${nowPlaying.surahNumber} · Ayah ${nowPlaying.ayahNumber}`
+                : `Surah ${ayahs[0]?.surahNumber} · Ayah ${ayahs[0]?.ayahNumber}–${ayahs[ayahs.length - 1]?.ayahNumber}`}
+            </p>
+            <p className="text-[10px] text-white/35 mt-0.5">
+              {readCount}/{ayahs.length} read
+            </p>
           </div>
+          <button
+            onClick={handleGlobalPlayPause}
+            className={`w-11 h-11 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+              playingIndex !== null && isPlaying
+                ? "bg-accent border-accent shadow-lg shadow-accent/30"
+                : "bg-accent/15 border-accent/40 hover:bg-accent/25"
+            }`}
+          >
+            {playingIndex !== null && isPlaying
+              ? <Pause size={18} className="text-white" fill="white" />
+              : <Play size={18} className="text-accent" fill="currentColor" />}
+          </button>
         </div>
-        <button
-          onClick={handleGlobalPlayPause}
-          className={`w-11 h-11 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-            playingIndex !== null && isPlaying
-              ? "bg-accent border-accent shadow-lg shadow-accent/30"
-              : "bg-accent/15 border-accent/40 hover:bg-accent/25"
-          }`}
-        >
-          {playingIndex !== null && isPlaying
-            ? <Pause size={18} className="text-white" fill="white" />
-            : <Play size={18} className="text-accent" fill="currentColor" />}
-        </button>
+
+        {/* Audio progress bar */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-white/35 w-7 shrink-0 tabular-nums">{formatTime(currentTime)}</span>
+          <div className="relative flex-1 h-1.5 group">
+            {/* Track background */}
+            <div className="absolute inset-0 bg-white/15 rounded-full" />
+            {/* Progress fill */}
+            <div
+              className="absolute left-0 top-0 h-full bg-accent rounded-full pointer-events-none transition-none"
+              style={{ width: `${duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0}%` }}
+            />
+            {/* Invisible range input for interaction */}
+            <input
+              type="range"
+              min={0}
+              max={Math.max(1, duration)}
+              step={0.1}
+              value={currentTime}
+              onChange={handleSeek}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+          </div>
+          <span className="text-[10px] text-white/35 w-7 shrink-0 text-right tabular-nums">{formatTime(duration)}</span>
+        </div>
       </div>
 
-      {/* Ayah list */}
+      {/* ── Ayah list ── */}
       <div className="p-4 md:p-6 max-w-2xl mx-auto w-full space-y-4">
         {ayahs.map((ayah, i) => {
           const isRead = readSet.has(i);
@@ -415,7 +710,9 @@ function ReadSession({
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
                   isRead ? "bg-accent/25 text-accent" : "bg-white/10 text-white/50"
                 }`}>
-                  {isRead ? <CheckCircle2 size={16} className="text-accent" /> : ayah.ayahNumber}
+                  {isRead
+                    ? <CheckCircle2 size={16} className="text-accent" />
+                    : ayah.ayahNumber}
                 </div>
                 <button
                   onClick={() => handleAyahPlayPause(i)}
@@ -444,7 +741,7 @@ function ReadSession({
               {/* Translation */}
               <p className="text-sm text-white/65 leading-relaxed">{ayah.translation}</p>
 
-              {/* Mark as read (manual) */}
+              {/* Mark as read */}
               {!isRead && (
                 <button
                   onClick={() => markRead(i)}
@@ -463,9 +760,7 @@ function ReadSession({
           <button
             onClick={onComplete}
             disabled={completing}
-            className={`w-full py-3.5 rounded-2xl font-bold text-sm text-white transition-all ${
-              !allRead ? "opacity-70" : ""
-            } disabled:opacity-40`}
+            className={`w-full py-3.5 rounded-2xl font-bold text-sm text-white transition-all disabled:opacity-40 ${!allRead ? "opacity-70" : ""}`}
             style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
           >
             {completing
@@ -495,13 +790,7 @@ function LearnSession({
 }) {
   const [audioPlaying, setAudioPlaying] = useState(false);
 
-  if (!lesson) {
-    return (
-      <div className="flex items-center justify-center h-48">
-        <p className="text-white/40 text-sm">No lesson available for today.</p>
-      </div>
-    );
-  }
+  if (!lesson) return null;
 
   const { learnContent, mcq } = lesson;
   const answered = mcqAnswer !== null;
@@ -590,6 +879,25 @@ function LearnSession({
           </p>
         )}
       </div>
+
+      {/* Final recall — shown after answering */}
+      {answered && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🔁</span>
+            <p className="text-xs font-bold text-white/50 uppercase tracking-widest">Final Recall</p>
+          </div>
+          <p className="text-right text-2xl leading-loose text-white font-arabic" dir="rtl">
+            {learnContent.arabic}
+          </p>
+          {learnContent.transliteration && (
+            <p className="text-xs text-white/40 italic text-center">{learnContent.transliteration}</p>
+          )}
+          <p className="text-xs font-semibold text-accent">
+            Say it aloud one more time before completing.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

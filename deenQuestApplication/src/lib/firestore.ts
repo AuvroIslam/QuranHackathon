@@ -97,7 +97,7 @@ export async function saveUserGoal(
   goal: UserGoal,
   options: { level?: UserLevel; timePerDay?: TimePerDay }
 ) {
-  const updates: Record<string, any> = { goal };
+  const updates: Record<string, any> = { goal, goalSet: true };
   if (goal === 'learn') {
     updates.level = options.level ?? null;
     updates.timePerDay = options.timePerDay ?? null;
@@ -109,7 +109,15 @@ export async function saveUserGoal(
 }
 
 export async function incrementCurrentDay(uid: string) {
-  await updateDoc(doc(db, 'users', uid), { currentDay: increment(1) });
+  const ref = doc(db, 'users', uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const today = new Date().toISOString().split('T')[0];
+  if (snap.data().lastCurrentDayDate === today) return;
+  await updateDoc(ref, {
+    currentDay: increment(1),
+    lastCurrentDayDate: today,
+  });
 }
 
 // Switch time plan without touching quranProgress — progress is preserved

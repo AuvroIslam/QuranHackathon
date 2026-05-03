@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ActionSelection from '../components/steps/ActionSelection';
 import AyahDisplay from '../components/steps/AyahDisplay';
 import CompletionStep from '../components/steps/CompletionStep';
 import LessonIntroStep from '../components/steps/LessonIntroStep';
@@ -112,7 +111,6 @@ export default function JourneyScreen() {
     nextStep,
     setSpeechResult,
     setAnswer,
-    setAction,
     complete,
     restart,
   } = useJourney(profileLoaded ? userGoal : null, uid);
@@ -186,7 +184,6 @@ export default function JourneyScreen() {
 
   const handleSpeakSkip = () => animateTo(1, nextStep);
   const handleAnswer = (index: number) => setAnswer(index);
-  const handleActionSelect = (action: string) => setAction(action);
 
   const handleReadingComplete = (nextSurah: number, nextAyah: number) => {
     if (uid) updateQuranProgress(uid, nextSurah, nextAyah).catch(() => {});
@@ -196,7 +193,7 @@ export default function JourneyScreen() {
 
   const passThreshold = userLevel === 'newbie' ? 0.4 : userLevel === 'fluent' ? 0.7 : 0.6;
   const showTransliteration = userLevel !== 'fluent';
-  const ayahCount = userTimePerDay === 10 ? 20 : userTimePerDay === 5 ? 10 : 6;
+  const ayahCount = userTimePerDay === 10 ? 20 : userTimePerDay === 5 ? 12 : 8;
 
   // For learn users on days 1-10, 'mood' step shows lesson intro instead
   const isLessonDay = userGoal === 'learn' && currentDay <= 10;
@@ -209,8 +206,7 @@ export default function JourneyScreen() {
       case 'ayah': return { show: true, label: ayahOnly ? 'Back to Home' : 'Continue' };
       case 'listen': return { show: true, label: 'Ready to speak' };
       case 'speak': return { show: false, label: '' };
-      case 'mcq': return { show: true, label: 'Continue' };
-      case 'action': return { show: true, label: 'Complete session' };
+      case 'mcq': return { show: true, label: 'Complete Session' };
       case 'reading': return { show: false, label: '' };
       case 'completion': return { show: false, label: '' };
       default: return { show: false, label: '' };
@@ -219,13 +215,12 @@ export default function JourneyScreen() {
 
   const handleContinuePress = () => {
     if (ayahOnly && state.step === 'ayah') { restart(); navigation.navigate('Home'); return; }
-    if (state.step === 'action') handleComplete();
+    if (state.step === 'mcq') handleComplete();
     else handleNext();
   };
 
   const isContinueDisabled = () => {
     if (state.step === 'mcq') return state.selectedAnswer === undefined;
-    if (state.step === 'action') return !state.action;
     return false;
   };
 
@@ -270,7 +265,6 @@ export default function JourneyScreen() {
       case 'mcq': return state.question ? (
         <MCQQuestion question={state.question} selectedAnswer={state.selectedAnswer} onAnswer={handleAnswer} />
       ) : null;
-      case 'action': return <ActionSelection onSelect={handleActionSelect} selected={state.action} />;
       case 'reading': return (
         <QuranReadingSession
           surahNumber={quranProgress.surahNumber}

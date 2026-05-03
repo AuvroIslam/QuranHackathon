@@ -80,7 +80,15 @@ export async function updateQuranProgress(uid: string, surahNumber: number, ayah
 }
 
 export async function incrementCurrentDay(uid: string) {
-  await updateDoc(doc(db, "users", uid), { currentDay: increment(1) });
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const today = new Date().toISOString().split('T')[0];
+  if (snap.data().lastCurrentDayDate === today) return;
+  await updateDoc(ref, {
+    currentDay: increment(1),
+    lastCurrentDayDate: today,
+  });
 }
 
 // ─── Session Completion ──────────────────────────────────────────
@@ -135,6 +143,7 @@ export async function completeSession(
     lastActive: new Date().toISOString(),
     sessionDate: today,
     sessionsToday,
+    xp: increment(10),
   });
 
   return { newStreak, sessionsToday };

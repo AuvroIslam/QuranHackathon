@@ -36,7 +36,6 @@ export type JourneyStep =
   | 'listen'
   | 'speak'
   | 'mcq'
-  | 'action'
   | 'reading'
   | 'completion';
 
@@ -61,7 +60,6 @@ export const LEARN_STEP_ORDER: JourneyStep[] = [
   'listen',
   'speak',
   'mcq',
-  'action',
   'completion',
 ];
 
@@ -80,7 +78,6 @@ export const STEP_LABELS: Record<JourneyStep, string> = {
   listen: 'Listen',
   speak: 'Speak',
   mcq: 'Reflect',
-  action: 'Act',
   reading: 'Read',
   completion: 'Done',
 };

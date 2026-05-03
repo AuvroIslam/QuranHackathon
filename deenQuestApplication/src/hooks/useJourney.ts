@@ -20,7 +20,6 @@ type Action =
   | { type: 'NEXT_STEP'; stepOrder: JourneyStep[] }
   | { type: 'SET_SPEECH_RESULT'; result: SpeechResult }
   | { type: 'SET_ANSWER'; index: number }
-  | { type: 'SET_ACTION'; action: string }
   | { type: 'COMPLETE' }
   | { type: 'RESTART' }
   | { type: 'LOAD'; state: JourneyState };
@@ -63,8 +62,6 @@ function reducer(state: JourneyState, action: Action): JourneyState {
         xpEarned: state.xpEarned + xpBonus,
       };
     }
-    case 'SET_ACTION':
-      return { ...state, action: action.action };
     case 'COMPLETE': {
       const today = new Date().toISOString().split('T')[0];
       const isNewDay = state.lastCompletedDate !== today;
@@ -141,10 +138,6 @@ export function useJourney(goal?: UserGoal | null, uid?: string | null) {
     dispatch({ type: 'SET_ANSWER', index });
   }, []);
 
-  const setAction = useCallback((action: string) => {
-    dispatch({ type: 'SET_ACTION', action });
-  }, []);
-
   const complete = useCallback(() => {
     dispatch({ type: 'COMPLETE' });
   }, []);
@@ -165,7 +158,6 @@ export function useJourney(goal?: UserGoal | null, uid?: string | null) {
     nextStep,
     setSpeechResult,
     setAnswer,
-    setAction,
     complete,
     restart,
   };

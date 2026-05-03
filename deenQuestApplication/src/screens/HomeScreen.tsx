@@ -98,8 +98,12 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
     setCompleting(task.id);
     setCompletedIds((prev) => new Set([...prev, task.id]));
     setXp((prev) => prev + task.xpReward);
+    const status = getStreakStatus(lastSessionDate, streak);
+    const isRecoveryTask =
+      status.status === 'recovery' &&
+      completedIds.size < status.tasksNeeded;
     try {
-      await completeTask(uid, task.id, today, task.xpReward);
+      await completeTask(uid, task.id, today, task.xpReward, isRecoveryTask);
     } catch {}
     setCompleting(null);
   };

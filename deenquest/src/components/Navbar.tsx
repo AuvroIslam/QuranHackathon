@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import {
   Home,
-  CheckSquare,
   MessageCircle,
   Users,
   Moon,
@@ -21,7 +20,6 @@ import ProfilePanel from "./ProfilePanel";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/listen", label: "Quran", icon: BookOpen },
   { href: "/dawah", label: "Dawah", icon: Moon },
   { href: "/community", label: "Community", icon: Users },

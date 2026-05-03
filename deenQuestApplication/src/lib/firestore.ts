@@ -14,6 +14,7 @@ export interface UserProfile {
   streak: number;
   tasksCompleted: number;
   lastActive: string;
+  lastSessionDate?: string;
   createdAt: string;
   goal?: UserGoal | null;
   level?: UserLevel | null;
@@ -37,11 +38,11 @@ export async function getUserTasksForDate(uid: string, date: string): Promise<Us
   return snap.docs.map((d) => d.data() as UserTask);
 }
 
-export async function completeTask(uid: string, taskId: string, date: string, xpReward: number) {
+export async function completeTask(uid: string, taskId: string, date: string, xpReward: number, isStreakRecovery = false) {
   const userRef = doc(db, 'users', uid);
   const taskRef = doc(collection(db, 'userTasks'));
   const batch = writeBatch(db);
-  batch.set(taskRef, { userId: uid, taskId, completed: true, date });
+  batch.set(taskRef, { userId: uid, taskId, completed: true, date, ...(isStreakRecovery ? { isStreakRecovery: true } : {}) });
   batch.update(userRef, { xp: increment(xpReward), tasksCompleted: increment(1), lastActive: new Date().toISOString() });
   await batch.commit();
 }
@@ -53,20 +54,41 @@ export async function addXP(uid: string, amount: number) {
   });
 }
 
-// Called on journey completion — persists XP and increments streak if new day
-export async function completeJourney(uid: string, xpEarned: number) {
+// Called on journey completion — persists XP, updates lastSessionDate, handles streak
+export async function completeJourney(uid: string, xpEarned: number, isStreakRecoveryComplete = false) {
   const ref = doc(db, 'users', uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
+
+  const data = snap.data();
   const today = new Date().toISOString().split('T')[0];
-  const lastActive: string = (snap.data().lastActive ?? '').split('T')[0];
-  const isNewDay = lastActive !== today;
-  const updates: Record<string, any> = {
+  const lastSessionDate: string = data.lastSessionDate ?? '';
+  const currentStreak: number = data.streak ?? 0;
+
+  let newStreak: number;
+  if (lastSessionDate === today) {
+    newStreak = currentStreak;
+  } else if (!lastSessionDate) {
+    newStreak = 1;
+  } else {
+    const missedDays = Math.floor(
+      (new Date(today).getTime() - new Date(lastSessionDate).getTime()) / 86400000
+    ) - 1;
+    if (missedDays <= 0) {
+      newStreak = currentStreak + 1;
+    } else if ((missedDays === 1 || missedDays === 2) && isStreakRecoveryComplete) {
+      newStreak = currentStreak;
+    } else {
+      newStreak = 1;
+    }
+  }
+
+  await updateDoc(ref, {
     xp: increment(xpEarned),
     lastActive: new Date().toISOString(),
-  };
-  if (isNewDay) updates.streak = increment(1);
-  await updateDoc(ref, updates);
+    lastSessionDate: today,
+    streak: newStreak,
+  });
 }
 
 export async function saveUserGoal(
@@ -131,13 +153,3 @@ export async function incrementDailySession(uid: string): Promise<number> {
   return newCount;
 }
 
-// Called on app open — increments streak once per calendar day
-export async function checkDailyStreak(uid: string) {
-  const ref = doc(db, 'users', uid);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
-  const today = new Date().toISOString().split('T')[0];
-  const lastActive: string = (snap.data().lastActive ?? '').split('T')[0];
-  if (lastActive === today) return;
-  await updateDoc(ref, { streak: increment(1), lastActive: new Date().toISOString() });
-}

@@ -10,7 +10,6 @@ import {
   MessageCircle,
   Users,
   Moon,
-  Trophy,
   LogOut,
   Menu,
   X,
@@ -50,9 +49,8 @@ export default function Navbar() {
         </p>
         <div className="space-y-4">
           {[
-            { icon: Flame, label: "Daily streaks & XP" },
-            { icon: BookOpen, label: "Mood-based ayahs" },
-            { icon: Trophy, label: "Levels & challenges" },
+            { icon: Flame, label: "Daily streaks & bonus deeds" },
+            { icon: BookOpen, label: "Learn or complete the Quran" },
             { icon: MessageCircle, label: "AI Islamic guidance" },
             { icon: Users, label: "Community reflections" },
           ].map(({ icon: Icon, label }) => (

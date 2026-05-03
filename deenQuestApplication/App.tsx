@@ -5,7 +5,6 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { checkDailyStreak } from './src/lib/firestore';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthScreen from './src/screens/AuthScreen';
 import GoalSetupScreen, { GOAL_SET_KEY } from './src/screens/GoalSetupScreen';
@@ -45,10 +44,6 @@ function RootNavigator() {
       .catch(() => setGoalSet(true));
   }, [user]);
 
-  // Increment streak once per calendar day on app open
-  useEffect(() => {
-    if (uid) checkDailyStreak(uid).catch(() => {});
-  }, [uid]);
 
   if (loading || onboarded === null) {
     return (

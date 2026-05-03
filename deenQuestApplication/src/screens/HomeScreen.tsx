@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BookOpen, CheckCircle, Circle, Flame, Moon, Star, Zap } from 'lucide-react-native';
+import { AlertTriangle, BookOpen, CheckCircle, Circle, Flame, Moon, Star, Zap } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { completeTask, getDailySessionCount, getUserProfile, getUserTasksForDate } from '../lib/firestore';
 import { getTodaysTasks, Task } from '../lib/tasks-data';
+import { getStreakStatus } from '../lib/streakUtils';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
 
 const SESSION_KEY_PREFIX = '@deenquest_daily_sessions';
@@ -28,6 +29,7 @@ interface Props {
 export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   const { uid, user } = useAuth();
   const [streak, setStreak] = useState(0);
+  const [lastSessionDate, setLastSessionDate] = useState<string | null>(null);
   const [xp, setXp] = useState(0);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -82,6 +84,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
       if (profile) {
         setStreak(profile.streak ?? 0);
         setXp(profile.xp ?? 0);
+        setLastSessionDate(profile.lastSessionDate ?? null);
       }
       setCompletedIds(new Set(userTasks.filter((t) => t.completed).map((t) => t.taskId)));
     } catch {}
@@ -103,6 +106,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
 
   const stars = xp * 2;
   const displayName = user?.displayName?.split(' ')[0] ?? 'there';
+  const streakStatus = getStreakStatus(lastSessionDate, streak);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -122,6 +126,26 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
           <StatCard icon={<Star size={20} color={COLORS.accent} fill={COLORS.accent} />} value={stars} label="Hasanat" bg="#FFFBEB" color={COLORS.accentDark} />
           <StatCard icon={<Zap size={20} color={COLORS.primary} fill={COLORS.primary} />} value={xp} label="XP" bg={COLORS.primaryBg} color={COLORS.primaryDark} />
         </View>
+
+        {/* Streak recovery / broken banner */}
+        {streakStatus.status === 'recovery' && (
+          <View style={styles.recoveryBanner}>
+            <AlertTriangle size={16} color="#fb923c" />
+            <Text style={styles.recoveryText}>
+              {streakStatus.tasksNeeded === 1
+                ? `Complete 1 bonus deed to save your ${streakStatus.streak}-day streak`
+                : `Complete all 3 bonus deeds to save your ${streakStatus.streak}-day streak`}
+            </Text>
+          </View>
+        )}
+        {streakStatus.status === 'broken' && (
+          <View style={[styles.recoveryBanner, styles.brokenBanner]}>
+            <AlertTriangle size={16} color="#f87171" />
+            <Text style={[styles.recoveryText, styles.brokenText]}>
+              Streak lost. Start fresh today — every journey begins with one step.
+            </Text>
+          </View>
+        )}
 
         {/* Start Today's Lesson card */}
         <ImageBackground
@@ -364,4 +388,13 @@ const styles = StyleSheet.create({
   allDoneChar: { width: 60, height: 60, resizeMode: 'contain' },
   allDoneTitle: { color: COLORS.primaryDark, fontSize: 16, fontWeight: '800' },
   allDoneSub: { color: COLORS.textSub, fontSize: 13, marginTop: 2 },
+  recoveryBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    backgroundColor: 'rgba(251,146,60,0.12)', borderRadius: 16,
+    borderWidth: 1, borderColor: 'rgba(251,146,60,0.3)',
+    paddingHorizontal: 14, paddingVertical: 12, marginHorizontal: 16, marginBottom: 4,
+  },
+  recoveryText: { flex: 1, color: '#fdba74', fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  brokenBanner: { backgroundColor: 'rgba(248,113,113,0.12)', borderColor: 'rgba(248,113,113,0.3)' },
+  brokenText: { color: '#fca5a5' },
 });

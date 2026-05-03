@@ -4,7 +4,6 @@ import {
   setDoc,
   updateDoc,
   writeBatch,
-  runTransaction,
   collection,
   query,
   where,
@@ -16,7 +15,7 @@ import {
   arrayRemove,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { UserProfile, UserTask, Post, Answer } from "./types";
+import type { UserProfile, UserTask, Post, Answer, UserGoal, UserLevel, TimePerDay } from "./types";
 
 // ─── User Profile ───────────────────────────────────────────────
 
@@ -31,8 +30,8 @@ export async function createUserProfile(uid: string, name: string, email: string
     name,
     email,
     xp: 0,
-    level: 1,
     streak: 0,
+    goalSet: false,
     lastActive: now,
     createdAt: now,
   };
@@ -54,8 +53,91 @@ export async function updateStreak(uid: string, streak: number) {
   });
 }
 
-export async function updateUserLevel(uid: string, level: number) {
-  await updateDoc(doc(db, "users", uid), { level });
+// ─── Goal Setup ─────────────────────────────────────────────────
+
+export async function saveUserGoal(
+  uid: string,
+  goal: UserGoal,
+  options: { level?: UserLevel; timePerDay?: TimePerDay }
+) {
+  const updates: Record<string, unknown> = { goal, goalSet: true };
+  if (goal === 'learn') {
+    updates.level = options.level ?? null;
+    updates.timePerDay = options.timePerDay ?? null;
+  } else {
+    updates.timePerDay = options.timePerDay ?? null;
+    updates.quranProgress = { surahNumber: 1, ayahNumber: 1 };
+    updates.currentDay = 1;
+  }
+  await updateDoc(doc(db, "users", uid), updates);
+}
+
+export async function updateQuranProgress(uid: string, surahNumber: number, ayahNumber: number) {
+  await updateDoc(doc(db, "users", uid), {
+    quranProgress: { surahNumber, ayahNumber },
+    lastActive: new Date().toISOString(),
+  });
+}
+
+export async function incrementCurrentDay(uid: string) {
+  await updateDoc(doc(db, "users", uid), { currentDay: increment(1) });
+}
+
+// ─── Session Completion ──────────────────────────────────────────
+
+export async function getDailySessionCount(uid: string): Promise<number> {
+  const today = new Date().toISOString().split('T')[0];
+  const snap = await getDoc(doc(db, "users", uid));
+  if (!snap.exists()) return 0;
+  const data = snap.data();
+  return data.sessionDate === today ? (data.sessionsToday ?? 0) : 0;
+}
+
+export async function completeSession(
+  uid: string,
+  isStreakRecoveryComplete: boolean
+): Promise<{ newStreak: number; sessionsToday: number }> {
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return { newStreak: 1, sessionsToday: 1 };
+
+  const data = snap.data();
+  const today = new Date().toISOString().split('T')[0];
+  const lastSessionDate: string = data.lastSessionDate ?? '';
+  const currentStreak: number = data.streak ?? 0;
+
+  let newStreak: number;
+  if (lastSessionDate === today) {
+    newStreak = currentStreak;
+  } else if (!lastSessionDate) {
+    newStreak = 1;
+  } else {
+    const missedDays = Math.floor(
+      (new Date(today).getTime() - new Date(lastSessionDate).getTime()) / 86400000
+    ) - 1;
+    if (missedDays <= 0) {
+      newStreak = currentStreak + 1;
+    } else if ((missedDays === 1 || missedDays === 2) && isStreakRecoveryComplete) {
+      newStreak = currentStreak;
+    } else if (missedDays >= 3) {
+      newStreak = 1;
+    } else {
+      newStreak = 1;
+    }
+  }
+
+  const isToday = data.sessionDate === today;
+  const sessionsToday = isToday ? (data.sessionsToday ?? 0) + 1 : 1;
+
+  await updateDoc(ref, {
+    lastSessionDate: today,
+    streak: newStreak,
+    lastActive: new Date().toISOString(),
+    sessionDate: today,
+    sessionsToday,
+  });
+
+  return { newStreak, sessionsToday };
 }
 
 // ─── Tasks ──────────────────────────────────────────────────────
@@ -70,7 +152,13 @@ export async function getUserTasksForDate(uid: string, date: string): Promise<Us
   return snap.docs.map((d) => ({ ...d.data() } as UserTask));
 }
 
-export async function completeTask(uid: string, taskId: string, date: string, xpReward: number) {
+export async function completeTask(
+  uid: string,
+  taskId: string,
+  date: string,
+  xpReward: number,
+  isStreakRecovery = false
+) {
   const userRef = doc(db, "users", uid);
   const taskRef = doc(collection(db, "userTasks"));
   const batch = writeBatch(db);
@@ -80,6 +168,7 @@ export async function completeTask(uid: string, taskId: string, date: string, xp
     taskId,
     completed: true,
     date,
+    ...(isStreakRecovery ? { isStreakRecovery: true } : {}),
   });
   batch.update(userRef, {
     xp: increment(xpReward),
@@ -87,41 +176,6 @@ export async function completeTask(uid: string, taskId: string, date: string, xp
   });
 
   await batch.commit();
-}
-
-export async function completeBonusTask(
-  uid: string,
-  taskId: string,
-  date: string,
-  xpReward: number,
-  bonusCategory: string,
-  sourceTaskId: string
-) {
-  const bonusRef = doc(db, "userTasks", `${uid}_${date}_bonus`);
-  const userRef = doc(db, "users", uid);
-
-  await runTransaction(db, async (transaction) => {
-    const bonusSnap = await transaction.get(bonusRef);
-
-    if (bonusSnap.exists()) {
-      throw new Error("Bonus deed already completed today");
-    }
-
-    transaction.set(bonusRef, {
-      userId: uid,
-      taskId,
-      sourceTaskId,
-      completed: true,
-      date,
-      isBonus: true,
-      bonusCategory,
-    });
-
-    transaction.update(userRef, {
-      xp: increment(xpReward),
-      lastActive: new Date().toISOString(),
-    });
-  });
 }
 
 // ─── Bookmarks ──────────────────────────────────────────────────

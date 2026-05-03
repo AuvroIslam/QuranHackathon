@@ -13,7 +13,9 @@
       "Bash(sed -i \"s/{label} →/{label}/g\" \"d:/Quranhackathon/deenQuestApplication/src/screens/JourneyScreen.tsx\")",
       "Bash(sed -i \"s/Begin Lesson →/Begin Lesson/g\" \"d:/Quranhackathon/deenQuestApplication/src/components/steps/LessonIntroStep.tsx\")",
       "Bash(sed -i \"s/Continue →/Continue/g\" \"d:/Quranhackathon/deenQuestApplication/src/components/steps/SpeakStep.tsx\")",
-      "Read(//c/Users/oitij/.claude/**)"
+      "Read(//c/Users/oitij/.claude/**)",
+      "Bash(dir /b \"d:\\\\Quranhackathon\\\\deenquest\\\\public\")",
+      "Bash(dir /b \"d:\\\\Quranhackathon\\\\elementsApp\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\oitij\\.claude"

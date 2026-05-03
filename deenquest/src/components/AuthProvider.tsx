@@ -17,8 +17,9 @@ import {
   signOut as fbSignOut,
   updateProfile,
 } from "firebase/auth";
+import { useRouter, usePathname } from "next/navigation";
 import { auth } from "@/lib/firebase";
-import { getUserProfile, createUserProfile, updateStreak } from "@/lib/firestore";
+import { getUserProfile, createUserProfile } from "@/lib/firestore";
 import type { UserProfile } from "@/lib/types";
 
 interface AuthContextType {
@@ -38,43 +39,37 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-function calculateStreak(lastActive: string, currentStreak: number): number {
-  const last = new Date(lastActive);
-  const now = new Date();
-  const diffMs = now.getTime() - last.getTime();
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffDays === 0) return currentStreak;
-  if (diffDays === 1) return currentStreak + 1;
-  if (diffDays <= 2) return currentStreak; // soft recovery
-  return 0;
-}
+const PUBLIC_PATHS = ["/login", "/setup"];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
 
-  async function loadProfile(u: User) {
+  async function loadProfile(u: User): Promise<UserProfile> {
     let p = await getUserProfile(u.uid);
     if (!p) {
       p = await createUserProfile(u.uid, u.displayName || "User", u.email || "");
-    } else {
-      const newStreak = calculateStreak(p.lastActive, p.streak);
-      if (newStreak !== p.streak) {
-        await updateStreak(u.uid, newStreak);
-        p.streak = newStreak;
-      }
     }
     setProfile(p);
+    return p;
   }
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
-        await loadProfile(u);
+        const p = await loadProfile(u);
+        if (!p.goalSet && pathname !== "/setup") {
+          router.push("/setup");
+        }
       } else {
         setProfile(null);
+        if (!PUBLIC_PATHS.includes(pathname)) {
+          router.push("/login");
+        }
       }
       setLoading(false);
     });

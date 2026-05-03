@@ -553,9 +553,9 @@ function AyahStep({
           </div>
 
           {/* Translation */}
-          <div className="rounded-2xl border border-accent/20 bg-accent/8 p-4">
+          <div className="rounded-2xl border border-accent/30 p-4" style={{ background: "rgba(20,10,40,0.75)" }}>
             <p className="text-[10px] font-bold text-accent uppercase tracking-widest mb-2">Translation</p>
-            <p className="text-sm text-white/80 leading-relaxed italic">&quot;{ayah.translation}&quot;</p>
+            <p className="text-sm text-white leading-relaxed italic">&quot;{ayah.translation}&quot;</p>
           </div>
 
           {/* Reference */}
@@ -572,12 +572,12 @@ function AyahStep({
       )}
 
       {/* Reflection */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <div className="rounded-2xl border border-yellow-400/25 p-4" style={{ background: "rgba(20,10,40,0.75)" }}>
         <div className="flex items-center gap-2 mb-2">
           <Lightbulb size={13} className="text-yellow-400" />
           <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Reflection</p>
         </div>
-        <p className="text-sm text-white/60 leading-relaxed">
+        <p className="text-sm text-white leading-relaxed">
           Take a moment to sit with this ayah. Let it settle in your heart before you begin reading.
         </p>
       </div>
@@ -717,59 +717,28 @@ function ReadSession({
       <audio ref={audioRef} />
 
       {/* ── Sticky player bar ── */}
-      <div className="sticky top-0 z-10 border-b border-white/10 px-4 pt-3 pb-3"
+      <div className="sticky top-0 z-10 border-b border-white/10 px-4 py-3 flex items-center gap-3"
         style={{ background: "rgba(18,8,30,0.92)", backdropFilter: "blur(12px)" }}>
-
-        {/* Track info + play button */}
-        <div className="flex items-center gap-3 mb-2">
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-white/70 truncate">
-              {nowPlaying
-                ? `Surah ${nowPlaying.surahNumber} · Ayah ${nowPlaying.ayahNumber}`
-                : `Surah ${ayahs[0]?.surahNumber} · Ayah ${ayahs[0]?.ayahNumber}–${ayahs[ayahs.length - 1]?.ayahNumber}`}
-            </p>
-            <p className="text-[10px] text-white/35 mt-0.5">
-              {readCount}/{ayahs.length} read
-            </p>
-          </div>
-          <button
-            onClick={handleGlobalPlayPause}
-            className={`w-11 h-11 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-              playingIndex !== null && isPlaying
-                ? "bg-accent border-accent shadow-lg shadow-accent/30"
-                : "bg-accent/15 border-accent/40 hover:bg-accent/25"
-            }`}
-          >
-            {playingIndex !== null && isPlaying
-              ? <Pause size={18} className="text-white" fill="white" />
-              : <Play size={18} className="text-accent" fill="currentColor" />}
-          </button>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-white/70 truncate">
+            {nowPlaying
+              ? `Surah ${nowPlaying.surahNumber} · Ayah ${nowPlaying.ayahNumber}`
+              : `Surah ${ayahs[0]?.surahNumber} · Ayah ${ayahs[0]?.ayahNumber}–${ayahs[ayahs.length - 1]?.ayahNumber}`}
+          </p>
+          <p className="text-[10px] text-white/35 mt-0.5">{readCount}/{ayahs.length} read</p>
         </div>
-
-        {/* Audio progress bar */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/35 w-7 shrink-0 tabular-nums">{formatTime(currentTime)}</span>
-          <div className="relative flex-1 h-1.5 group">
-            {/* Track background */}
-            <div className="absolute inset-0 bg-white/15 rounded-full" />
-            {/* Progress fill */}
-            <div
-              className="absolute left-0 top-0 h-full bg-accent rounded-full pointer-events-none transition-none"
-              style={{ width: `${duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0}%` }}
-            />
-            {/* Invisible range input for interaction */}
-            <input
-              type="range"
-              min={0}
-              max={Math.max(1, duration)}
-              step={0.1}
-              value={currentTime}
-              onChange={handleSeek}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
-          </div>
-          <span className="text-[10px] text-white/35 w-7 shrink-0 text-right tabular-nums">{formatTime(duration)}</span>
-        </div>
+        <button
+          onClick={handleGlobalPlayPause}
+          className={`w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+            playingIndex !== null && isPlaying
+              ? "bg-accent border-accent shadow-lg shadow-accent/30"
+              : "bg-accent/15 border-accent/40 hover:bg-accent/25"
+          }`}
+        >
+          {playingIndex !== null && isPlaying
+            ? <Pause size={16} className="text-white" fill="white" />
+            : <Play size={16} className="text-accent" fill="currentColor" />}
+        </button>
       </div>
 
       {/* ── Ayah list ── */}

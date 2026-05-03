@@ -3,11 +3,9 @@
 import { useState, useEffect } from "react";
 import { X, Edit2, Check, BookOpen, Wifi, WifiOff } from "lucide-react";
 import { useAuth } from "./AuthProvider";
-import { updateUserName, saveSalahPrayers, getSalahPrayers } from "@/lib/firestore";
+import { updateUserName } from "@/lib/firestore";
 import { getQFAccessToken, isQFConnected, initiateQFOAuth, clearQFSession } from "@/lib/qf-user-auth";
 import toast from "react-hot-toast";
-
-const PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"] as const;
 
 interface ProfilePanelProps {
   open: boolean;
@@ -22,7 +20,6 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
 
-  const [prayers, setPrayers] = useState<Record<string, boolean>>({});
   const [bookmarks, setBookmarks] = useState<{ key: number; verseNumber: number }[]>([]);
   const [loadingBookmarks, setLoadingBookmarks] = useState(false);
   const [qfConnected, setQFConnected] = useState(false);
@@ -32,8 +29,6 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
     setNameInput(profile?.name || "");
     const connected = isQFConnected();
     setQFConnected(connected);
-
-    getSalahPrayers(user.uid, today).then(setPrayers).catch(() => {});
 
     if (connected) {
       const token = getQFAccessToken();
@@ -64,13 +59,6 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
     setSavingName(false);
   }
 
-  function togglePrayer(prayer: string) {
-    if (!user) return;
-    const updated = { ...prayers, [prayer]: !prayers[prayer] };
-    setPrayers(updated);
-    saveSalahPrayers(user.uid, today, updated).catch(() => {});
-  }
-
   function handleConnect() {
     initiateQFOAuth().catch(() => {});
     onClose();
@@ -84,8 +72,6 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
   }
 
   if (!open) return null;
-
-  const prayedCount = PRAYERS.filter((p) => prayers[p]).length;
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -154,30 +140,6 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
                 Connect
               </button>
             )}
-          </div>
-
-          {/* Today's Salah */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-white/40 uppercase tracking-wider">Today&apos;s Salah</p>
-              <span className="text-xs text-secondary">{prayedCount}/5 prayed</span>
-            </div>
-            <div className="grid grid-cols-5 gap-1.5">
-              {PRAYERS.map((prayer) => (
-                <button
-                  key={prayer}
-                  onClick={() => togglePrayer(prayer)}
-                  className={`flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-xl border transition-all ${
-                    prayers[prayer]
-                      ? "bg-secondary/20 border-secondary/40 text-secondary"
-                      : "bg-white/5 border-white/10 text-white/30 hover:border-white/25 hover:text-white/50"
-                  }`}
-                >
-                  <div className={`w-1.5 h-1.5 rounded-full transition-colors ${prayers[prayer] ? "bg-secondary" : "bg-white/20"}`} />
-                  <span className="text-[9px] font-medium leading-none">{prayer}</span>
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Bookmarks */}

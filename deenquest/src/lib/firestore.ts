@@ -307,13 +307,3 @@ export async function updateUserName(uid: string, name: string) {
   await updateDoc(doc(db, "users", uid), { name });
 }
 
-export async function saveSalahPrayers(uid: string, date: string, prayers: Record<string, boolean>) {
-  await setDoc(doc(db, "salah", `${uid}_${date}`), { uid, date, ...prayers, updatedAt: new Date().toISOString() });
-}
-
-export async function getSalahPrayers(uid: string, date: string): Promise<Record<string, boolean>> {
-  const snap = await getDoc(doc(db, "salah", `${uid}_${date}`));
-  if (!snap.exists()) return {};
-  const { uid: _u, date: _d, updatedAt: _t, ...prayers } = snap.data();
-  return prayers as Record<string, boolean>;
-}

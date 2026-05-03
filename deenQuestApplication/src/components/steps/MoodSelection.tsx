@@ -39,6 +39,7 @@ export default function MoodSelection({ onSelect, onCustomText }: Props) {
   const [situation, setSituation] = useState('');
   const [findPressed, setFindPressed] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const inputY = useRef(0);
 
   const handleMoodPress = (mood: Mood) => {
     setSelected(mood);
@@ -102,7 +103,10 @@ export default function MoodSelection({ onSelect, onCustomText }: Props) {
       </View>
 
       {/* Custom text box */}
-      <View style={styles.textBoxWrap}>
+      <View
+        style={styles.textBoxWrap}
+        onLayout={(e) => { inputY.current = e.nativeEvent.layout.y; }}
+      >
         <TextInput
           style={styles.textInput}
           placeholder="e.g. I feel empty and lost…"
@@ -113,7 +117,7 @@ export default function MoodSelection({ onSelect, onCustomText }: Props) {
           onSubmitEditing={handleCustomSubmit}
           multiline={false}
           onFocus={() => {
-            setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+            setTimeout(() => scrollRef.current?.scrollTo({ y: inputY.current - 100, animated: true }), 200);
           }}
         />
       </View>

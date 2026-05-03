@@ -1,135 +1,388 @@
-import { BookOpen, ChevronRight, Share2 } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { BookOpen, Share2 } from 'lucide-react-native';
+import React, { useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { API_BASE } from '../../services/api';
+import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
 
-const DAWAH_CARDS = [
-  {
-    id: '1',
-    title: 'Why do Muslims pray 5 times a day?',
-    answer: 'Prayer (Salah) is the direct connection between a believer and Allah. The five daily prayers are timed throughout the day to keep believers mindful of Allah, purify the heart, and structure life around worship rather than worldly distractions.',
-    ayah: '20:14',
-    ayahText: 'Indeed, I am Allah. There is no deity except Me, so worship Me and establish prayer for My remembrance.',
-  },
-  {
-    id: '2',
-    title: 'What does Islam say about kindness to others?',
-    answer: 'Islam places immense emphasis on kindness. The Prophet Muhammad ﷺ said "None of you believes until he loves for his brother what he loves for himself." Kindness to all — humans, animals, and even the environment — is an act of worship.',
-    ayah: '2:83',
-    ayahText: 'And speak to people good words.',
-  },
-  {
-    id: '3',
-    title: 'What is the Quran?',
-    answer: "The Quran is the literal word of Allah revealed to Prophet Muhammad ﷺ over 23 years through the angel Jibreel. It is the final and preserved scripture, a complete guide for humanity covering faith, worship, morality, and law.",
-    ayah: '15:9',
-    ayahText: 'Indeed, it is We who sent down the Quran and indeed, We will be its guardian.',
-  },
-  {
-    id: '4',
-    title: 'Why do Muslims fast in Ramadan?',
-    answer: 'Fasting in Ramadan is one of the Five Pillars of Islam. It builds taqwa (God-consciousness), empathy for the poor, discipline of desires, and spiritual renewal. The entire month is a intensive training in patience and closeness to Allah.',
-    ayah: '2:183',
-    ayahText: 'O you who have believed, fasting has been decreed upon you as it was decreed upon those before you that you may become righteous.',
-  },
+const TOPICS = [
+  'Patience', 'Justice', 'Mercy', 'Women', 'Prayer', 'Charity',
+  'Forgiveness', 'Knowledge', 'Family', 'Gratitude', 'Faith', 'Truthfulness',
 ];
 
-export default function DawahTab() {
-  const [expanded, setExpanded] = useState<string | null>(null);
+interface ScriptureEntry {
+  scriptureName: string;
+  quote: string;
+  reference: string;
+  explanation: string;
+}
 
-  const handleShare = async (card: (typeof DAWAH_CARDS)[0]) => {
+interface DawahSections {
+  quranView: string;
+  scriptures: ScriptureEntry[];
+  ummahReasoning: string;
+}
+
+function stripHtml(html: string) {
+  return html.replace(/<sup[^>]*>.*?<\/sup>/gi, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function parseDawahSections(raw: string): DawahSections {
+  const clean = raw.trim();
+  const fallback: DawahSections = {
+    quranView: clean || 'No Quranic summary generated yet.',
+    scriptures: [],
+    ummahReasoning: 'Could not parse the ummah-focused reasoning. Please retry.',
+  };
+  if (!clean) return fallback;
+  const fenced = clean.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = (fenced?.[1] ?? clean).trim();
+  const jsonMatch = candidate.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return fallback;
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    const parsedScriptures: ScriptureEntry[] = Array.isArray(parsed?.scriptures)
+      ? parsed.scriptures
+          .map((entry: any) => ({
+            scriptureName: typeof entry?.scriptureName === 'string' ? entry.scriptureName.trim() : '',
+            quote: typeof entry?.quote === 'string' ? entry.quote.trim().replace(/^'+|'+$/g, '') : '',
+            reference: typeof entry?.reference === 'string' ? entry.reference.trim() : '',
+            explanation: typeof entry?.explanation === 'string' ? entry.explanation.trim() : '',
+          }))
+          .filter((e: ScriptureEntry) => e.scriptureName && e.quote && e.reference)
+      : [];
+    if (typeof parsed?.quranView === 'string' && typeof parsed?.ummahReasoning === 'string') {
+      return {
+        quranView: parsed.quranView.trim(),
+        scriptures: parsedScriptures,
+        ummahReasoning: parsed.ummahReasoning.trim(),
+      };
+    }
+  } catch {}
+  return fallback;
+}
+
+export default function DawahTab() {
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [customTopic, setCustomTopic] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [explorePressed, setExplorePressed] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const inputLayoutY = useRef(0);
+  const [ayahs, setAyahs] = useState<any[]>([]);
+  const [quranView, setQuranView] = useState('');
+  const [scriptures, setScriptures] = useState<ScriptureEntry[]>([]);
+  const [ummahReasoning, setUmmahReasoning] = useState('');
+
+  const handleTopicSelect = async (topic: string) => {
+    setSelectedTopic(topic);
+    setCustomTopic('');
+    setSearching(true);
+    setAyahs([]);
+    setQuranView('');
+    setScriptures([]);
+    setUmmahReasoning('');
+
+    try {
+      // 1. Search for related ayahs
+      const searchParams = new URLSearchParams({ path: 'search', q: topic, size: '5', language: 'en' });
+      const res = await fetch(`${API_BASE}/api/quran?${searchParams.toString()}`);
+      const data = res.ok ? await res.json() : {};
+      const results: any[] = data?.search?.results ?? [];
+
+      const mapped = results.map((r: any) => ({
+        verseKey: r.verse_key,
+        translation: stripHtml(r.translations?.[0]?.text ?? ''),
+      }));
+      setAyahs(mapped);
+
+      const verseSummary = mapped
+        .slice(0, 3)
+        .map((r: any) => `${r.verseKey}: "${r.translation}"`)
+        .join('\n');
+
+      const verseContext = verseSummary
+        ? `Use these relevant Quran verses as primary grounding:\n${verseSummary}`
+        : 'No direct verse search results were found; use well-known Quranic principles and accurate references.';
+
+      // 2. Generate dawah insights
+      const aiRes = await fetch(`${API_BASE}/api/deepseek`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          providerMode: 'dawah',
+          groundingQuery: topic,
+          messages: [
+            {
+              role: 'user',
+              content: `Topic: "${topic}"\n\n${verseContext}\n\nRespond with ONLY a raw JSON object. No markdown fences, no explanation outside the JSON.\n\nLimits per field:\n- quranView: 2-3 sentences, max 500 chars, include 1-2 ayah refs\n- Each scripture quote: max 150 chars. If translation is uncertain, end with " (translation may vary)" — do NOT wrap the quote in single quotes\n- Each scripture explanation: 2-3 sentences, max 220 chars\n- ummahReasoning: 3-4 sentences, max 500 chars\n- Exactly 3 scriptures: Bible, Bhagavad Gita, Torah\n\nShape:\n{"quranView":"...","scriptures":[{"scriptureName":"...","quote":"...","reference":"...","explanation":"..."}],"ummahReasoning":"..."}\n\nCritical: every string must be a complete sentence. Never cut off mid-word or mid-sentence.`,
+            },
+          ],
+          systemPrompt:
+            'You are a respectful Islamic dawah educator. Always return only raw valid JSON — no markdown, no prose outside the JSON. Compare scriptures fairly, keep tone non-inflammatory, cite Quranic references accurately, and never use derogatory language about any faith.',
+        }),
+      });
+
+      const aiData = await aiRes.json();
+      const sections = parseDawahSections(aiData.content ?? '');
+      setQuranView(sections.quranView);
+      setScriptures(sections.scriptures);
+      setUmmahReasoning(sections.ummahReasoning);
+    } catch {
+      setQuranView('Unable to generate a Quranic summary right now. Please try again.');
+      setScriptures([]);
+      setUmmahReasoning('Unable to generate the ummah-focused reasoning right now.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleCustomSearch = () => {
+    if (customTopic.trim()) handleTopicSelect(customTopic.trim());
+  };
+
+  const handleShare = async (entry: ScriptureEntry) => {
     try {
       await Share.share({
-        message: `"${card.ayahText}" (Quran ${card.ayah})\n\n${card.answer}\n\nShared via DeenQuest`,
+        message: `"${entry.quote}" — ${entry.reference}\n\n${entry.explanation}\n\nTopic: ${selectedTopic} | Shared via DeenQuest`,
       });
     } catch {}
   };
 
+  const hasResults = !searching && selectedTopic && (quranView || scriptures.length > 0 || ummahReasoning);
+
   return (
-    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.heading}>Common Questions About Islam</Text>
-      <Text style={styles.sub}>Share these answers with those curious about Islam</Text>
+    <ScrollView
+      ref={scrollRef}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Text style={styles.heading}>Dawah Perspectives</Text>
+      <Text style={styles.sub}>Explore Quranic guidance and respectful cross-scripture comparison</Text>
 
-      {DAWAH_CARDS.map((card) => {
-        const open = expanded === card.id;
-        return (
-          <View key={card.id} style={styles.card}>
-            <TouchableOpacity
-              style={styles.cardHeader}
-              onPress={() => setExpanded(open ? null : card.id)}
-              activeOpacity={0.8}
+      {/* Topic chips */}
+      <View style={styles.topicSection}>
+        <Text style={styles.sectionLabel}>Choose a topic</Text>
+        <View style={styles.chips}>
+          {TOPICS.map((topic) => (
+            <Pressable
+              key={topic}
+              onPress={() => !searching && handleTopicSelect(topic)}
+              style={[styles.chip, selectedTopic === topic && !searching && styles.chipActive]}
             >
-              <Text style={styles.cardTitle}>{card.title}</Text>
-              <ChevronRight
-                size={18}
-                color={COLORS.primary}
-                style={{ transform: [{ rotate: open ? '90deg' : '0deg' }] }}
-              />
-            </TouchableOpacity>
+              <Text style={[styles.chipText, selectedTopic === topic && !searching && styles.chipTextActive]}>
+                {topic}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
 
-            {open && (
-              <View style={styles.cardBody}>
-                <Text style={styles.answer}>{card.answer}</Text>
-                <View style={styles.ayahBox}>
-                  <BookOpen size={13} color={COLORS.primary} />
-                  <View style={styles.ayahText}>
-                    <Text style={styles.ayahRef}>Quran {card.ayah}</Text>
-                    <Text style={styles.ayahLine}>"{card.ayahText}"</Text>
+      {/* Custom input */}
+      <View
+        style={styles.customSection}
+        onLayout={(e) => { inputLayoutY.current = e.nativeEvent.layout.y; }}
+      >
+        <Text style={styles.sectionLabel}>Or describe any topic</Text>
+        <TextInput
+          style={styles.customInput}
+          placeholder="e.g. treatment of animals in Islam…"
+          placeholderTextColor={COLORS.textMuted}
+          value={customTopic}
+          onChangeText={setCustomTopic}
+          multiline
+          returnKeyType="search"
+          onSubmitEditing={handleCustomSearch}
+          onFocus={() => {
+            setTimeout(() => {
+              scrollRef.current?.scrollTo({ y: inputLayoutY.current - 20, animated: true });
+            }, 200);
+          }}
+        />
+        <Pressable
+          onPressIn={() => { if (customTopic.trim() && !searching) setExplorePressed(true); }}
+          onPressOut={() => setExplorePressed(false)}
+          onPress={handleCustomSearch}
+          disabled={searching || !customTopic.trim()}
+          style={[
+            styles.searchBtn,
+            (!customTopic.trim() || searching)
+              ? styles.searchBtnDisabled
+              : [DEPTH.button, explorePressed && DEPTH.buttonPressed],
+          ]}
+        >
+          <Text style={styles.searchBtnText}>Explore</Text>
+        </Pressable>
+      </View>
+
+      {/* Loading */}
+      {searching && (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Generating dawah insights…</Text>
+        </View>
+      )}
+
+      {/* Results */}
+      {hasResults && (
+        <>
+          {/* Related ayahs */}
+          {ayahs.length > 0 && (
+            <View style={styles.resultSection}>
+              <Text style={styles.resultTitle}>Related Ayahs ({ayahs.length})</Text>
+              {ayahs.map((ayah, i) => (
+                <View key={i} style={styles.ayahCard}>
+                  <View style={styles.ayahHeader}>
+                    <BookOpen size={13} color={COLORS.primary} />
+                    <Text style={styles.ayahRef}>{ayah.verseKey}</Text>
                   </View>
+                  <Text style={styles.ayahTranslation}>"{ayah.translation}"</Text>
                 </View>
-                <TouchableOpacity style={styles.shareBtn} onPress={() => handleShare(card)}>
-                  <Share2 size={14} color={COLORS.white} />
-                  <Text style={styles.shareBtnText}>Share this</Text>
-                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* What Quran says */}
+          {!!quranView && (
+            <View style={styles.resultCard}>
+              <Text style={styles.resultCardTitle}>What Quran Says about "{selectedTopic}"</Text>
+              <Text style={styles.resultCardBody}>{quranView}</Text>
+            </View>
+          )}
+
+          {/* Other scriptures */}
+          {scriptures.length > 0 && (
+            <View style={styles.resultCard}>
+              <Text style={styles.resultCardTitle}>What Other Scriptures Say</Text>
+              <View style={styles.scriptureList}>
+                {scriptures.map((entry, i) => (
+                  <View key={i} style={styles.scriptureEntry}>
+                    <Text style={styles.scriptureName}>{entry.scriptureName}</Text>
+                    <Text style={styles.scriptureQuote}>"{entry.quote}"</Text>
+                    <Text style={styles.scriptureRef}>{entry.reference}</Text>
+                    <Text style={styles.scriptureExplanation}>{entry.explanation}</Text>
+                    <Pressable style={styles.shareBtn} onPress={() => handleShare(entry)}>
+                      <Share2 size={13} color={COLORS.white} />
+                      <Text style={styles.shareBtnText}>Share</Text>
+                    </Pressable>
+                  </View>
+                ))}
               </View>
-            )}
-          </View>
-        );
-      })}
+            </View>
+          )}
+
+          {/* Ummah reasoning */}
+          {!!ummahReasoning && (
+            <View style={styles.ummahCard}>
+              <Text style={styles.ummahTitle}>Why Quranic Reasoning is Stronger for the Ummah</Text>
+              <Text style={styles.ummahBody}>{ummahReasoning}</Text>
+            </View>
+          )}
+        </>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 40, gap: 12 },
+  container: { padding: 16, paddingBottom: 60, gap: 16 },
+
   heading: { color: COLORS.text, fontSize: 20, fontWeight: '800' },
-  sub: { color: COLORS.textSub, fontSize: 13, marginTop: -6 },
-  card: {
+  sub: { color: COLORS.textSub, fontSize: 13, marginTop: -8 },
+
+  topicSection: { gap: 8 },
+  sectionLabel: { color: COLORS.textSub, fontSize: 12, fontWeight: '600' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: RADIUS.full,
     backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    overflow: 'hidden',
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
+  },
+  chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  chipText: { color: COLORS.textSub, fontSize: 13, fontWeight: '600' },
+  chipTextActive: { color: COLORS.white },
+
+  customSection: { gap: 8 },
+  customInput: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
+    paddingHorizontal: 14, paddingVertical: 12,
+    color: COLORS.text, fontSize: 14,
+    minHeight: 70, textAlignVertical: 'top',
     ...SHADOW.card,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    gap: 10,
-  },
-  cardTitle: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: '700' },
-  cardBody: { paddingHorizontal: 16, paddingBottom: 16, gap: 12 },
-  answer: { color: COLORS.textSub, fontSize: 14, lineHeight: 22 },
-  ayahBox: {
-    flexDirection: 'row',
-    gap: 10,
-    backgroundColor: COLORS.primaryBg,
-    borderRadius: RADIUS.lg,
-    padding: 12,
-  },
-  ayahText: { flex: 1, gap: 3 },
-  ayahRef: { color: COLORS.primary, fontSize: 11, fontWeight: '700' },
-  ayahLine: { color: COLORS.text, fontSize: 13, fontStyle: 'italic', lineHeight: 20 },
-  shareBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
+  searchBtn: {
     alignSelf: 'flex-end',
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingHorizontal: 28, paddingVertical: 14,
+    borderRadius: RADIUS.xl,
+    ...SHADOW.glow(COLORS.primary),
+  },
+  searchBtnDisabled: { opacity: 0.38 },
+  searchBtnText: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
+
+  loadingWrap: { alignItems: 'center', paddingVertical: 32, gap: 12 },
+  loadingText: { color: COLORS.textMuted, fontSize: 14 },
+
+  resultSection: { gap: 8 },
+  resultTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
+  ayahCard: {
+    backgroundColor: COLORS.primaryBg,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1, borderColor: `${COLORS.primary}33`,
+    padding: 12, gap: 6,
+  },
+  ayahHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ayahRef: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
+  ayahTranslation: { color: COLORS.textSub, fontSize: 13, lineHeight: 20, fontStyle: 'italic' },
+
+  resultCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
+    padding: 16, gap: 10,
+    ...SHADOW.card,
+  },
+  resultCardTitle: { color: COLORS.primary, fontSize: 14, fontWeight: '800' },
+  resultCardBody: { color: COLORS.textSub, fontSize: 14, lineHeight: 22 },
+
+  scriptureList: { gap: 12 },
+  scriptureEntry: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1, borderColor: COLORS.cardBorder,
+    padding: 12, gap: 5,
+  },
+  scriptureName: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
+  scriptureQuote: { color: COLORS.text, fontSize: 13, fontStyle: 'italic', lineHeight: 20 },
+  scriptureRef: { color: COLORS.accent, fontSize: 11, fontWeight: '600' },
+  scriptureExplanation: { color: COLORS.textSub, fontSize: 12, lineHeight: 18 },
+  shareBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-end', marginTop: 4,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: RADIUS.full,
   },
-  shareBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  shareBtnText: { color: COLORS.white, fontSize: 12, fontWeight: '600' },
+
+  ummahCard: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.xl,
+    padding: 16, gap: 10,
+    ...SHADOW.glow(COLORS.primary),
+  },
+  ummahTitle: { color: COLORS.white, fontSize: 14, fontWeight: '800' },
+  ummahBody: { color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 22 },
 });

@@ -27,14 +27,6 @@ interface WeeklyDayProgressInternal extends WeeklyDayProgress {
 }
 
 const BONUS_XP_REWARD = 10;
-const PRAYER_XP_REWARD = 10;
-const DAILY_PRAYERS = [
-  { id: "prayer-fajr", label: "Fajr" },
-  { id: "prayer-zuhr", label: "Zuhr" },
-  { id: "prayer-asr", label: "Asr" },
-  { id: "prayer-maghrib", label: "Maghrib" },
-  { id: "prayer-isha", label: "Isha" },
-] as const;
 
 function toIsoDateOnly(date: Date) {
   return date.toISOString().split("T")[0];
@@ -88,8 +80,6 @@ export default function TasksPage() {
   const [bonusDoneToday, setBonusDoneToday] = useState(false);
   const [completedBonusSourceIdsToday, setCompletedBonusSourceIdsToday] = useState<Set<string>>(new Set());
   const [pendingTaskIds, setPendingTaskIds] = useState<Set<string>>(new Set());
-  const [completedPrayerIds, setCompletedPrayerIds] = useState<Set<string>>(new Set());
-  const [pendingPrayerIds, setPendingPrayerIds] = useState<Set<string>>(new Set());
   const [pendingBonus, setPendingBonus] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [bonusDetailsOpen, setBonusDetailsOpen] = useState(false);
@@ -170,16 +160,9 @@ export default function TasksPage() {
           ? DAILY_TASKS.find((task) => task.id === completedBonusRecord.sourceTaskId) || null
           : null;
         const todayHasBonus = todayCompletedTasks.some((task) => task.isBonus);
-        const todayPrayerCompletions = new Set(
-          todayCompletedTasks
-            .filter((task) => task.taskId.startsWith("prayer-"))
-            .map((task) => task.taskId)
-        );
-
         const sortedCategories = getSortedCategoriesByCount(categoryCounts);
 
         setCompletedTaskIds(todayProgress ? todayProgress.completedIds : new Set());
-        setCompletedPrayerIds(todayPrayerCompletions);
         setCompletedBonusSourceIdsToday(todayBonusSourceIds);
         setBonusDoneToday(todayHasBonus);
         setCompletedBonusTask(completedBonusTaskFromHistory);
@@ -343,32 +326,6 @@ export default function TasksPage() {
     }
   }
 
-  async function handleCompletePrayer(prayerId: string) {
-    if (!user || completedPrayerIds.has(prayerId) || pendingPrayerIds.has(prayerId)) return;
-
-    setPendingPrayerIds((prev) => new Set(prev).add(prayerId));
-    setCompletedPrayerIds((prev) => new Set(prev).add(prayerId));
-
-    try {
-      await completeTask(user.uid, prayerId, today, PRAYER_XP_REWARD);
-      refreshProfile().catch(() => undefined);
-      toast.success(`+${PRAYER_XP_REWARD} Hasanat earned!`);
-    } catch {
-      setCompletedPrayerIds((prev) => {
-        const updated = new Set(prev);
-        updated.delete(prayerId);
-        return updated;
-      });
-      toast.error("Failed to complete prayer");
-    } finally {
-      setPendingPrayerIds((prev) => {
-        const updated = new Set(prev);
-        updated.delete(prayerId);
-        return updated;
-      });
-    }
-  }
-
   function toggleTaskDetails(taskId: string) {
     setExpandedTaskId((prev) => (prev === taskId ? null : taskId));
   }
@@ -411,52 +368,6 @@ export default function TasksPage() {
             <Trophy size={15} />
             My Levels
           </Link>
-        </div>
-
-        {/* Daily Salah */}
-        <div className="glass-card rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-primary">Daily Salah</h3>
-            <span className="text-xs text-secondary bg-accent/15 px-3 py-1 rounded-full">
-              +{PRAYER_XP_REWARD} XP each
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
-            {DAILY_PRAYERS.map((prayer) => {
-              const done = completedPrayerIds.has(prayer.id);
-              const pending = pendingPrayerIds.has(prayer.id);
-
-              return (
-                <button
-                  key={prayer.id}
-                  type="button"
-                  onClick={() => handleCompletePrayer(prayer.id)}
-                  disabled={done || pending || loadingTasks}
-                  className={`w-full rounded-xl border px-3 py-2.5 text-left transition-all flex items-center justify-between ${
-                    done
-                      ? "bg-[rgba(108,36,112,0.72)] border-accent/40"
-                      : "bg-[rgba(20,20,40,0.68)] border-white/20 hover:border-accent/35"
-                  }`}
-                >
-                  <span className={`text-sm font-medium ${done ? "text-secondary" : "text-primary"}`}>
-                    {prayer.label}
-                  </span>
-                  {done ? (
-                    <CheckCircle2 size={16} className="text-secondary" />
-                  ) : pending ? (
-                    <Loader2 size={16} className="text-secondary animate-spin" />
-                  ) : (
-                    <Circle size={16} className="text-primary/25" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <p className="text-xs text-primary/45 mt-3">
-            {completedPrayerIds.size}/{DAILY_PRAYERS.length} prayers completed today.
-          </p>
         </div>
 
         {/* Progress */}

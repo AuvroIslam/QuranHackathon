@@ -1,4 +1,4 @@
-import { BookOpen, Send, Sparkles } from 'lucide-react-native';
+import { BookOpen, Send, ShieldCheck, Sparkles } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,7 +18,13 @@ import { COLORS, RADIUS, SHADOW } from '../../theme';
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  grounded?: boolean;
 }
+
+const QURAN_KEYWORDS = [
+  'quran', 'ayah', 'verse', 'surah', 'allah', 'islam', 'prophet',
+  'prayer', 'hadith', 'tafsir', 'ramadan', 'dua', 'sunnah', 'fiqh', 'aqeedah',
+];
 
 const SUGGESTIONS = [
   'What does the Quran say about patience?',
@@ -26,6 +32,39 @@ const SUGGESTIONS = [
   'What is the best dua for anxiety?',
   'Explain Surah Al-Fatiha',
 ];
+
+/** Renders basic markdown: **bold**, *italic*, and - bullet lines */
+function SimpleMarkdown({ text, style, userBubble }: { text: string; style: object; userBubble?: boolean }) {
+  const lines = text.split('\n');
+  return (
+    <View style={{ gap: 2 }}>
+      {lines.map((line, li) => {
+        const isBullet = /^(\s*[-*]\s)/.test(line);
+        const content = isBullet ? line.replace(/^\s*[-*]\s/, '') : line;
+        const parts: React.ReactNode[] = [];
+        const boldItalicRe = /\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*/g;
+        let last = 0;
+        let m: RegExpExecArray | null;
+        boldItalicRe.lastIndex = 0;
+        while ((m = boldItalicRe.exec(content)) !== null) {
+          if (m.index > last) parts.push(<Text key={`t${li}-${last}`} style={style}>{content.slice(last, m.index)}</Text>);
+          if (m[1]) parts.push(<Text key={`b${li}-${m.index}`} style={[style, { fontWeight: '700', fontStyle: 'italic' }]}>{m[1]}</Text>);
+          else if (m[2]) parts.push(<Text key={`b${li}-${m.index}`} style={[style, { fontWeight: '700' }]}>{m[2]}</Text>);
+          else if (m[3]) parts.push(<Text key={`i${li}-${m.index}`} style={[style, { fontStyle: 'italic' }]}>{m[3]}</Text>);
+          last = m.index + m[0].length;
+        }
+        if (last < content.length) parts.push(<Text key={`t${li}-end`} style={style}>{content.slice(last)}</Text>);
+        if (parts.length === 0 && content === '') return <View key={li} style={{ height: 4 }} />;
+        return (
+          <View key={li} style={isBullet ? { flexDirection: 'row', gap: 6 } : {}}>
+            {isBullet && <Text style={[style, { marginTop: 2 }]}>{'•'}</Text>}
+            <Text style={[style, { flex: isBullet ? 1 : undefined }]}>{parts}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
 
 export default function AskAITab() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -39,22 +78,30 @@ export default function AskAITab() {
     setInput('');
 
     const userMsg: Message = { role: 'user', content: trimmed };
-    const nextMessages = [...messages, userMsg];
+    const nextMessages: Message[] = [...messages, userMsg];
     setMessages(nextMessages);
     setLoading(true);
 
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      const res = await fetch(`${API_BASE}/api/chatbot`, {
+      // Context window: last 8 messages (same as web)
+      const contextWindow = nextMessages.slice(-8).map(({ role, content }) => ({ role, content }));
+
+      // Auto-ground on Quran-related keywords (same as web)
+      const lower = trimmed.toLowerCase();
+      const autoGround = QURAN_KEYWORDS.some((kw) => lower.includes(kw));
+      const groundingQuery = autoGround ? trimmed : '';
+
+      const res = await fetch(`${API_BASE}/api/deepseek`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({ messages: contextWindow, groundingQuery }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
-      const reply = data.message ?? data.content ?? 'I could not process that. Please try again.';
-      setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
+      const reply = data.content ?? 'I could not process that. Please try again.';
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply, grounded: !!data.grounded }]);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -69,8 +116,8 @@ export default function AskAITab() {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={100}
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {messages.length === 0 ? (
         <ScrollView contentContainerStyle={styles.emptyContainer} showsVerticalScrollIndicator={false}>
@@ -89,6 +136,7 @@ export default function AskAITab() {
       ) : (
         <ScrollView
           ref={scrollRef}
+          style={styles.flex}
           contentContainerStyle={styles.messages}
           showsVerticalScrollIndicator={false}
         >
@@ -99,10 +147,20 @@ export default function AskAITab() {
                   <BookOpen size={14} color={COLORS.primary} />
                 </View>
               )}
-              <View style={[styles.bubbleText, msg.role === 'user' ? styles.bubbleTextUser : styles.bubbleTextAI]}>
-                <Text style={[styles.msgText, msg.role === 'user' && styles.msgTextUser]}>
-                  {msg.content}
-                </Text>
+              <View style={msg.role === 'user' ? styles.bubbleUserWrap : styles.bubbleAIWrap}>
+                <View style={[styles.bubbleText, msg.role === 'user' ? styles.bubbleTextUser : styles.bubbleTextAI]}>
+                  <SimpleMarkdown
+                    text={msg.content}
+                    style={[styles.msgText, msg.role === 'user' && styles.msgTextUser]}
+                    userBubble={msg.role === 'user'}
+                  />
+                </View>
+                {msg.role === 'assistant' && msg.grounded && (
+                  <View style={styles.groundedBadge}>
+                    <ShieldCheck size={11} color={COLORS.primary} />
+                    <Text style={styles.groundedText}>Verified with Quran MCP</Text>
+                  </View>
+                )}
               </View>
             </View>
           ))}
@@ -163,13 +221,15 @@ const styles = StyleSheet.create({
   bubble: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   bubbleUser: { justifyContent: 'flex-end' },
   bubbleAI: { justifyContent: 'flex-start' },
+  bubbleUserWrap: { alignItems: 'flex-end', maxWidth: '78%' },
+  bubbleAIWrap: { alignItems: 'flex-start', maxWidth: '78%' },
   aiAvatar: {
     width: 30, height: 30, borderRadius: 15,
     backgroundColor: COLORS.primaryBg,
     alignItems: 'center', justifyContent: 'center',
   },
   bubbleText: {
-    maxWidth: '78%', borderRadius: RADIUS.xl, padding: 12,
+    borderRadius: RADIUS.xl, padding: 12,
   },
   bubbleTextUser: {
     backgroundColor: COLORS.primary,
@@ -184,6 +244,11 @@ const styles = StyleSheet.create({
   typingBubble: { paddingVertical: 14, paddingHorizontal: 20 },
   msgText: { color: COLORS.text, fontSize: 14, lineHeight: 22 },
   msgTextUser: { color: COLORS.white },
+  groundedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginTop: 4, paddingHorizontal: 2,
+  },
+  groundedText: { color: COLORS.primary, fontSize: 11, opacity: 0.8 },
 
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 10,

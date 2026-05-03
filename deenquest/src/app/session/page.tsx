@@ -11,7 +11,7 @@ import {
 } from "@/lib/firestore";
 import { getLesson } from "@/lib/lessons-data";
 import { getStreakStatus } from "@/lib/streakUtils";
-import { getAyahsForMood } from "@/lib/quran";
+import { getAyahsForMood, searchAyahs } from "@/lib/quran";
 import {
   CheckCircle2, Loader2, Volume2, X, Star, Flame,
   Play, Pause, BookOpen, Lightbulb,
@@ -19,6 +19,7 @@ import {
 import toast from "react-hot-toast";
 
 const SESSION_IN_PROGRESS_KEY = "deenquest_session_in_progress";
+const SESSION_STATE_KEY = "deenquest_session_state";
 
 type Phase = "loading" | "session" | "complete";
 type JourneyStep = "mood" | "ayah" | "reading";
@@ -40,14 +41,13 @@ interface MoodAyah {
 }
 
 const MOODS = [
-  { key: "sad",      label: "Sad",      emoji: "😔" },
-  { key: "anxious",  label: "Anxious",  emoji: "😰" },
-  { key: "grateful", label: "Grateful", emoji: "🤲" },
-  { key: "hopeful",  label: "Hopeful",  emoji: "✨" },
-  { key: "angry",    label: "Angry",    emoji: "😤" },
-  { key: "lost",     label: "Lost",     emoji: "🌙" },
-  { key: "happy",    label: "Happy",    emoji: "😊" },
-  { key: "lonely",   label: "Lonely",   emoji: "💙" },
+  { key: "stressed",     label: "Stressed",     image: "/mood/stressed.png" },
+  { key: "sad",          label: "Sad",          image: "/mood/sad.png" },
+  { key: "grateful",    label: "Grateful",     image: "/mood/grateful.png" },
+  { key: "lost",        label: "Lost",         image: "/mood/lost.png" },
+  { key: "indecisive",  label: "Indecisive",   image: "/mood/indecisive.png" },
+  { key: "overthinking",label: "Overthinking", image: "/mood/overthinking.png" },
+  { key: "justHere",    label: "Just Here",    image: "/mood/justHere.png" },
 ];
 
 
@@ -93,9 +93,31 @@ export default function SessionPage() {
 
   useEffect(() => {
     if (!profile) return;
-    sessionStorage.setItem(SESSION_IN_PROGRESS_KEY, "true");
+    const alreadyInProgress = sessionStorage.getItem(SESSION_IN_PROGRESS_KEY) === "true";
+    if (alreadyInProgress) {
+      const saved = sessionStorage.getItem(SESSION_STATE_KEY);
+      if (saved) {
+        try {
+          const { step, moodAyah: savedMoodAyah, selectedMood: savedMood, ayahs: savedAyahs } = JSON.parse(saved);
+          if (step) setJourneyStep(step);
+          if (savedMoodAyah) setMoodAyah(savedMoodAyah);
+          if (savedMood) setSelectedMood(savedMood);
+          if (savedAyahs?.length) setAyahs(savedAyahs);
+        } catch {}
+      }
+    } else {
+      sessionStorage.setItem(SESSION_IN_PROGRESS_KEY, "true");
+    }
     setPhase("session");
   }, [profile]);
+
+  useEffect(() => {
+    if (phase !== "session") return;
+    sessionStorage.setItem(
+      SESSION_STATE_KEY,
+      JSON.stringify({ step: journeyStep, moodAyah, selectedMood, ayahs })
+    );
+  }, [phase, journeyStep, moodAyah, selectedMood, ayahs]);
 
   async function loadAyahs(startSurah: number, startAyah: number, count: number) {
     setLoadingRead(true);
@@ -131,10 +153,12 @@ export default function SessionPage() {
     }
   }
 
-  async function fetchMoodAyah(mood: string) {
+  async function fetchMoodAyah(mood: string, customText?: string) {
     setFetchingAyah(true);
     try {
-      const results = await getAyahsForMood(mood);
+      const results = customText
+        ? await searchAyahs(customText)
+        : await getAyahsForMood(mood);
       if (results.length > 0) {
         const r = results[0];
         setMoodAyah({
@@ -154,6 +178,12 @@ export default function SessionPage() {
   async function handleMoodSelect(mood: string) {
     setSelectedMood(mood);
     await fetchMoodAyah(mood);
+    setJourneyStep("ayah");
+  }
+
+  async function handleCustomMoodText(text: string) {
+    setSelectedMood("justHere");
+    await fetchMoodAyah("justHere", text);
     setJourneyStep("ayah");
   }
 
@@ -195,6 +225,7 @@ export default function SessionPage() {
       setNewStreak(result.newStreak);
       await refreshProfile();
       sessionStorage.removeItem(SESSION_IN_PROGRESS_KEY);
+      sessionStorage.removeItem(SESSION_STATE_KEY);
       setPhase("complete");
     } catch {
       toast.error("Failed to save session");
@@ -356,7 +387,7 @@ export default function SessionPage() {
         )}
 
         {!fetchingAyah && journeyStep === "mood" && (
-          <MoodStep onSelect={handleMoodSelect} />
+          <MoodStep onSelect={handleMoodSelect} onCustomText={handleCustomMoodText} />
         )}
 
         {!fetchingAyah && journeyStep === "ayah" && (
@@ -387,9 +418,29 @@ export default function SessionPage() {
 
 // ─── Mood Step ────────────────────────────────────────────────────────────────
 
-function MoodStep({ onSelect }: { onSelect: (mood: string) => void }) {
+function MoodStep({
+  onSelect,
+  onCustomText,
+}: {
+  onSelect: (mood: string) => void;
+  onCustomText: (text: string) => void;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [situation, setSituation] = useState("");
+
+  function handleMoodClick(key: string) {
+    setSelected(key);
+    onSelect(key);
+  }
+
+  function handleFind() {
+    if (!situation.trim()) return;
+    onCustomText(situation.trim());
+  }
+
   return (
-    <div className="p-5 md:p-6 max-w-lg mx-auto w-full space-y-6 pt-8">
+    <div className="p-5 md:p-6 max-w-lg mx-auto w-full space-y-5 pt-8">
+      {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-white">How are you feeling?</h2>
@@ -403,17 +454,50 @@ function MoodStep({ onSelect }: { onSelect: (mood: string) => void }) {
           className="object-contain shrink-0"
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        {MOODS.map(({ key, label, emoji }) => (
+
+      {/* Mood grid — 3 columns with images */}
+      <div className="grid grid-cols-3 gap-2.5">
+        {MOODS.map(({ key, label, image }) => (
           <button
             key={key}
-            onClick={() => onSelect(key)}
-            className="flex items-center gap-3 px-4 py-4 rounded-2xl border border-white/15 glass hover:border-accent/40 hover:bg-accent/5 transition-all text-left group"
+            onClick={() => handleMoodClick(key)}
+            className={`flex flex-col items-center gap-1.5 pt-3 pb-2 rounded-2xl border transition-all ${
+              selected === key
+                ? "border-accent/60 bg-accent/15 shadow-lg shadow-accent/20"
+                : "border-white/12 glass hover:border-accent/35 hover:bg-accent/5"
+            }`}
           >
-            <span className="text-2xl">{emoji}</span>
-            <span className="font-semibold text-white/85 group-hover:text-white transition-colors">{label}</span>
+            <Image src={image} alt={label} width={56} height={56} className="object-contain" />
+            <span className="text-xs font-semibold text-white/80 leading-tight text-center px-1">{label}</span>
           </button>
         ))}
+      </div>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px bg-white/10" />
+        <span className="text-white/35 text-xs">or describe your situation</span>
+        <div className="flex-1 h-px bg-white/10" />
+      </div>
+
+      {/* Text input */}
+      <div className="space-y-3">
+        <input
+          type="text"
+          placeholder="e.g. I feel empty and lost…"
+          value={situation}
+          onChange={(e) => setSituation(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleFind()}
+          className="w-full px-4 py-3 rounded-2xl bg-white/8 border border-white/15 text-white placeholder-white/30 text-sm focus:outline-none focus:border-accent/50 focus:bg-white/10 transition-all"
+        />
+        <button
+          onClick={handleFind}
+          disabled={!situation.trim()}
+          className="w-full py-3 rounded-2xl font-bold text-sm transition-all disabled:opacity-35 disabled:cursor-not-allowed"
+          style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
+        >
+          Find Ayah
+        </button>
       </div>
     </div>
   );

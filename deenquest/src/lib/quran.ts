@@ -123,6 +123,10 @@ const MOOD_SEARCH_TERMS: Record<string, string> = {
   lost: "guidance light path straight",
   happy: "joy rejoice blessing glad tidings",
   lonely: "closeness near Allah with you",
+  stressed: "ease burdens hardship relief trust Allah",
+  indecisive: "guidance decision right path trust rely",
+  overthinking: "tranquility peace trust rely Allah heart",
+  justhere: "mercy compassion guidance straight path",
 };
 
 export async function getAyahsForMood(mood: string) {

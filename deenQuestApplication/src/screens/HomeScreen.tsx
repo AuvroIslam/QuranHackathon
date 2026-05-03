@@ -131,6 +131,50 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
           <StatCard icon={<Zap size={20} color={COLORS.primary} fill={COLORS.primary} />} value={xp} label="XP" bg={COLORS.primaryBg} color={COLORS.primaryDark} />
         </View>
 
+        {/* Streak Week Widget */}
+        {(() => {
+          const today = new Date();
+          const dow = today.getDay();
+          const monFirst = (dow + 6) % 7;
+          const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+          const lastDate = lastSessionDate ? new Date(lastSessionDate) : null;
+          const streakStart = lastDate ? new Date(lastDate) : null;
+          if (streakStart && lastDate) streakStart.setDate(lastDate.getDate() - Math.max(streak - 1, 0));
+          const weekDays = DAY_SHORT.map((label, i) => {
+            const d = new Date(today);
+            d.setDate(today.getDate() - monFirst + i);
+            d.setHours(0, 0, 0, 0);
+            if (!lastDate || !streakStart) return { label, completed: false };
+            const s = new Date(streakStart); s.setHours(0, 0, 0, 0);
+            const e = new Date(lastDate); e.setHours(0, 0, 0, 0);
+            return { label, completed: d >= s && d <= e };
+          });
+          return (
+            <View style={streakWidgetStyles.card}>
+              <View style={streakWidgetStyles.header}>
+                <View style={streakWidgetStyles.flameCircle}>
+                  <Flame size={18} color="#FF6B35" fill="#FF6B35" />
+                </View>
+                <View style={streakWidgetStyles.headerText}>
+                  <Text style={streakWidgetStyles.label}>STREAK</Text>
+                  <Text style={streakWidgetStyles.value}>{streak} <Text style={streakWidgetStyles.unit}>DAYS</Text></Text>
+                </View>
+              </View>
+              <View style={streakWidgetStyles.divider} />
+              <View style={streakWidgetStyles.weekRow}>
+                {weekDays.map((day, i) => (
+                  <View key={i} style={streakWidgetStyles.dayCol}>
+                    <View style={[streakWidgetStyles.dayCircle, day.completed && streakWidgetStyles.dayCircleDone]}>
+                      {day.completed && <CheckCircle size={16} color="#fff" fill="#f97316" />}
+                    </View>
+                    <Text style={streakWidgetStyles.dayLabel}>{day.label.substring(0, 3)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          );
+        })()}
+
         {/* Streak recovery / broken banner */}
         {streakStatus.status === 'recovery' && (
           <View style={styles.recoveryBanner}>
@@ -401,4 +445,38 @@ const styles = StyleSheet.create({
   recoveryText: { flex: 1, color: '#fdba74', fontSize: 13, fontWeight: '600', lineHeight: 18 },
   brokenBanner: { backgroundColor: 'rgba(248,113,113,0.12)', borderColor: 'rgba(248,113,113,0.3)' },
   brokenText: { color: '#fca5a5' },
+});
+
+const streakWidgetStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: 16, marginBottom: 4,
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.xl, borderWidth: 1, borderColor: COLORS.cardBorder,
+    borderBottomWidth: 3, borderBottomColor: COLORS.cardBorder,
+    padding: 16, gap: 12,
+  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  flameCircle: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: '#FFF0EB',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerText: { flex: 1 },
+  label: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.8 },
+  value: { fontSize: 22, fontWeight: '800', color: COLORS.text },
+  unit: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
+  divider: { height: 1, backgroundColor: COLORS.cardBorder },
+  weekRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  dayCol: { alignItems: 'center', gap: 5 },
+  dayCircle: {
+    width: 36, height: 36, borderRadius: 18,
+    borderWidth: 2, borderColor: COLORS.cardBorder,
+    backgroundColor: COLORS.surfaceDark,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  dayCircleDone: {
+    backgroundColor: '#f97316',
+    borderColor: '#fb923c',
+  },
+  dayLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
 });

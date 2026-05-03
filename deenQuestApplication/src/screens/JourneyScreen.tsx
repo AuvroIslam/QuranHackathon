@@ -277,6 +277,7 @@ export default function JourneyScreen() {
         <CompletionStep
           xpEarned={state.xpEarned}
           streak={firestoreStreak}
+          lastSessionDate={lastSessionDate}
           sessionsToday={sessionsToday}
           maxSessions={MAX_SESSIONS}
           onContinue={handleContinue}

@@ -1,4 +1,4 @@
-import { Flame, Moon, Star, Zap } from 'lucide-react-native';
+import { CheckCircle, Flame, Moon, Star, Zap } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
@@ -6,6 +6,7 @@ import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
 interface Props {
   xpEarned: number;
   streak: number;
+  lastSessionDate?: string | null;
   sessionsToday: number;   // how many sessions completed today (including this one)
   maxSessions: number;     // always 3
   onContinue: () => void;  // start another session
@@ -26,7 +27,7 @@ const MAX_OUT_MESSAGES = [
   "Rest now. Come back tomorrow stronger. 🕌",
 ];
 
-export default function CompletionStep({ xpEarned, streak, sessionsToday, maxSessions, onContinue, onRestart }: Props) {
+export default function CompletionStep({ xpEarned, streak, lastSessionDate, sessionsToday, maxSessions, onContinue, onRestart }: Props) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const card1Anim = useRef(new Animated.Value(0)).current;
@@ -39,6 +40,7 @@ export default function CompletionStep({ xpEarned, streak, sessionsToday, maxSes
   const sessionsLeft = maxSessions - sessionsToday;
   const message = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
   const maxOutMessage = MAX_OUT_MESSAGES[Math.floor(Math.random() * MAX_OUT_MESSAGES.length)];
+  const [showStreak, setShowStreak] = useState(sessionsToday === 1);
 
   useEffect(() => {
     Animated.sequence([
@@ -51,6 +53,72 @@ export default function CompletionStep({ xpEarned, streak, sessionsToday, maxSes
       ]),
     ]).start();
   }, []);
+
+  // ── Streak celebration screen (first session of day) ──
+  if (showStreak) {
+    const today = new Date();
+    const dow = today.getDay();
+    const monFirst = (dow + 6) % 7;
+    const DAY_SHORT = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const lastDate = lastSessionDate ? new Date(lastSessionDate) : today;
+    const streakStart = new Date(lastDate);
+    streakStart.setDate(lastDate.getDate() - Math.max(streak - 1, 0));
+
+    const weekDays = DAY_SHORT.map((label, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - monFirst + i);
+      d.setHours(0, 0, 0, 0);
+      const start = new Date(streakStart); start.setHours(0, 0, 0, 0);
+      const end = new Date(lastDate); end.setHours(0, 0, 0, 0);
+      return { label, completed: d >= start && d <= end };
+    });
+
+    const streakMsg =
+      streak >= 7
+        ? 'MashaAllah! A full week! 🌟'
+        : streak >= 3
+        ? "You're on fire! Keep the flame lit!"
+        : 'Every day counts. Build the habit!';
+
+    return (
+      <View style={streakStyles.screen}>
+        {/* Flame */}
+        <View style={streakStyles.flameWrap}>
+          <View style={streakStyles.flameGlow} />
+          <Flame size={86} color="#fb923c" fill="#fb923c" />
+          <View style={streakStyles.flameBadge}>
+            <Text style={streakStyles.flameBadgeText}>{streak}</Text>
+          </View>
+        </View>
+
+        {/* Week row */}
+        <View style={streakStyles.weekRow}>
+          {weekDays.map((day, i) => (
+            <View key={i} style={streakStyles.dayCol}>
+              <Text style={streakStyles.dayLabel}>{day.label}</Text>
+              <View style={[streakStyles.dayCircle, day.completed && streakStyles.dayCircleDone]}>
+                {day.completed && <CheckCircle size={18} color="#fff" fill="#f97316" />}
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Text */}
+        <View style={streakStyles.textWrap}>
+          <Text style={streakStyles.streakTitle}>{streak} day streak!</Text>
+          <Text style={streakStyles.streakSub}>{streakMsg}</Text>
+        </View>
+
+        {/* Button */}
+        <Pressable
+          onPress={() => setShowStreak(false)}
+          style={streakStyles.continueBtn}
+        >
+          <Text style={streakStyles.continueBtnText}>CONTINUE</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <ImageBackground
@@ -200,4 +268,65 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   maxedText: { color: COLORS.primaryDark, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+});
+
+const streakStyles = StyleSheet.create({
+  screen: {
+    flex: 1, backgroundColor: COLORS.bg,
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 32, gap: 28,
+  },
+  flameWrap: {
+    width: 120, height: 120,
+    alignItems: 'center', justifyContent: 'center',
+    position: 'relative',
+  },
+  flameGlow: {
+    position: 'absolute',
+    width: 100, height: 100, borderRadius: 50,
+    backgroundColor: '#fb923c',
+    opacity: 0.15,
+    transform: [{ scale: 1.4 }],
+  },
+  flameBadge: {
+    position: 'absolute', top: 4, right: 4,
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: '#f97316',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: COLORS.card,
+  },
+  flameBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+
+  weekRow: {
+    flexDirection: 'row', gap: 8, width: '100%',
+    justifyContent: 'space-between',
+  },
+  dayCol: { alignItems: 'center', gap: 6 },
+  dayLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+  dayCircle: {
+    width: 38, height: 38, borderRadius: 19,
+    borderWidth: 2, borderColor: COLORS.cardBorder,
+    backgroundColor: COLORS.surfaceDark,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  dayCircleDone: {
+    backgroundColor: '#f97316',
+    borderColor: '#fb923c',
+  },
+
+  textWrap: { alignItems: 'center', gap: 8 },
+  streakTitle: {
+    fontSize: 26, fontWeight: '800', color: COLORS.text, textAlign: 'center',
+  },
+  streakSub: {
+    fontSize: 14, color: COLORS.textSub, textAlign: 'center', lineHeight: 20,
+  },
+
+  continueBtn: {
+    width: '100%', paddingVertical: 17,
+    borderRadius: RADIUS.xl, backgroundColor: '#f97316',
+    alignItems: 'center',
+    borderBottomWidth: 4, borderBottomColor: '#c2410c',
+  },
+  continueBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
 });

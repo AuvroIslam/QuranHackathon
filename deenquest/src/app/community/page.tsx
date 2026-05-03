@@ -254,20 +254,22 @@ export default function CommunityPage() {
     >
       {/* Hero Banner */}
       <div className="relative overflow-hidden rounded-2xl h-44">
-        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('/mosque-bg.png')" }} />
+        <div className="absolute inset-0 bg-cover" style={{ backgroundImage: "url('/cardBgComunnity.png')", backgroundPosition: "center 75%" }} />
         <div className="overlay" />
-        <div className="relative z-10 h-full flex items-end justify-between px-6 pb-5">
+        <div className="relative z-10 h-full flex flex-col justify-between px-6 py-5">
           <div>
             <h1 className="font-heading text-3xl font-bold text-white tracking-wide">Community</h1>
             <p className="text-white/80 mt-2">Share reflections and ask questions</p>
           </div>
-          <button
-            onClick={() => setShowNewPost(!showNewPost)}
-            className="glass-btn flex items-center gap-2 text-sm"
-          >
-            {showNewPost ? <X size={16} /> : <Plus size={16} />}
-            {showNewPost ? "Cancel" : "New Post"}
-          </button>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowNewPost(!showNewPost)}
+              className="glass-btn flex items-center gap-2 text-sm"
+            >
+              {showNewPost ? <X size={16} /> : <Plus size={16} />}
+              {showNewPost ? "Cancel" : "New Post"}
+            </button>
+          </div>
         </div>
       </div>
 

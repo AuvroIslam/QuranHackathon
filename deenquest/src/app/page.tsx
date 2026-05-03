@@ -10,7 +10,7 @@ import { getUserTasksForDate, completeTask, getDailySessionCount } from "@/lib/f
 import { getStreakStatus } from "@/lib/streakUtils";
 import {
   CheckCircle2, ChevronDown, ChevronUp, Circle,
-  BookOpen, Flame, Loader2, AlertTriangle, XCircle,
+  BookOpen, Flame, Loader2, AlertTriangle, XCircle, Check,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -133,6 +133,58 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* Streak Week Widget */}
+      {(() => {
+        const today = new Date();
+        const dow = today.getDay();
+        const monFirst = (dow + 6) % 7;
+        const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        const lastDate = profile.lastSessionDate ? new Date(profile.lastSessionDate) : null;
+        const streakStart = lastDate ? new Date(lastDate) : null;
+        if (streakStart) streakStart.setDate(lastDate!.getDate() - Math.max((profile.streak ?? 0) - 1, 0));
+
+        const weekDays = DAY_LABELS.map((label, i) => {
+          const d = new Date(today);
+          d.setDate(today.getDate() - monFirst + i);
+          d.setHours(0, 0, 0, 0);
+          if (!lastDate || !streakStart) return { label, completed: false };
+          const start = new Date(streakStart); start.setHours(0, 0, 0, 0);
+          const end = new Date(lastDate); end.setHours(0, 0, 0, 0);
+          return { label, completed: d >= start && d <= end };
+        });
+
+        return (
+          <div className="glass-card rounded-2xl p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-purple-500/15 flex items-center justify-center">
+                <Flame size={20} className="text-purple-400" fill="#a855f7" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Streak</p>
+                <p className="text-xl font-extrabold text-white leading-none">
+                  {profile.streak ?? 0} <span className="text-sm font-medium text-white/50">days</span>
+                </p>
+              </div>
+            </div>
+            <div className="h-px bg-white/10 mb-4" />
+            <div className="flex justify-between">
+              {weekDays.map((day, i) => (
+                <div key={i} className="flex flex-col items-center gap-1.5">
+                  <span className="text-[10px] text-white/40 font-semibold">{day.label.charAt(0)}</span>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all ${
+                    day.completed
+                      ? "bg-purple-500 border-purple-400 shadow-lg shadow-purple-500/25"
+                      : "bg-white/8 border-white/15"
+                  }`}>
+                    {day.completed && <Check size={14} className="text-white" strokeWidth={3} />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Hero Card */}
       <div
         className="relative rounded-3xl overflow-hidden"
@@ -173,7 +225,7 @@ export default function HomePage() {
 
             {/* Streak pill */}
             <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-white/10 border border-white/15">
-              <Flame size={13} className="text-orange-400" />
+              <Flame size={13} className="text-purple-400" />
               <span className="text-xs font-bold text-white/80">
                 {profile.streak || 0} day streak
               </span>

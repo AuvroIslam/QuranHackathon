@@ -21,7 +21,7 @@ import toast from "react-hot-toast";
 const SESSION_IN_PROGRESS_KEY = "deenquest_session_in_progress";
 const SESSION_STATE_KEY = "deenquest_session_state";
 
-type Phase = "loading" | "session" | "complete";
+type Phase = "loading" | "session" | "streak" | "complete";
 type JourneyStep = "mood" | "ayah" | "reading";
 
 interface AyahData {
@@ -78,11 +78,13 @@ export default function SessionPage() {
   const [completing, setCompleting] = useState(false);
   const [newStreak, setNewStreak] = useState(0);
   const [xpGained] = useState(20);
+  const [isFirstSession, setIsFirstSession] = useState(false);
   const [moodAyah, setMoodAyah] = useState<MoodAyah | null>(null);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [fetchingAyah, setFetchingAyah] = useState(false);
   const [loadingRead, setLoadingRead] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasInitialized = useRef(false);
 
   const isLearn = profile?.goal === "learn";
   const timePerDay = profile?.timePerDay ?? 5;
@@ -92,7 +94,8 @@ export default function SessionPage() {
     : null;
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || hasInitialized.current) return;
+    hasInitialized.current = true;
     const alreadyInProgress = sessionStorage.getItem(SESSION_IN_PROGRESS_KEY) === "true";
     if (alreadyInProgress) {
       const saved = sessionStorage.getItem(SESSION_STATE_KEY);
@@ -223,10 +226,12 @@ export default function SessionPage() {
 
       const result = await completeSession(user.uid, isRecoveryComplete);
       setNewStreak(result.newStreak);
-      await refreshProfile();
+      setIsFirstSession(result.sessionsToday === 1);
       sessionStorage.removeItem(SESSION_IN_PROGRESS_KEY);
       sessionStorage.removeItem(SESSION_STATE_KEY);
-      setPhase("complete");
+      refreshProfile().catch(() => undefined);
+      setCompleting(false);
+      setPhase(result.sessionsToday === 1 ? "streak" : "complete");
     } catch {
       toast.error("Failed to save session");
       setCompleting(false);
@@ -240,13 +245,94 @@ export default function SessionPage() {
   // ── Progress for journey steps ──
   const STEP_ORDER: JourneyStep[] = ["mood", "ayah", "reading"];
   const stepIdx = STEP_ORDER.indexOf(journeyStep);
-  const progressPct = journeyStep === "reading" ? 100 : (stepIdx / 2) * 100;
+  const progressPct = (stepIdx / STEP_ORDER.length) * 100;
 
   // ── Loading ──
   if (!profile || phase === "loading") {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 size={32} className="text-accent animate-spin" />
+      </div>
+    );
+  }
+
+  // ── Streak screen (first session of day) ──
+  if (phase === "streak") {
+    const today = new Date();
+    const dow = today.getDay(); // 0=Sun..6=Sat
+    const monFirst = (dow + 6) % 7; // 0=Mon..6=Sun
+    const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+    const lastDate = profile.lastSessionDate ? new Date(profile.lastSessionDate) : today;
+    const streakStart = new Date(lastDate);
+    streakStart.setDate(lastDate.getDate() - Math.max(newStreak - 1, 0));
+
+    const weekDays = DAY_LABELS.map((label, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() - monFirst + i);
+      d.setHours(0, 0, 0, 0);
+      const start = new Date(streakStart); start.setHours(0, 0, 0, 0);
+      const end = new Date(lastDate); end.setHours(0, 0, 0, 0);
+      return { label, completed: d >= start && d <= end };
+    });
+
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-xs glass-card rounded-3xl p-8 text-center space-y-7">
+          {/* Flame */}
+          <div className="relative mx-auto w-28 h-28">
+            <div className="absolute inset-0 rounded-full bg-orange-500/20 blur-2xl" />
+            <div className="relative flex items-center justify-center w-full h-full">
+              <Flame size={84} className="text-orange-400" fill="#fb923c" />
+            </div>
+            <div
+              className="absolute -top-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-extrabold"
+              style={{ background: "linear-gradient(135deg,#f97316,#ea580c)" }}
+            >
+              {newStreak}
+            </div>
+          </div>
+
+          {/* Week row */}
+          <div className="flex justify-between gap-1">
+            {weekDays.map((day, i) => (
+              <div key={i} className="flex flex-col items-center gap-1.5">
+                <span className="text-[11px] text-white/45 font-bold">{day.label}</span>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all ${
+                  day.completed
+                    ? "bg-orange-500 border-orange-400 shadow-lg shadow-orange-500/30"
+                    : "bg-white/8 border-white/15"
+                }`}>
+                  {day.completed && (
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M2 7l4 4 6-6" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Heading */}
+          <div>
+            <h2 className="text-2xl font-extrabold text-white">{newStreak} day streak!</h2>
+            <p className="text-sm text-white/55 mt-1.5 leading-relaxed">
+              {newStreak >= 7
+                ? "MashaAllah! A full week of dedication! 🌟"
+                : newStreak >= 3
+                ? "You're on fire! Keep the flame lit every day!"
+                : "Every day counts. Keep building the habit!"}
+            </p>
+          </div>
+
+          {/* Continue */}
+          <button
+            onClick={() => setPhase("complete")}
+            className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
+            style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)", boxShadow: "0 4px 20px rgba(249,115,22,0.4)" }}
+          >
+            CONTINUE
+          </button>
+        </div>
       </div>
     );
   }
@@ -439,7 +525,7 @@ function MoodStep({
   }
 
   return (
-    <div className="p-5 md:p-6 max-w-lg mx-auto w-full space-y-5 pt-8">
+    <div className="p-0 md:p-6 max-w-lg mx-auto w-full space-y-5 pt-8">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
@@ -455,20 +541,22 @@ function MoodStep({
         />
       </div>
 
-      {/* Mood grid — 3 columns with images */}
-      <div className="grid grid-cols-3 gap-2.5">
+      {/* Mood grid — 4 columns with images */}
+      <div className="grid grid-cols-4 gap-2">
         {MOODS.map(({ key, label, image }) => (
           <button
             key={key}
             onClick={() => handleMoodClick(key)}
-            className={`flex flex-col items-center gap-1.5 pt-3 pb-2 rounded-2xl border transition-all ${
+            className={`flex flex-col items-center gap-1.5 pb-1.5 rounded-xl border transition-all overflow-hidden ${
               selected === key
                 ? "border-accent/60 bg-accent/15 shadow-lg shadow-accent/20"
                 : "border-white/12 glass hover:border-accent/35 hover:bg-accent/5"
             }`}
           >
-            <Image src={image} alt={label} width={56} height={56} className="object-contain" />
-            <span className="text-xs font-semibold text-white/80 leading-tight text-center px-1">{label}</span>
+            <div className="w-full aspect-square rounded-t-lg overflow-hidden bg-white/8">
+              <Image src={image} alt={label} width={80} height={80} className="object-contain w-full h-full" />
+            </div>
+            <span className="text-[10px] font-semibold text-white/80 leading-tight text-center px-1">{label}</span>
           </button>
         ))}
       </div>

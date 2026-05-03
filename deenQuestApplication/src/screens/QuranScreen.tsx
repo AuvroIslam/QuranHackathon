@@ -2,7 +2,7 @@ import { Audio } from 'expo-av';
 import { BookOpen, ChevronRight, Pause, Play, ScrollText, Search } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, ImageBackground, Pressable,
+  ActivityIndicator, FlatList, Pressable,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,14 +14,6 @@ function qfProxy(path: string, params: Record<string, string> = {}): string {
   const p = new URLSearchParams({ path, ...params });
   return `${API_BASE}/api/quran?${p.toString()}`;
 }
-
-const AYAH_BGS = [
-  require('../../elementsApp/ayahbg1.jpeg'),
-  require('../../elementsApp/ayahbg2.jpeg'),
-  require('../../elementsApp/ayahbg3.jpeg'),
-  require('../../elementsApp/ayahbg4.jpeg'),
-  require('../../elementsApp/ayahbg5.jpeg'),
-];
 
 interface Chapter {
   id: number;
@@ -236,13 +228,22 @@ function AyahCard({ ayah, isPlaying, onPlay }: {
 }) {
   const [tafsirOpen, setTafsirOpen] = useState(false);
   const [meaningOpen, setMeaningOpen] = useState(false);
-  const bg = AYAH_BGS[(ayah.verseNumber - 1) % 5];
 
   return (
-    <ImageBackground source={bg} style={styles.ayahCard} imageStyle={styles.ayahCardBg}>
-      {/* Ayah number badge */}
-      <View style={styles.ayahNumBadge}>
-        <Text style={styles.ayahNum}>{ayah.verseNumber}</Text>
+    <View style={styles.ayahCard}>
+      {/* Top row: play (left) + number (right) */}
+      <View style={styles.ayahTopRow}>
+        <Pressable
+          onPress={onPlay}
+          style={[styles.playAyahBtn, isPlaying && styles.playAyahBtnActive]}
+        >
+          {isPlaying
+            ? <Pause size={15} color={COLORS.white} fill={COLORS.white} />
+            : <Play size={15} color={COLORS.primary} fill={COLORS.primary} />}
+        </Pressable>
+        <View style={styles.ayahNumBadge}>
+          <Text style={styles.ayahNum}>{ayah.verseNumber}</Text>
+        </View>
       </View>
 
       {/* Arabic */}
@@ -262,15 +263,6 @@ function AyahCard({ ayah, isPlaying, onPlay }: {
 
       {/* Action row */}
       <View style={styles.ayahActions}>
-        <Pressable
-          onPress={onPlay}
-          style={[styles.playAyahBtn, isPlaying && styles.playAyahBtnActive]}
-        >
-          {isPlaying
-            ? <Pause size={15} color={COLORS.white} fill={COLORS.white} />
-            : <Play size={15} color={COLORS.primary} fill={COLORS.primary} />}
-        </Pressable>
-
         {!!ayah.translation && (
           <Pressable
             onPress={() => setMeaningOpen((v) => !v)}
@@ -303,7 +295,7 @@ function AyahCard({ ayah, isPlaying, onPlay }: {
           <Text style={styles.tafsirText}>{ayah.tafsir}</Text>
         </View>
       )}
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -359,15 +351,17 @@ const styles = StyleSheet.create({
   ayahCard: {
     borderRadius: RADIUS.xl,
     borderWidth: 1, borderColor: COLORS.cardBorder,
-    overflow: 'hidden',
     padding: 16, gap: 10,
     backgroundColor: COLORS.card,
     ...SHADOW.card,
   },
-  ayahCardBg: { borderRadius: RADIUS.xl, opacity: 0.15 },
 
+  ayahTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   ayahNumBadge: {
-    alignSelf: 'flex-end',
     backgroundColor: COLORS.primaryBg, width: 30, height: 30,
     borderRadius: 15, alignItems: 'center', justifyContent: 'center',
   },

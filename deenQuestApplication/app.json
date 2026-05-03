@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "DeenQuest",
+    "slug": "deenquest-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0F1E"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.deenquest.mobile",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "DeenQuest needs microphone access to check your Quran recitation."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0F1E"
+      },
+      "package": "com.deenquest.mobile",
+      "permissions": ["RECORD_AUDIO"]
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "DeenQuest needs microphone access to check your Quran recitation."
+        }
+      ]
+    ]
+  }
+}

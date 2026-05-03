@@ -750,12 +750,12 @@ function ReadSession({
             <div
               key={`${ayah.surahNumber}:${ayah.ayahNumber}`}
               ref={(el) => { ayahRefs.current[i] = el; }}
-              className={`rounded-2xl border p-5 transition-all ${
+              className={`glass-card rounded-2xl border p-5 transition-all ${
                 isRead
-                  ? "bg-accent/15 border-accent/30"
+                  ? "border-accent/40"
                   : isActive
-                  ? "glass-card border-accent/50 shadow-lg shadow-accent/10"
-                  : "glass-card border-white/15"
+                  ? "border-accent/50 shadow-lg shadow-accent/10"
+                  : "border-white/15"
               }`}
             >
               {/* Ayah header */}

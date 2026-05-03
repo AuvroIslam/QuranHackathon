@@ -717,8 +717,8 @@ function ReadSession({
       <audio ref={audioRef} />
 
       {/* ── Sticky player bar ── */}
-      <div className="sticky top-0 z-10 border-b border-white/10 px-4 py-3 flex items-center gap-3"
-        style={{ background: "rgba(18,8,30,0.92)", backdropFilter: "blur(12px)" }}>
+      <div className="sticky top-3 z-10 mx-4 px-4 py-3 flex items-center gap-3 glass-card rounded-2xl border border-white/15 shadow-lg"
+        style={{ backdropFilter: "blur(16px)" }}>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-white/70 truncate">
             {nowPlaying
@@ -750,12 +750,12 @@ function ReadSession({
             <div
               key={`${ayah.surahNumber}:${ayah.ayahNumber}`}
               ref={(el) => { ayahRefs.current[i] = el; }}
-              className={`glass-card rounded-2xl border p-5 transition-all ${
+              className={`rounded-2xl border p-5 transition-all ${
                 isRead
-                  ? "border-accent/40"
+                  ? "bg-accent/15 border-accent/30"
                   : isActive
-                  ? "border-accent/50 shadow-lg shadow-accent/10"
-                  : "border-white/15"
+                  ? "glass-card border-accent/50 shadow-lg shadow-accent/10"
+                  : "glass-card border-white/15"
               }`}
             >
               {/* Ayah header */}

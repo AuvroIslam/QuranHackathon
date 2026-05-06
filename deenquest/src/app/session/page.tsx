@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -70,6 +70,14 @@ function levelToKey(level: string | null | undefined): "beginner" | "intermediat
 }
 
 export default function SessionPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="w-8 h-8 border-2 border-secondary border-t-transparent rounded-full animate-spin" /></div>}>
+      <SessionPageInner />
+    </Suspense>
+  );
+}
+
+function SessionPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const ayahOnly = searchParams.get("ayahOnly") === "true";

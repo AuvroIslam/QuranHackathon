@@ -224,7 +224,7 @@ export default function ChatbotPage() {
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSend} className="px-4 pb-4 pt-2 glass-strong border-t border-white/15">
+      <form onSubmit={handleSend} className="px-4 pb-4 pt-2">
         <div className="flex flex-col gap-2 max-w-3xl mx-auto">
           <div className="flex gap-3">
             <input

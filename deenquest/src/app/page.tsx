@@ -10,7 +10,7 @@ import { getUserTasksForDate, completeTask, getDailySessionCount } from "@/lib/f
 import { getStreakStatus } from "@/lib/streakUtils";
 import {
   CheckCircle2, ChevronDown, ChevronUp, Circle,
-  BookOpen, Flame, Loader2, AlertTriangle, XCircle, Check,
+  BookOpen, Flame, Loader2, AlertTriangle, XCircle, Check, Moon, X, Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -27,6 +27,7 @@ export default function HomePage() {
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [sessionsToday, setSessionsToday] = useState(0);
   const [sessionInProgress, setSessionInProgress] = useState(false);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -48,7 +49,7 @@ export default function HomePage() {
     try {
       await completeTask(user.uid, taskId, today, xpReward, isStreakRecovery);
       refreshProfile().catch(() => undefined);
-      toast.success(`+${xpReward} Hasanat earned!`);
+      toast.success(`+${xpReward} XP earned!`);
     } catch {
       setCompletedTaskIds((prev) => { const s = new Set(prev); s.delete(taskId); return s; });
       toast.error("Failed to complete task");
@@ -76,20 +77,24 @@ export default function HomePage() {
       ? completedRecoveryTasks >= streakStatus.tasksNeeded
       : true;
 
+  const MAX_SESSIONS = 3;
   const isLearn = profile.goal === "learn";
   const sessionDone = sessionsToday > 0;
+  const sessionMaxed = sessionsToday >= MAX_SESSIONS;
 
-  let heroTitle = isLearn ? "Today's Lesson" : "Today's Reading";
-  let heroSubtitle = "";
-  if (isLearn) {
-    heroSubtitle = profile.currentDay ? `Day ${profile.currentDay}` : "Day 1";
-  } else {
-    const p = profile.quranProgress;
-    heroSubtitle = p ? `Surah ${p.surahNumber}, Ayah ${p.ayahNumber}` : "Al-Fatiha, Ayah 1";
-  }
+  // Hero card text — mirrors mobile HomeScreen
+  let heroTitle = sessionInProgress && !sessionDone
+    ? "Continue Your Journey"
+    : "Start Today's Quran Journey";
+  let heroSubtitle = sessionInProgress && !sessionDone
+    ? "Pick up where you left off"
+    : sessionDone
+    ? "Another session, another step closer"
+    : "Personalised ayah based on your mood";
 
   let buttonLabel = "Begin Now";
-  if (sessionInProgress && !sessionDone) buttonLabel = "Continue";
+  if (sessionMaxed) buttonLabel = `${MAX_SESSIONS}/${MAX_SESSIONS} sessions done`;
+  else if (sessionInProgress && !sessionDone) buttonLabel = "Continue";
   else if (sessionDone) buttonLabel = "Keep Going";
 
   return (
@@ -143,14 +148,19 @@ export default function HomePage() {
         const streakStart = lastDate ? new Date(lastDate) : null;
         if (streakStart) streakStart.setDate(lastDate!.getDate() - Math.max((profile.streak ?? 0) - 1, 0));
 
+        const todayMidnight = new Date(today); todayMidnight.setHours(0, 0, 0, 0);
+
         const weekDays = DAY_LABELS.map((label, i) => {
           const d = new Date(today);
           d.setDate(today.getDate() - monFirst + i);
           d.setHours(0, 0, 0, 0);
-          if (!lastDate || !streakStart) return { label, completed: false };
+          const isFuture = d > todayMidnight;
+          const isToday = d.getTime() === todayMidnight.getTime();
+          if (!lastDate || !streakStart) return { label, completed: false, missed: false, isFuture, isToday };
           const start = new Date(streakStart); start.setHours(0, 0, 0, 0);
           const end = new Date(lastDate); end.setHours(0, 0, 0, 0);
-          return { label, completed: d >= start && d <= end };
+          const completed = d >= start && d <= end;
+          return { label, completed, missed: !completed && d < todayMidnight, isFuture, isToday };
         });
 
         return (
@@ -165,6 +175,13 @@ export default function HomePage() {
                   {profile.streak ?? 0} <span className="text-sm font-medium text-white/50">days</span>
                 </p>
               </div>
+              <div className="flex flex-col items-end">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">XP</p>
+                <p className="text-xl font-extrabold text-white leading-none flex items-center gap-1">
+                  <Zap size={14} className="text-purple-400" fill="#a855f7" />
+                  {profile.xp ?? 0}
+                </p>
+              </div>
             </div>
             <div className="h-px bg-white/10 mb-4" />
             <div className="flex justify-between">
@@ -174,9 +191,14 @@ export default function HomePage() {
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all ${
                     day.completed
                       ? "bg-purple-500 border-purple-400 shadow-lg shadow-purple-500/25"
+                      : day.missed
+                      ? "bg-red-500/15 border-red-500/40"
+                      : day.isToday
+                      ? "bg-white/8 border-purple-400"
                       : "bg-white/8 border-white/15"
                   }`}>
                     {day.completed && <Check size={14} className="text-white" strokeWidth={3} />}
+                    {day.missed && <X size={12} className="text-red-400" strokeWidth={2.5} />}
                   </div>
                 </div>
               ))}
@@ -207,7 +229,7 @@ export default function HomePage() {
           {/* Character image */}
           <div className="shrink-0 self-end">
             <Image
-              src={sessionDone ? "/thumbsUp_Encouraging-removebg-preview.png" : "/waving_onboarding-removebg-preview.png"}
+              src={sessionMaxed ? "/celebrating-removebg-preview.png" : sessionDone ? "/thumbsUp_Encouraging-removebg-preview.png" : "/waving_onboarding-removebg-preview.png"}
               alt="Character"
               width={100}
               height={115}
@@ -217,37 +239,69 @@ export default function HomePage() {
 
           {/* Content */}
           <div className="flex-1 min-w-0 pb-1">
-            <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1">
-              {isLearn ? "Lesson" : "Reading"}
-            </p>
-            <h2 className="text-xl md:text-2xl font-extrabold text-white leading-tight">{heroTitle}</h2>
-            <p className="text-sm text-white/70 mt-1">{heroSubtitle}</p>
+            {sessionMaxed ? (
+              <>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 mb-2">
+                  <Moon size={10} className="text-purple-400" />
+                  <span className="text-[10px] font-bold text-purple-300">3/3 sessions done</span>
+                </div>
+                <h2 className="text-xl md:text-2xl font-extrabold text-white leading-tight">Amazing work today!</h2>
+                <p className="text-sm text-white/70 mt-1">Next session unlocks tomorrow. Still want an ayah?</p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-1">
+                  {isLearn ? "Lesson" : "Reading"}
+                </p>
+                <h2 className="text-xl md:text-2xl font-extrabold text-white leading-tight">{heroTitle}</h2>
+                <p className="text-sm text-white/70 mt-1">{heroSubtitle}</p>
 
-            {/* Streak pill */}
-            <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-white/10 border border-white/15">
-              <Flame size={13} className="text-purple-400" />
-              <span className="text-xs font-bold text-white/80">
-                {profile.streak || 0} day streak
-              </span>
-            </div>
+                {/* Streak pill */}
+                <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full bg-white/10 border border-white/15">
+                  <Flame size={13} className="text-purple-400" />
+                  <span className="text-xs font-bold text-white/80">
+                    {profile.streak || 0} day streak
+                  </span>
+                </div>
+                {/* Quran progress pill (complete mode only) */}
+                {!isLearn && profile.quranProgress && (
+                  <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-white/10 border border-white/15">
+                    <BookOpen size={13} className="text-blue-300" />
+                    <span className="text-xs font-bold text-white/80">
+                      Surah {profile.quranProgress.surahNumber}, Ayah {profile.quranProgress.ayahNumber}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
 
         {/* Button */}
         <div className="relative px-5 pb-5 md:px-7 md:pb-7">
-          <button
-            onClick={() => router.push("/session")}
-            disabled={streakStatus.status === "recovery" && !recoveryUnlocked}
-            className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{
-              background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)",
-              boxShadow: "0 4px 20px rgba(168,85,247,0.35)",
-            }}
-          >
-            {streakStatus.status === "recovery" && !recoveryUnlocked
-              ? "Complete bonus deeds first"
-              : buttonLabel}
-          </button>
+          {sessionMaxed ? (
+            <button
+              onClick={() => router.push("/session?ayahOnly=true")}
+              className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
+              style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)", boxShadow: "0 4px 20px rgba(168,85,247,0.35)" }}
+            >
+              Get an Ayah
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                if (streakStatus.status === "recovery" && !recoveryUnlocked) {
+                  setShowRecoveryModal(true);
+                } else {
+                  router.push("/session");
+                }
+              }}
+              className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all"
+              style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)", boxShadow: "0 4px 20px rgba(168,85,247,0.35)" }}
+            >
+              {buttonLabel}
+            </button>
+          )}
         </div>
       </div>
 
@@ -358,6 +412,60 @@ export default function HomePage() {
           })}
         </div>
       </div>
+
+      {/* Recovery Modal */}
+      {showRecoveryModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          onClick={() => setShowRecoveryModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl p-6 space-y-4"
+            style={{ background: "linear-gradient(160deg, #1e1040 0%, #12082a 100%)", border: "1px solid rgba(255,255,255,0.12)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Icon */}
+            <div className="flex items-center justify-center w-14 h-14 rounded-full mx-auto" style={{ background: "rgba(251,146,60,0.15)", border: "1px solid rgba(251,146,60,0.3)" }}>
+              <Flame size={26} className="text-orange-400" fill="#fb923c" />
+            </div>
+
+            {/* Text */}
+            <div className="text-center space-y-1.5">
+              <h3 className="text-lg font-extrabold text-white">Save Your Streak</h3>
+              <p className="text-sm text-white/60 leading-relaxed">
+                You need to complete{" "}
+                <span className="text-orange-300 font-semibold">
+                  {streakStatus.status === "recovery"
+                    ? `${streakStatus.tasksNeeded - completedRecoveryTasks} more bonus deed${streakStatus.tasksNeeded - completedRecoveryTasks === 1 ? "" : "s"}`
+                    : "bonus deeds"}
+                </span>
+                {" "}to protect your{" "}
+                <span className="text-orange-300 font-semibold">
+                  {streakStatus.status === "recovery" ? streakStatus.streak : profile.streak}-day streak
+                </span>.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => setShowRecoveryModal(false)}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
+                style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)", boxShadow: "0 4px 16px rgba(249,115,22,0.35)" }}
+              >
+                Finish bonus deeds
+              </button>
+              <button
+                onClick={() => { setShowRecoveryModal(false); router.push("/session"); }}
+                className="w-full py-3 rounded-2xl font-semibold text-sm text-white/60 hover:text-white/80 transition-colors"
+              >
+                Proceed anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageContainer>
   );
 }

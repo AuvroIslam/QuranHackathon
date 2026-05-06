@@ -1,4 +1,4 @@
-import { CheckCircle, Flame, Moon, Star, Zap } from 'lucide-react-native';
+import { CheckCircle, Flame, Moon, Zap } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
@@ -162,9 +162,9 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
           </Animated.View>
 
           <Animated.View style={[styles.statCard, styles.statCardStar, { transform: [{ scale: card3Anim }] }]}>
-            <Star size={22} color={COLORS.accent} fill={COLORS.accent} />
-            <Text style={[styles.statValue, { color: COLORS.accentDark }]}>{xpEarned * 2}</Text>
-            <Text style={styles.statLabel}>Stars</Text>
+            <Zap size={22} color={COLORS.primary} fill={COLORS.primary} />
+            <Text style={[styles.statValue, { color: COLORS.primaryDark }]}>{xpEarned}</Text>
+            <Text style={styles.statLabel}>XP Earned</Text>
           </Animated.View>
         </Animated.View>
 

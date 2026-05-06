@@ -82,7 +82,6 @@ export default function ProfileScreen() {
   const streak = profile?.streak ?? 0;
   const xp = profile?.xp ?? 0;
   const tasksCompleted = profile?.tasksCompleted ?? 0;
-  const hasanat = xp * 2;
   const { level, title, next } = getLevel(xp);
   const progress = next === Infinity ? 1 : xp / next;
 
@@ -136,7 +135,6 @@ export default function ProfileScreen() {
             {/* Stats grid */}
             <View style={styles.statsGrid}>
               <StatCard icon={<Flame size={22} color="#FF6B35" fill="#FF6B35" />} value={streak} label="Day Streak" bg="#FFF0EB" color="#FF6B35" />
-              <StatCard icon={<Star size={22} color={COLORS.accent} fill={COLORS.accent} />} value={hasanat} label="Hasanat" bg="#FFFBEB" color={COLORS.accentDark} />
               <StatCard icon={<Zap size={22} color={COLORS.primary} fill={COLORS.primary} />} value={xp} label="Total XP" bg={COLORS.primaryBg} color={COLORS.primaryDark} />
               <StatCard icon={<Target size={22} color="#059669" />} value={tasksCompleted} label="Tasks Done" bg="#ECFDF5" color="#059669" />
             </View>

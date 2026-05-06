@@ -2,19 +2,21 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/components/AuthProvider";
 import {
   completeSession,
   updateQuranProgress,
   incrementCurrentDay,
+  getDailySessionCount,
 } from "@/lib/firestore";
 import { getLesson } from "@/lib/lessons-data";
 import { getStreakStatus } from "@/lib/streakUtils";
 import { getAyahsForMood, searchAyahs } from "@/lib/quran";
 import {
-  CheckCircle2, Loader2, Volume2, X, Star, Flame,
-  Play, Pause, BookOpen, Lightbulb,
+  CheckCircle2, Loader2, Volume2, X, Flame, Moon,
+  Play, Pause, BookOpen, Lightbulb, Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -69,6 +71,8 @@ function levelToKey(level: string | null | undefined): "beginner" | "intermediat
 
 export default function SessionPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const ayahOnly = searchParams.get("ayahOnly") === "true";
   const { user, profile, refreshProfile } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("loading");
@@ -79,6 +83,7 @@ export default function SessionPage() {
   const [newStreak, setNewStreak] = useState(0);
   const [xpGained] = useState(20);
   const [isFirstSession, setIsFirstSession] = useState(false);
+  const [sessionsToday, setSessionsToday] = useState(0);
   const [moodAyah, setMoodAyah] = useState<MoodAyah | null>(null);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [fetchingAyah, setFetchingAyah] = useState(false);
@@ -94,25 +99,32 @@ export default function SessionPage() {
     : null;
 
   useEffect(() => {
-    if (!profile || hasInitialized.current) return;
+    if (!profile || !user || hasInitialized.current) return;
     hasInitialized.current = true;
-    const alreadyInProgress = sessionStorage.getItem(SESSION_IN_PROGRESS_KEY) === "true";
-    if (alreadyInProgress) {
-      const saved = sessionStorage.getItem(SESSION_STATE_KEY);
-      if (saved) {
-        try {
-          const { step, moodAyah: savedMoodAyah, selectedMood: savedMood, ayahs: savedAyahs } = JSON.parse(saved);
-          if (step) setJourneyStep(step);
-          if (savedMoodAyah) setMoodAyah(savedMoodAyah);
-          if (savedMood) setSelectedMood(savedMood);
-          if (savedAyahs?.length) setAyahs(savedAyahs);
-        } catch {}
+    // Guard: redirect if daily session cap reached
+    getDailySessionCount(user.uid).then((count) => {
+      if (count >= 3) {
+        router.replace("/");
+        return;
       }
-    } else {
-      sessionStorage.setItem(SESSION_IN_PROGRESS_KEY, "true");
-    }
-    setPhase("session");
-  }, [profile]);
+      const alreadyInProgress = sessionStorage.getItem(SESSION_IN_PROGRESS_KEY) === "true";
+      if (alreadyInProgress) {
+        const saved = sessionStorage.getItem(SESSION_STATE_KEY);
+        if (saved) {
+          try {
+            const { step, moodAyah: savedMoodAyah, selectedMood: savedMood, ayahs: savedAyahs } = JSON.parse(saved);
+            if (step) setJourneyStep(step);
+            if (savedMoodAyah) setMoodAyah(savedMoodAyah);
+            if (savedMood) setSelectedMood(savedMood);
+            if (savedAyahs?.length) setAyahs(savedAyahs);
+          } catch {}
+        }
+      } else {
+        sessionStorage.setItem(SESSION_IN_PROGRESS_KEY, "true");
+      }
+      setPhase("session");
+    });
+  }, [profile, user, router, ayahOnly]);
 
   useEffect(() => {
     if (phase !== "session") return;
@@ -227,6 +239,7 @@ export default function SessionPage() {
       const result = await completeSession(user.uid, isRecoveryComplete);
       setNewStreak(result.newStreak);
       setIsFirstSession(result.sessionsToday === 1);
+      setSessionsToday(result.sessionsToday);
       sessionStorage.removeItem(SESSION_IN_PROGRESS_KEY);
       sessionStorage.removeItem(SESSION_STATE_KEY);
       refreshProfile().catch(() => undefined);
@@ -339,6 +352,22 @@ export default function SessionPage() {
 
   // ── Complete screen ──
   if (phase === "complete") {
+    const MAX_SESSIONS = 3;
+    const isMaxed = sessionsToday >= MAX_SESSIONS;
+    const MESSAGES = [
+      "May Allah accept it from you.",
+      "Every ayah brings you closer.",
+      "The angels witnessed your effort.",
+      "Consistency is the key to progress.",
+      "One session closer to a lifelong habit.",
+    ];
+    const MAX_OUT_MESSAGES = [
+      "You've done amazing today! 🌙",
+      "That's your 3 sessions — well done! 🌟",
+      "Rest now. Come back tomorrow stronger. 🕌",
+    ];
+    const message = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
+    const maxOutMessage = MAX_OUT_MESSAGES[Math.floor(Math.random() * MAX_OUT_MESSAGES.length)];
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-sm text-center space-y-6">
@@ -350,36 +379,82 @@ export default function SessionPage() {
             className="mx-auto object-contain drop-shadow-lg"
           />
           <div>
-            <h1 className="text-2xl font-extrabold text-white">Session Complete!</h1>
-            <p className="text-white/55 mt-1 text-sm">
-              {isLearn
-                ? `Day ${profile.currentDay ?? 1} lesson done. Keep it up!`
-                : "Every ayah brings you closer. Keep going!"}
-            </p>
+            <h1 className="text-2xl font-extrabold text-white">
+              {isMaxed ? maxOutMessage : "Session Complete! 🎉"}
+            </h1>
+            <p className="text-white/55 mt-1 text-sm">{message}</p>
           </div>
+
+          {/* Session dots */}
+          <div className="flex justify-center gap-2">
+            {Array.from({ length: MAX_SESSIONS }, (_, i) => (
+              <div
+                key={i}
+                className={`w-3 h-3 rounded-full transition-all ${
+                  i < sessionsToday
+                    ? "bg-purple-500 shadow-[0_0_6px_rgba(168,85,247,0.6)]"
+                    : "bg-white/20"
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Stats */}
           <div className="flex justify-center gap-4">
             <div className="glass-card rounded-2xl px-5 py-4 text-center">
               <div className="flex items-center gap-1.5 justify-center mb-1">
-                <Star size={14} className="text-yellow-400" />
+                <Zap size={14} className="text-purple-400" fill="currentColor" />
                 <span className="text-xs text-white/50">XP Earned</span>
               </div>
               <p className="text-xl font-extrabold text-white">+{xpGained}</p>
             </div>
             <div className="glass-card rounded-2xl px-5 py-4 text-center">
               <div className="flex items-center gap-1.5 justify-center mb-1">
-                <Flame size={14} className="text-orange-400" />
-                <span className="text-xs text-white/50">Streak</span>
+                <Flame size={14} className="text-orange-400" fill="currentColor" />
+                <span className="text-xs text-white/50">Day Streak</span>
               </div>
-              <p className="text-xl font-extrabold text-white">{newStreak} days</p>
+              <p className="text-xl font-extrabold text-white">{newStreak}</p>
+            </div>
+            <div className="glass-card rounded-2xl px-5 py-4 text-center">
+              <div className="flex items-center gap-1.5 justify-center mb-1">
+                <Zap size={14} className="text-purple-400" fill="currentColor" />
+                <span className="text-xs text-white/50">XP Earned</span>
+              </div>
+              <p className="text-xl font-extrabold text-white">{xpGained}</p>
             </div>
           </div>
-          <button
-            onClick={() => router.push("/")}
-            className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
-            style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
-          >
-            Back to Home
-          </button>
+
+          {isMaxed ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-white/8 border border-white/15">
+                <Moon size={15} className="text-purple-400" />
+                <span className="text-sm text-white/70">3/3 sessions done. See you tomorrow!</span>
+              </div>
+              <button
+                onClick={() => router.push("/")}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
+                style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
+              >
+                Back to Home
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <button
+                onClick={() => router.push("/session")}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
+                style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
+              >
+                Keep Going
+              </button>
+              <button
+                onClick={() => router.push("/")}
+                className="w-full py-3 rounded-2xl font-bold text-sm text-white/60 hover:text-white/90 transition-colors"
+              >
+                I'm done for today
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -480,7 +555,8 @@ export default function SessionPage() {
           <AyahStep
             ayah={moodAyah}
             mood={selectedMood}
-            onContinue={handleGoToReading}
+            ayahOnly={ayahOnly}
+            onContinue={ayahOnly ? () => router.push("/") : handleGoToReading}
           />
         )}
 
@@ -596,10 +672,12 @@ function MoodStep({
 function AyahStep({
   ayah,
   mood,
+  ayahOnly,
   onContinue,
 }: {
   ayah: MoodAyah | null;
   mood: string | null;
+  ayahOnly?: boolean;
   onContinue: () => void;
 }) {
   const moodLabel = MOODS.find((m) => m.key === mood)?.label ?? "";
@@ -675,7 +753,7 @@ function AyahStep({
         className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
         style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
       >
-        Continue
+        {ayahOnly ? "Back to Home" : "Continue"}
       </button>
     </div>
   );

@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AlertTriangle, BookOpen, CheckCircle, Circle, Flame, Moon, Star, Zap } from 'lucide-react-native';
+import { AlertTriangle, BookOpen, CheckCircle, Circle, Flame, Moon, X, Zap } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Image,
   ImageBackground,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -31,6 +32,8 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   const [streak, setStreak] = useState(0);
   const [lastSessionDate, setLastSessionDate] = useState<string | null>(null);
   const [xp, setXp] = useState(0);
+  const [goal, setGoal] = useState<string | null>(null);
+  const [quranProgress, setQuranProgress] = useState<{ surahNumber: number; ayahNumber: number } | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [loadingTasks, setLoadingTasks] = useState(true);
@@ -39,6 +42,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   const [ayahPressed, setAyahPressed] = useState(false);
   const [sessionsToday, setSessionsToday] = useState(0);
   const [hasInProgress, setHasInProgress] = useState(false);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const today = new Date().toISOString().split('T')[0];
 
   useFocusEffect(
@@ -85,6 +89,8 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
         setStreak(profile.streak ?? 0);
         setXp(profile.xp ?? 0);
         setLastSessionDate(profile.lastSessionDate ?? null);
+        setGoal(profile.goal ?? null);
+        setQuranProgress(profile.quranProgress ?? null);
       }
       setCompletedIds(new Set(userTasks.filter((t) => t.completed).map((t) => t.taskId)));
     } catch {}
@@ -108,7 +114,6 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
     setCompleting(null);
   };
 
-  const stars = xp * 2;
   const displayName = user?.displayName?.split(' ')[0] ?? 'there';
   const streakStatus = getStreakStatus(lastSessionDate, streak);
 
@@ -124,13 +129,6 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
           <Text style={styles.greeting}>مرحباً، {displayName}</Text>
         </View>
 
-        {/* Stats row */}
-        <View style={styles.statsRow}>
-          <StatCard icon={<Flame size={20} color="#FF6B35" fill="#FF6B35" />} value={streak} label="Streak" bg="#FFF0EB" color="#FF6B35" />
-          <StatCard icon={<Star size={20} color={COLORS.accent} fill={COLORS.accent} />} value={stars} label="Hasanat" bg="#FFFBEB" color={COLORS.accentDark} />
-          <StatCard icon={<Zap size={20} color={COLORS.primary} fill={COLORS.primary} />} value={xp} label="XP" bg={COLORS.primaryBg} color={COLORS.primaryDark} />
-        </View>
-
         {/* Streak Week Widget */}
         {(() => {
           const today = new Date();
@@ -144,10 +142,14 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
             const d = new Date(today);
             d.setDate(today.getDate() - monFirst + i);
             d.setHours(0, 0, 0, 0);
-            if (!lastDate || !streakStart) return { label, completed: false };
+            const todayMidnight = new Date(today); todayMidnight.setHours(0, 0, 0, 0);
+            const isFuture = d > todayMidnight;
+            const isToday = d.getTime() === todayMidnight.getTime();
+            if (!lastDate || !streakStart) return { label, completed: false, missed: false, isFuture, isToday };
             const s = new Date(streakStart); s.setHours(0, 0, 0, 0);
             const e = new Date(lastDate); e.setHours(0, 0, 0, 0);
-            return { label, completed: d >= s && d <= e };
+            const completed = d >= s && d <= e;
+            return { label, completed, missed: !completed && d < todayMidnight, isFuture, isToday };
           });
           return (
             <View style={streakWidgetStyles.card}>
@@ -159,13 +161,26 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                   <Text style={streakWidgetStyles.label}>STREAK</Text>
                   <Text style={streakWidgetStyles.value}>{streak} <Text style={streakWidgetStyles.unit}>DAYS</Text></Text>
                 </View>
+                <View style={streakWidgetStyles.xpBlock}>
+                  <Text style={streakWidgetStyles.label}>XP</Text>
+                  <View style={streakWidgetStyles.xpRow}>
+                    <Zap size={14} color="#a855f7" fill="#a855f7" />
+                    <Text style={streakWidgetStyles.value}>{xp}</Text>
+                  </View>
+                </View>
               </View>
               <View style={streakWidgetStyles.divider} />
               <View style={streakWidgetStyles.weekRow}>
                 {weekDays.map((day, i) => (
                   <View key={i} style={streakWidgetStyles.dayCol}>
-                    <View style={[streakWidgetStyles.dayCircle, day.completed && streakWidgetStyles.dayCircleDone]}>
+                    <View style={[
+                      streakWidgetStyles.dayCircle,
+                      day.completed && streakWidgetStyles.dayCircleDone,
+                      day.missed && streakWidgetStyles.dayCircleMissed,
+                      day.isToday && !day.completed && streakWidgetStyles.dayCircleToday,
+                    ]}>
                       {day.completed && <CheckCircle size={16} color="#fff" fill="#f97316" />}
+                      {day.missed && <X size={14} color="#f87171" strokeWidth={2.5} />}
                     </View>
                     <Text style={streakWidgetStyles.dayLabel}>{day.label.substring(0, 3)}</Text>
                   </View>
@@ -253,12 +268,24 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                           ? 'Another session, another step closer'
                           : 'Personalised ayah based on your mood'}
                     </Text>
+                    {goal === 'complete' && quranProgress && (
+                      <View style={styles.progressPill}>
+                        <BookOpen size={11} color="#60a5fa" />
+                        <Text style={styles.progressPillText}>Surah {quranProgress.surahNumber}, Ayah {quranProgress.ayahNumber}</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
                 <Pressable
                   onPressIn={() => setLessonPressed(true)}
                   onPressOut={() => setLessonPressed(false)}
-                  onPress={onStartLesson}
+                  onPress={() => {
+                    if (streakStatus.status === 'recovery') {
+                      setShowRecoveryModal(true);
+                    } else {
+                      onStartLesson();
+                    }
+                  }}
                   style={[styles.lessonBtn, DEPTH.button, lessonPressed && DEPTH.buttonPressed]}
                 >
                   <Text style={styles.lessonBtnText}>
@@ -303,6 +330,54 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
           </View>
         )}
       </ScrollView>
+
+      {/* Recovery Modal */}
+      <Modal
+        visible={showRecoveryModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRecoveryModal(false)}
+      >
+        <Pressable style={modalStyles.overlay} onPress={() => setShowRecoveryModal(false)}>
+          <Pressable style={modalStyles.sheet} onPress={(e) => e.stopPropagation()}>
+            {/* Icon */}
+            <View style={modalStyles.iconCircle}>
+              <Flame size={28} color="#fb923c" fill="#fb923c" />
+            </View>
+
+            {/* Text */}
+            <Text style={modalStyles.title}>Save Your Streak</Text>
+            <Text style={modalStyles.body}>
+              Complete{' '}
+              <Text style={modalStyles.highlight}>
+                {streakStatus.status === 'recovery'
+                  ? `${streakStatus.tasksNeeded} bonus deed${streakStatus.tasksNeeded === 1 ? '' : 's'}`
+                  : 'bonus deeds'}
+              </Text>{' '}
+              to protect your{' '}
+              <Text style={modalStyles.highlight}>
+                {streakStatus.status === 'recovery' ? streakStatus.streak : streak}-day streak
+              </Text>.
+            </Text>
+
+            {/* Buttons */}
+            <Pressable
+              style={modalStyles.primaryBtn}
+              onPress={() => setShowRecoveryModal(false)}
+            >
+              <Text style={modalStyles.primaryBtnText}>Finish bonus deeds</Text>
+            </Pressable>
+
+            <Pressable
+              style={modalStyles.ghostBtn}
+              onPress={() => { setShowRecoveryModal(false); onStartLesson(); }}
+            >
+              <Text style={modalStyles.ghostBtnText}>Proceed anyway</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -390,6 +465,14 @@ const styles = StyleSheet.create({
   lessonText: { flex: 1, gap: 4 },
   lessonTitle: { color: COLORS.text, fontSize: 18, fontWeight: '800', lineHeight: 24, letterSpacing: -0.3 },
   lessonSub: { color: COLORS.textSub, fontSize: 12 },
+  progressPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(96,165,250,0.12)',
+    borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
+    borderWidth: 1, borderColor: 'rgba(96,165,250,0.3)',
+  },
+  progressPillText: { color: '#93c5fd', fontSize: 11, fontWeight: '700' },
   lessonBtn: {
     backgroundColor: COLORS.primary, borderRadius: RADIUS.xl,
     paddingVertical: 15, alignItems: 'center',
@@ -462,6 +545,8 @@ const streakWidgetStyles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   headerText: { flex: 1 },
+  xpBlock: { alignItems: 'flex-end' },
+  xpRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   label: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.8 },
   value: { fontSize: 22, fontWeight: '800', color: COLORS.text },
   unit: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
@@ -478,5 +563,58 @@ const streakWidgetStyles = StyleSheet.create({
     backgroundColor: '#f97316',
     borderColor: '#fb923c',
   },
+  dayCircleMissed: {
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderColor: 'rgba(239,68,68,0.4)',
+  },
+  dayCircleToday: {
+    borderColor: '#a855f7',
+  },
   dayLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
+});
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingBottom: 32,
+    paddingHorizontal: 16,
+  },
+  sheet: {
+    width: '100%',
+    backgroundColor: '#1e1040',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    padding: 24,
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(251,146,60,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,146,60,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  title: { color: '#fff', fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  body: { color: 'rgba(255,255,255,0.6)', fontSize: 14, textAlign: 'center', lineHeight: 21 },
+  highlight: { color: '#fdba74', fontWeight: '700' },
+  primaryBtn: {
+    width: '100%',
+    backgroundColor: '#f97316',
+    borderRadius: 18,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  ghostBtn: { width: '100%', paddingVertical: 12, alignItems: 'center' },
+  ghostBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: '600' },
 });

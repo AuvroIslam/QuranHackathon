@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { adminDb } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -49,10 +50,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No access token returned" }, { status: 502 });
     }
 
+    const refreshToken = typeof data.refresh_token === "string" ? data.refresh_token : "";
+    const expiresIn = typeof data.expires_in === "number" ? data.expires_in : 3600;
+
+    // If a uid was provided, persist tokens to Firestore server-side (bypasses auth rules)
+    const uid = typeof body.uid === "string" && body.uid ? body.uid : null;
+    if (uid) {
+      try {
+        await adminDb.doc(`users/${uid}`).update({
+          qfAccessToken: accessToken,
+          qfRefreshToken: refreshToken,
+          qfTokenExpiresAt: Date.now() + expiresIn * 1000,
+          qfConnectedAt: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.error("[QF token] failed to save tokens to Firestore:", e);
+        // Non-fatal — return tokens to client so it can retry
+      }
+    }
+
     return NextResponse.json({
       access_token: accessToken,
-      refresh_token: typeof data.refresh_token === "string" ? data.refresh_token : "",
-      expires_in: typeof data.expires_in === "number" ? data.expires_in : 3600,
+      refresh_token: refreshToken,
+      expires_in: expiresIn,
     });
   } catch (err) {
     console.error("[QF] token exchange error:", err);

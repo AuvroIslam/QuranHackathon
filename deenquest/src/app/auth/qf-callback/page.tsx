@@ -11,8 +11,6 @@ import {
   getOAuthUid,
   clearOAuthMeta,
 } from "@/lib/qf-user-auth";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 function CallbackHandler() {
   const router = useRouter();
@@ -51,6 +49,8 @@ function CallbackHandler() {
       }
 
       try {
+        const uid = getOAuthUid();
+
         const res = await fetch("/api/qf/token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -58,6 +58,7 @@ function CallbackHandler() {
             code,
             codeVerifier: verifier,
             redirectUri: `${window.location.origin}/auth/qf-callback`,
+            uid: uid ?? undefined,
           }),
         });
 
@@ -83,20 +84,6 @@ function CallbackHandler() {
         clearOAuthMeta();
 
         if (from === "mobile") {
-          // Save tokens to Firestore so the mobile app can read them via getQFTokens(uid)
-          const uid = getOAuthUid();
-          if (uid) {
-            try {
-              await updateDoc(doc(db, "users", uid), {
-                qfAccessToken: accessToken,
-                qfRefreshToken: refreshToken,
-                qfTokenExpiresAt: Date.now() + expiresIn * 1000,
-                qfConnectedAt: new Date().toISOString(),
-              });
-            } catch (e) {
-              console.error("[QF callback] failed to save tokens to Firestore:", e);
-            }
-          }
           setStatus("Connected! Returning to DeenQuest app\u2026");
           // Signal-only deep link — tokens are in Firestore, not in the URL
           window.location.href = "deenquest://qf-connected";

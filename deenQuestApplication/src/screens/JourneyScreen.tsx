@@ -63,6 +63,7 @@ export default function JourneyScreen() {
   const [firestoreStreak, setFirestoreStreak] = useState(0);
   const [lastSessionDate, setLastSessionDate] = useState<string | null>(null);
   const [recoveryTasksDoneToday, setRecoveryTasksDoneToday] = useState(0);
+  const [moodLoading, setMoodLoading] = useState(false);
 
   useEffect(() => {
     if (!uid) return;
@@ -124,16 +125,28 @@ export default function JourneyScreen() {
     });
   };
 
-  const handleMoodSelect = (mood: Mood, customText?: string) => {
-    const { ayah, question } = getAyahByMood(mood);
-    animateTo(1, () => selectMood(mood, ayah, question, customText));
+  const handleMoodSelect = async (mood: Mood, customText?: string) => {
+    if (moodLoading) return;
+    setMoodLoading(true);
+    try {
+      const { ayah, question } = await getAyahByMood(mood);
+      animateTo(1, () => selectMood(mood, ayah, question, customText));
+    } finally {
+      setMoodLoading(false);
+    }
   };
 
   const handleCustomText = (text: string) => handleMoodSelect('justHere', text);
 
-  const handleSkip = () => {
-    const { ayah, question } = getAyahByMood('justHere');
-    animateTo(1, () => skipMood('justHere', ayah, question));
+  const handleSkip = async () => {
+    if (moodLoading) return;
+    setMoodLoading(true);
+    try {
+      const { ayah, question } = await getAyahByMood('justHere');
+      animateTo(1, () => skipMood('justHere', ayah, question));
+    } finally {
+      setMoodLoading(false);
+    }
   };
 
   const handleLessonBegin = () => {
@@ -247,10 +260,11 @@ export default function JourneyScreen() {
           <MoodSelection
             onSelect={handleMoodSelect}
             onCustomText={handleCustomText}
+            loading={moodLoading}
           />
         );
 
-      case 'ayah': return state.ayah ? <AyahDisplay ayah={state.ayah} /> : null;
+      case 'ayah': return state.ayah ? <AyahDisplay ayah={state.ayah} uid={uid ?? undefined} /> : null;
       case 'listen': return state.ayah ? <ListenStep ayah={state.ayah} /> : null;
       case 'speak': return state.ayah ? (
         <SpeakStep

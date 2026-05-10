@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { createNavigationContainerRef, DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ImageBackground, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -10,6 +12,13 @@ import AuthScreen from './src/screens/AuthScreen';
 import GoalSetupScreen, { GOAL_SET_KEY } from './src/screens/GoalSetupScreen';
 import OnboardingScreen, { ONBOARDING_KEY } from './src/screens/OnboardingScreen';
 import { COLORS } from './src/theme';
+
+// Configure Google Sign-In once at app startup
+GoogleSignin.configure({
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+});
+
+const navigationRef = createNavigationContainerRef<any>();
 
 const AppBg = require('./elementsApp/AppBg.png');
 const NAV_THEME = {
@@ -21,6 +30,32 @@ function RootNavigator() {
   const { user, uid, loading } = useAuth();
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
   const [goalSet, setGoalSet] = useState<boolean | null>(null);
+  const notifSubRef = useRef<Notifications.EventSubscription | null>(null);
+
+  // Handle notification taps — navigate to the screen stored in notification data
+  useEffect(() => {
+    const handleResponse = (response: Notifications.NotificationResponse) => {
+      const screen = response.notification.request.content.data?.screen as string | undefined;
+      if (screen && navigationRef.isReady()) {
+        navigationRef.navigate(screen as never);
+      }
+    };
+
+    notifSubRef.current = Notifications.addNotificationResponseReceivedListener(handleResponse);
+
+    // App opened by tapping notification from killed state
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const screen = response.notification.request.content.data?.screen as string | undefined;
+      if (screen) {
+        setTimeout(() => {
+          if (navigationRef.isReady()) navigationRef.navigate(screen as never);
+        }, 500);
+      }
+    });
+
+    return () => { notifSubRef.current?.remove(); };
+  }, []);
 
   useEffect(() => {
     AsyncStorage.getItem(ONBOARDING_KEY)
@@ -81,8 +116,8 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={NAV_THEME}>
-      <AppNavigator />
+    <NavigationContainer ref={navigationRef} theme={NAV_THEME}>
+        <AppNavigator />
     </NavigationContainer>
   );
 }

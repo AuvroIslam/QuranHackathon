@@ -101,3 +101,27 @@ export function clearOAuthStorage(): void {
   sessionStorage.removeItem(QF_OAUTH_STATE_KEY);
   sessionStorage.removeItem(QF_OAUTH_NONCE_KEY);
 }
+
+// ── OAuth source tracking (mobile vs web) ─────────────────────────────────────
+const QF_OAUTH_FROM_KEY = "qf_oauth_from";
+const QF_OAUTH_UID_KEY = "qf_oauth_uid";
+
+export function setOAuthMeta(from: string, uid: string): void {
+  sessionStorage.setItem(QF_OAUTH_FROM_KEY, from);
+  sessionStorage.setItem(QF_OAUTH_UID_KEY, uid);
+}
+
+export function getOAuthFrom(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(QF_OAUTH_FROM_KEY);
+}
+
+export function getOAuthUid(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(QF_OAUTH_UID_KEY);
+}
+
+export function clearOAuthMeta(): void {
+  sessionStorage.removeItem(QF_OAUTH_FROM_KEY);
+  sessionStorage.removeItem(QF_OAUTH_UID_KEY);
+}

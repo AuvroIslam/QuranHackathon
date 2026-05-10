@@ -32,9 +32,10 @@ const MOODS: { id: Mood; label: string; image: any }[] = [
 interface Props {
   onSelect: (mood: Mood, customText?: string) => void;
   onCustomText: (text: string) => void;
+  loading?: boolean;
 }
 
-export default function MoodSelection({ onSelect, onCustomText }: Props) {
+export default function MoodSelection({ onSelect, onCustomText, loading = false }: Props) {
   const [selected, setSelected] = useState<Mood | null>(null);
   const [situation, setSituation] = useState('');
   const [findPressed, setFindPressed] = useState(false);
@@ -42,6 +43,7 @@ export default function MoodSelection({ onSelect, onCustomText }: Props) {
   const inputY = useRef(0);
 
   const handleMoodPress = (mood: Mood) => {
+    if (loading) return;
     setSelected(mood);
     onSelect(mood);
   };
@@ -80,7 +82,7 @@ export default function MoodSelection({ onSelect, onCustomText }: Props) {
       </ImageBackground>
 
       {/* Mood grid */}
-      <View style={styles.grid}>
+      <View style={[styles.grid, loading && { opacity: 0.5 }]}>
         {rows.map((row, ri) => (
           <View key={ri} style={[styles.row, row.length < 3 && styles.rowCentered]}>
             {row.map((mood) => (

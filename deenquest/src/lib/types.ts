@@ -2,6 +2,15 @@ export type UserGoal = 'complete' | 'learn';
 export type UserLevel = 'newbie' | 'intermediate' | 'fluent';
 export type TimePerDay = 3 | 5 | 10;
 
+export interface Bookmark {
+  id: string;
+  verseKey: string;
+  surahName: string;
+  arabic: string;
+  translation: string;
+  createdAt: string;
+}
+
 export interface UserProfile {
   id: string;
   name: string;

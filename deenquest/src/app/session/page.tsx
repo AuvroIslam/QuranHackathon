@@ -10,13 +10,30 @@ import {
   updateQuranProgress,
   incrementCurrentDay,
   getDailySessionCount,
+  toggleBookmark,
 } from "@/lib/firestore";
 import { getLesson } from "@/lib/lessons-data";
 import { getStreakStatus } from "@/lib/streakUtils";
 import { getAyahsForMood, searchAyahs } from "@/lib/quran";
+import { getQFAccessToken } from "@/lib/qf-user-auth";
+
+/** Fire-and-forget: sync a bookmark add/remove to QF API if the user is connected */
+function syncQFBookmark(verseKey: string, nowBookmarked: boolean) {
+  const token = getQFAccessToken();
+  if (!token) return;
+  const [chapterStr, verseStr] = verseKey.split(":");
+  const chapterNumber = parseInt(chapterStr, 10);
+  const verseNumber = parseInt(verseStr, 10);
+  if (!chapterNumber || !verseNumber) return;
+  fetch("/api/qf/bookmark", {
+    method: nowBookmarked ? "POST" : "DELETE",
+    headers: { "x-qf-token": token, "Content-Type": "application/json" },
+    body: JSON.stringify({ chapterNumber, verseNumber }),
+  }).catch(() => {});
+}
 import {
   CheckCircle2, Loader2, Volume2, X, Flame, Moon,
-  Play, Pause, BookOpen, Lightbulb, Zap,
+  Play, Pause, BookOpen, Lightbulb, Zap, BookmarkPlus, BookmarkCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -96,6 +113,7 @@ function SessionPageInner() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [fetchingAyah, setFetchingAyah] = useState(false);
   const [loadingRead, setLoadingRead] = useState(false);
+  const [ayahBookmarked, setAyahBookmarked] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasInitialized = useRef(false);
 
@@ -250,6 +268,18 @@ function SessionPageInner() {
       setSessionsToday(result.sessionsToday);
       sessionStorage.removeItem(SESSION_IN_PROGRESS_KEY);
       sessionStorage.removeItem(SESSION_STATE_KEY);
+
+      // Sync reading activity to QF if connected (fire-and-forget)
+      const qfToken = getQFAccessToken();
+      if (qfToken && ayahs.length > 0) {
+        const ranges = ayahs.map((a) => `${a.surahNumber}:${a.ayahNumber}`);
+        const seconds = Math.max(ayahs.length * 30, 60); // estimate ~30s per ayah
+        fetch("/api/qf/streak", {
+          method: "POST",
+          headers: { "x-qf-token": qfToken, "Content-Type": "application/json" },
+          body: JSON.stringify({ ranges, seconds, date: new Date().toISOString().split("T")[0] }),
+        }).catch(() => {});
+      }
       refreshProfile().catch(() => undefined);
       setCompleting(false);
       setPhase(result.sessionsToday === 1 ? "streak" : "complete");
@@ -564,6 +594,20 @@ function SessionPageInner() {
             ayah={moodAyah}
             mood={selectedMood}
             ayahOnly={ayahOnly}
+            bookmarked={ayahBookmarked}
+            onBookmark={async () => {
+              if (!user || !moodAyah) return;
+              const result = await toggleBookmark(user.uid, {
+                verseKey: moodAyah.verseKey,
+                surahName: moodAyah.surahName,
+                arabic: moodAyah.arabic,
+                translation: moodAyah.translation,
+              }).catch(() => null);
+              if (result !== null) {
+                setAyahBookmarked(result);
+                syncQFBookmark(moodAyah.verseKey, result);
+              }
+            }}
             onContinue={ayahOnly ? () => router.push("/") : handleGoToReading}
           />
         )}
@@ -681,11 +725,15 @@ function AyahStep({
   ayah,
   mood,
   ayahOnly,
+  bookmarked,
+  onBookmark,
   onContinue,
 }: {
   ayah: MoodAyah | null;
   mood: string | null;
   ayahOnly?: boolean;
+  bookmarked?: boolean;
+  onBookmark?: () => void;
   onContinue: () => void;
 }) {
   const moodLabel = MOODS.find((m) => m.key === mood)?.label ?? "";
@@ -732,11 +780,26 @@ function AyahStep({
             <p className="text-sm text-white leading-relaxed italic">&quot;{ayah.translation}&quot;</p>
           </div>
 
-          {/* Reference */}
+          {/* Reference + bookmark */}
           {ayah.verseKey && (
-            <p className="text-xs text-white/30 text-right">
-              {ayah.surahName} · {ayah.verseKey}
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-white/30">
+                {ayah.surahName} · {ayah.verseKey}
+              </p>
+              {onBookmark && (
+                <button
+                  onClick={onBookmark}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                    bookmarked
+                      ? "bg-secondary/20 text-secondary"
+                      : "bg-white/8 text-white/40 hover:bg-secondary/15 hover:text-secondary"
+                  }`}
+                >
+                  {bookmarked ? <BookmarkCheck size={13} /> : <BookmarkPlus size={13} />}
+                  {bookmarked ? "Bookmarked" : "Bookmark"}
+                </button>
+              )}
+            </div>
           )}
         </>
       ) : (

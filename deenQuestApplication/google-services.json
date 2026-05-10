@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "94900107612",
+    "project_id": "quranhackathon",
+    "storage_bucket": "quranhackathon.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:94900107612:android:03883149b3dc1f04c5e999",
+        "android_client_info": {
+          "package_name": "com.deenquest.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "94900107612-jbjsn6g61akab8hv8k1e2ahffi4ifd72.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.deenquest.mobile",
+            "certificate_hash": "28ac7e0dc47778c6344725cb215c92cf648fa306"
+          }
+        },
+        {
+          "client_id": "94900107612-b5ldjmgljcdf4i2lckoui4pjqvkrp73a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8nRaE9Tm8C7ncRz3FfQrrE3GL8OjvCrY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "94900107612-b5ldjmgljcdf4i2lckoui4pjqvkrp73a.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

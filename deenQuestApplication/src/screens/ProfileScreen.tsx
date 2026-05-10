@@ -1,15 +1,16 @@
-import { Award, BookOpen, Clock, Flame, LogOut, Star, Target, Zap } from 'lucide-react-native';
+import { Award, BookOpen, Bookmark, BookmarkCheck, Clock, Flame, LogOut, Star, Target, Zap } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView,
   StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useAuth } from '../context/AuthContext';
 import { auth } from '../lib/firebase';
-import { getUserProfile, updateUserPlan } from '../lib/firestore';
+import { getUserProfile, getBookmarks, updateUserPlan } from '../lib/firestore';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
-import { TimePerDay, UserGoal, UserLevel } from '../types';
+import { Bookmark as BookmarkType, TimePerDay, UserGoal, UserLevel } from '../types';
 import { signOut } from 'firebase/auth';
 
 interface Profile {
@@ -43,6 +44,8 @@ export default function ProfileScreen() {
   const { uid, user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [bookmarks, setBookmarks] = useState<BookmarkType[]>([]);
+  const [expandedBm, setExpandedBm] = useState<string | null>(null);
 
   useEffect(() => {
     if (!uid) return;
@@ -50,12 +53,18 @@ export default function ProfileScreen() {
       .then((data) => { if (data) setProfile(data as Profile); })
       .catch(() => {})
       .finally(() => setLoading(false));
+    getBookmarks(uid).then(setBookmarks).catch(() => {});
   }, [uid]);
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => signOut(auth) },
+      {
+        text: 'Sign Out', style: 'destructive', onPress: async () => {
+          await GoogleSignin.signOut().catch(() => {});
+          signOut(auth);
+        },
+      },
     ]);
   };
 
@@ -212,6 +221,47 @@ export default function ProfileScreen() {
               </View>
             </View>
 
+            {/* Bookmarks */}
+            <View style={styles.section}>
+              <View style={styles.sectionRow}>
+                <Bookmark size={16} color={COLORS.primary} />
+                <Text style={styles.sectionTitle}>Bookmarks</Text>
+                <View style={styles.bmCountBadge}>
+                  <Text style={styles.bmCountText}>{bookmarks.length}</Text>
+                </View>
+              </View>
+              {bookmarks.length === 0 ? (
+                <Text style={styles.bmEmpty}>No bookmarks yet — save an ayah while reading or during a session.</Text>
+              ) : (
+                bookmarks.map((bm) => {
+                  const open = expandedBm === bm.id;
+                  return (
+                    <Pressable
+                      key={bm.id}
+                      onPress={() => setExpandedBm(open ? null : bm.id)}
+                      style={[styles.bmCard, open && styles.bmCardOpen]}
+                    >
+                      <View style={styles.bmCardHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.bmSurah}>{bm.surahName}</Text>
+                          <Text style={styles.bmKey}>{bm.verseKey}</Text>
+                        </View>
+                        {open
+                          ? <BookmarkCheck size={16} color={COLORS.primary} />
+                          : <Bookmark size={16} color={COLORS.textMuted} />}
+                      </View>
+                      {open && (
+                        <View style={styles.bmDetail}>
+                          <Text style={styles.bmArabic}>{bm.arabic}</Text>
+                          <Text style={styles.bmTranslation}>"{bm.translation}"</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })
+              )}
+            </View>
+
           </>
         )}
       </ScrollView>
@@ -339,5 +389,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   badgeLabelLocked: { color: COLORS.textMuted },
-
+  bmCountBadge: {
+    backgroundColor: COLORS.primaryBg,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  bmCountText: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
+  bmEmpty: { color: COLORS.textMuted, fontSize: 13, fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 },
+  bmCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    padding: 14,
+    marginBottom: 8,
+  },
+  bmCardOpen: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryBg },
+  bmCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  bmSurah: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
+  bmKey: { color: COLORS.textMuted, fontSize: 12, marginTop: 2 },
+  bmDetail: { marginTop: 12, gap: 8 },
+  bmArabic: { color: COLORS.text, fontSize: 22, textAlign: 'right', lineHeight: 40, writingDirection: 'rtl' },
+  bmTranslation: { color: COLORS.textSub, fontSize: 13, lineHeight: 20, fontStyle: 'italic' },
 });

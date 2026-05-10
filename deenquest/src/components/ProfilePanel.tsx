@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Edit2, Check, BookOpen, Wifi, WifiOff } from "lucide-react";
+import { X, Edit2, Check, BookOpen, Wifi, WifiOff, Bookmark } from "lucide-react";
 import { useAuth } from "./AuthProvider";
-import { updateUserName } from "@/lib/firestore";
+import { updateUserName, getBookmarks } from "@/lib/firestore";
+import type { Bookmark as BookmarkType } from "@/lib/types";
 import { getQFAccessToken, isQFConnected, initiateQFOAuth, clearQFSession } from "@/lib/qf-user-auth";
 import toast from "react-hot-toast";
 
@@ -12,16 +13,19 @@ interface ProfilePanelProps {
   onClose: () => void;
 }
 
+interface QFBookmark { key: number; verseNumber: number }
+
 export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
   const { user, profile, refreshProfile } = useAuth();
-  const today = new Date().toISOString().split("T")[0];
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
 
-  const [bookmarks, setBookmarks] = useState<{ key: number; verseNumber: number }[]>([]);
+  const [localBookmarks, setLocalBookmarks] = useState<BookmarkType[]>([]);
+  const [qfBookmarks, setQFBookmarks] = useState<QFBookmark[]>([]);
   const [loadingBookmarks, setLoadingBookmarks] = useState(false);
+  const [expandedBm, setExpandedBm] = useState<string | null>(null);
   const [qfConnected, setQFConnected] = useState(false);
 
   useEffect(() => {
@@ -29,21 +33,30 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
     setNameInput(profile?.name || "");
     const connected = isQFConnected();
     setQFConnected(connected);
+    setLoadingBookmarks(true);
+
+    const loads: Promise<void>[] = [
+      getBookmarks(user.uid).then(setLocalBookmarks).catch(() => {}),
+    ];
 
     if (connected) {
       const token = getQFAccessToken();
       if (token) {
-        setLoadingBookmarks(true);
-        fetch("/api/qf/bookmark", { headers: { "x-qf-token": token } })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((data) => {
-            if (data?.data) setBookmarks(data.data.filter((b: { key: number; verseNumber?: number }) => b.verseNumber != null));
-          })
-          .catch(() => {})
-          .finally(() => setLoadingBookmarks(false));
+        loads.push(
+          fetch("/api/qf/bookmark", { headers: { "x-qf-token": token } })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+              if (data?.data) {
+                setQFBookmarks(data.data.filter((b: QFBookmark) => b.verseNumber != null));
+              }
+            })
+            .catch(() => {})
+        );
       }
     }
-  }, [open, user, profile?.name, today]);
+
+    Promise.all(loads).finally(() => setLoadingBookmarks(false));
+  }, [open, user, profile?.name]);
 
   async function saveName() {
     if (!user || !nameInput.trim()) return;
@@ -67,9 +80,11 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
   function handleDisconnect() {
     clearQFSession();
     setQFConnected(false);
-    setBookmarks([]);
+    setQFBookmarks([]);
     toast.success("Disconnected from Quran.com");
   }
+
+  const totalBookmarks = localBookmarks.length + qfBookmarks.length;
 
   if (!open) return null;
 
@@ -145,34 +160,57 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
           {/* Bookmarks */}
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <BookOpen size={14} className="text-secondary" />
+              <Bookmark size={14} className="text-secondary" />
               <p className="text-xs text-white/40 uppercase tracking-wider">Bookmarks</p>
-              {bookmarks.length > 0 && (
+              {totalBookmarks > 0 && (
                 <span className="text-xs bg-secondary/20 text-secondary px-2 py-0.5 rounded-full ml-auto">
-                  {bookmarks.length}
+                  {totalBookmarks}
                 </span>
               )}
             </div>
-            {!qfConnected ? (
-              <p className="text-xs text-white/30 text-center py-4">Connect Quran.com to see bookmarks</p>
-            ) : loadingBookmarks ? (
+            {loadingBookmarks ? (
               <div className="flex justify-center py-4">
                 <div className="w-4 h-4 border-2 border-secondary border-t-transparent rounded-full animate-spin" />
               </div>
-            ) : bookmarks.length === 0 ? (
-              <p className="text-xs text-white/30 text-center py-4">No bookmarks yet</p>
+            ) : totalBookmarks === 0 ? (
+              <p className="text-xs text-white/30 text-center py-4">No bookmarks yet — tap the bookmark icon on any ayah</p>
             ) : (
-              <div className="space-y-1.5 max-h-52 overflow-y-auto">
-                {bookmarks.map((b) => (
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {/* Local bookmarks */}
+                {localBookmarks.map((b) => (
+                  <div key={b.id} className="rounded-xl glass overflow-hidden">
+                    <button
+                      onClick={() => setExpandedBm(expandedBm === b.id ? null : b.id)}
+                      className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/5 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Bookmark size={11} className="text-secondary shrink-0" />
+                        <span className="text-sm text-white/80 truncate">{b.surahName} · {b.verseKey}</span>
+                      </div>
+                      <span className="text-xs text-white/25 shrink-0 ml-2">{expandedBm === b.id ? "▲" : "▼"}</span>
+                    </button>
+                    {expandedBm === b.id && (
+                      <div className="px-3 pb-3 space-y-2 border-t border-white/8">
+                        <p className="text-right text-lg leading-loose text-white font-arabic pt-2" dir="rtl">{b.arabic}</p>
+                        <p className="text-xs text-white/55 italic leading-relaxed">"{b.translation}"</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {/* QF bookmarks */}
+                {qfConnected && qfBookmarks.map((b) => (
                   <a
-                    key={`${b.key}:${b.verseNumber}`}
+                    key={`qf-${b.key}-${b.verseNumber}`}
                     href={`https://quran.com/${b.key}/${b.verseNumber}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between px-3 py-2 rounded-lg glass hover:bg-white/10 transition-colors group"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-xl glass hover:bg-white/10 transition-colors group"
                   >
-                    <span className="text-sm text-white/70">Surah {b.key} : {b.verseNumber}</span>
-                    <span className="text-xs text-white/25 group-hover:text-secondary transition-colors">→</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-bold text-secondary bg-secondary/15 px-1.5 py-0.5 rounded">QF</span>
+                      <span className="text-sm text-white/70">Surah {b.key} : {b.verseNumber}</span>
+                    </div>
+                    <span className="text-xs text-white/25 group-hover:text-secondary transition-colors">↗</span>
                   </a>
                 ))}
               </div>

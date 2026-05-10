@@ -1,11 +1,13 @@
 import { Audio } from 'expo-av';
-import { BookOpen, ChevronRight, Loader, Pause, Play, ScrollText, Search } from 'lucide-react-native';
+import { BookOpen, BookmarkCheck, Bookmark, ChevronRight, Loader, Pause, Play, ScrollText, Search } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, FlatList, Pressable,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../context/AuthContext';
+import { toggleBookmark, getBookmarks } from '../lib/firestore';
 import { API_BASE } from '../services/api';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 
@@ -38,6 +40,7 @@ function stripHtml(html: string) {
 }
 
 export default function QuranScreen() {
+  const { uid } = useAuth();
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [filtered, setFiltered] = useState<Chapter[]>([]);
   const [query, setQuery] = useState('');
@@ -48,6 +51,7 @@ export default function QuranScreen() {
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [bookmarkedKeys, setBookmarkedKeys] = useState<Set<string>>(new Set());
   const soundRef = useRef<Audio.Sound | null>(null);
   const ayahsRef = useRef<Ayah[]>([]);
 
@@ -160,6 +164,12 @@ export default function QuranScreen() {
     setSelectedChapter(chapter);
     setLoadingAyahs(true);
     setAyahs([]);
+    // Load bookmarks for this chapter
+    if (uid) {
+      getBookmarks(uid).then((bms) => {
+        setBookmarkedKeys(new Set(bms.map((b) => b.verseKey)));
+      }).catch(() => {});
+    }
     try {
       const [verseRes, tafsirRes] = await Promise.all([
         fetch(qfProxy(`verses/by_chapter/${chapter.id}`, {
@@ -241,7 +251,32 @@ export default function QuranScreen() {
                 isSelected={playingKey === item.verseKey}
                 isPlaying={playingKey === item.verseKey && isPlaying}
                 isLoading={loadingKey === item.verseKey}
+                isBookmarked={bookmarkedKeys.has(item.verseKey)}
                 onPlay={() => handleVersePlay(item.verseKey)}
+                onBookmark={async () => {
+                  if (!uid || !selectedChapter) return;
+                  const vk = item.verseKey;
+                  const wasBookmarked = bookmarkedKeys.has(vk);
+                  setBookmarkedKeys((prev) => {
+                    const s = new Set(prev);
+                    wasBookmarked ? s.delete(vk) : s.add(vk);
+                    return s;
+                  });
+                  try {
+                    await toggleBookmark(uid, {
+                      verseKey: vk,
+                      surahName: selectedChapter.name_simple,
+                      arabic: item.arabic,
+                      translation: item.translation,
+                    });
+                  } catch {
+                    setBookmarkedKeys((prev) => {
+                      const s = new Set(prev);
+                      wasBookmarked ? s.add(vk) : s.delete(vk);
+                      return s;
+                    });
+                  }
+                }}
               />
             )}
           />
@@ -295,8 +330,9 @@ export default function QuranScreen() {
   );
 }
 
-function AyahCard({ ayah, isSelected, isPlaying, isLoading, onPlay }: {
-  ayah: Ayah; isSelected: boolean; isPlaying: boolean; isLoading: boolean; onPlay: () => void;
+function AyahCard({ ayah, isSelected, isPlaying, isLoading, isBookmarked, onPlay, onBookmark }: {
+  ayah: Ayah; isSelected: boolean; isPlaying: boolean; isLoading: boolean;
+  isBookmarked?: boolean; onPlay: () => void; onBookmark?: () => void;
 }) {
   const [tafsirOpen, setTafsirOpen] = useState(false);
   const [meaningOpen, setMeaningOpen] = useState(false);
@@ -354,6 +390,20 @@ function AyahCard({ ayah, isSelected, isPlaying, isLoading, onPlay }: {
             <ScrollText size={13} color={tafsirOpen ? COLORS.primary : COLORS.textMuted} />
             <Text style={[styles.actionBtnText, tafsirOpen && styles.actionBtnTextActive]}>
               Tafsir {tafsirOpen ? '▲' : '▼'}
+            </Text>
+          </Pressable>
+        )}
+
+        {onBookmark && (
+          <Pressable
+            onPress={onBookmark}
+            style={[styles.actionBtn, isBookmarked && styles.actionBtnActive]}
+          >
+            {isBookmarked
+              ? <BookmarkCheck size={13} color={COLORS.primary} />
+              : <Bookmark size={13} color={COLORS.textMuted} />}
+            <Text style={[styles.actionBtnText, isBookmarked && styles.actionBtnTextActive]}>
+              {isBookmarked ? 'Saved' : 'Save'}
             </Text>
           </Pressable>
         )}

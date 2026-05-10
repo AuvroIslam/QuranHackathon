@@ -7,6 +7,8 @@ import {
   getStoredVerifier,
   getStoredState,
   clearOAuthStorage,
+  getOAuthFrom,
+  clearOAuthMeta,
 } from "@/lib/qf-user-auth";
 
 function CallbackHandler() {
@@ -73,8 +75,26 @@ function CallbackHandler() {
 
         setQFSession(accessToken, refreshToken, expiresIn);
         clearOAuthStorage();
-        setStatus("Quran.com account connected!");
-        setTimeout(() => router.push("/listen"), 1200);
+
+        const from = getOAuthFrom();
+        clearOAuthMeta();
+
+        if (from === "mobile") {
+          const expiresAt = Date.now() + expiresIn * 1000;
+          const deepLink =
+            `deenquest://qf-connected` +
+            `?at=${encodeURIComponent(accessToken)}` +
+            `&rt=${encodeURIComponent(refreshToken)}` +
+            `&ea=${expiresAt}`;
+          setStatus("Connected! Returning to DeenQuest app\u2026");
+          window.location.href = deepLink;
+          setTimeout(() => {
+            setStatus("\u2713 Connected! You can now close this and return to the app.");
+          }, 3000);
+        } else {
+          setStatus("Quran.com account connected!");
+          setTimeout(() => router.push("/"), 1200);
+        }
       } catch (err) {
         console.error("[QF callback] error:", err);
         setStatus("Connection failed. Please try again.");

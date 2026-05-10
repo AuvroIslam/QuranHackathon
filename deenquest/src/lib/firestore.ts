@@ -13,9 +13,10 @@ import {
   increment,
   arrayUnion,
   arrayRemove,
+  deleteDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { UserProfile, UserTask, Post, Answer, UserGoal, UserLevel, TimePerDay } from "./types";
+import type { UserProfile, UserTask, Post, Answer, UserGoal, UserLevel, TimePerDay, Bookmark } from "./types";
 
 // ─── User Profile ───────────────────────────────────────────────
 
@@ -189,22 +190,44 @@ export async function completeTask(
 
 // ─── Bookmarks ──────────────────────────────────────────────────
 
-export async function toggleBookmark(uid: string, ayahKey: string) {
-  const ref = doc(db, "ayahBookmarks", `${uid}_${ayahKey}`);
+const bmDocId = (verseKey: string) => verseKey.replace(':', '_');
+
+export async function addBookmark(
+  uid: string,
+  data: Omit<Bookmark, 'id' | 'createdAt'>
+): Promise<void> {
+  const ref = doc(db, 'users', uid, 'bookmarks', bmDocId(data.verseKey));
+  await setDoc(ref, { ...data, createdAt: new Date().toISOString() });
+}
+
+export async function removeBookmark(uid: string, verseKey: string): Promise<void> {
+  await deleteDoc(doc(db, 'users', uid, 'bookmarks', bmDocId(verseKey)));
+}
+
+export async function getBookmarks(uid: string): Promise<Bookmark[]> {
+  const snap = await getDocs(
+    query(collection(db, 'users', uid, 'bookmarks'), orderBy('createdAt', 'desc'))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Bookmark));
+}
+
+export async function isBookmarked(uid: string, verseKey: string): Promise<boolean> {
+  const snap = await getDoc(doc(db, 'users', uid, 'bookmarks', bmDocId(verseKey)));
+  return snap.exists();
+}
+
+export async function toggleBookmark(
+  uid: string,
+  data: Omit<Bookmark, 'id' | 'createdAt'>
+): Promise<boolean> {
+  const ref = doc(db, 'users', uid, 'bookmarks', bmDocId(data.verseKey));
   const snap = await getDoc(ref);
   if (snap.exists()) {
-    const { deleteDoc } = await import("firebase/firestore");
     await deleteDoc(ref);
     return false;
   }
-  await setDoc(ref, { userId: uid, ayahId: ayahKey });
+  await setDoc(ref, { ...data, createdAt: new Date().toISOString() });
   return true;
-}
-
-export async function getBookmarks(uid: string): Promise<string[]> {
-  const q = query(collection(db, "ayahBookmarks"), where("userId", "==", uid));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data().ayahId as string);
 }
 
 // ─── Community Posts ────────────────────────────────────────────

@@ -1,0 +1,55 @@
+{
+  "cli": {
+    "version": ">= 10.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAJxUgFdrKXqQ-ZT6sL8GwirGe0wdw-X-o",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "quranhackathon.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "quranhackathon",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "quranhackathon.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "94900107612",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:94900107612:android:03883149b3dc1f04c5e999",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "94900107612-b5ldjmgljcdf4i2lckoui4pjqvkrp73a.apps.googleusercontent.com"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAJxUgFdrKXqQ-ZT6sL8GwirGe0wdw-X-o",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "quranhackathon.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "quranhackathon",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "quranhackathon.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "94900107612",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:94900107612:android:03883149b3dc1f04c5e999",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "94900107612-b5ldjmgljcdf4i2lckoui4pjqvkrp73a.apps.googleusercontent.com"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAJxUgFdrKXqQ-ZT6sL8GwirGe0wdw-X-o",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "quranhackathon.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "quranhackathon",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "quranhackathon.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "94900107612",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:94900107612:android:03883149b3dc1f04c5e999",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "94900107612-b5ldjmgljcdf4i2lckoui4pjqvkrp73a.apps.googleusercontent.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

@@ -4,6 +4,7 @@
     "slug": "deenquest-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "deenquest",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
@@ -24,7 +25,12 @@
         "backgroundColor": "#0A0F1E"
       },
       "package": "com.deenquest.mobile",
-      "permissions": ["RECORD_AUDIO"]
+      "permissions": [
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       [
@@ -32,7 +38,22 @@
         {
           "microphonePermission": "DeenQuest needs microphone access to check your Quran recitation."
         }
-      ]
-    ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#7C3AED",
+          "sounds": []
+        }
+      ],
+      "@react-native-google-signin/google-signin"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "9f4b81cd-85ef-453a-b7d8-bdb19c791687"
+      }
+    },
+    "owner": "auvro_islam"
   }
 }

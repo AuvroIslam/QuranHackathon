@@ -1,14 +1,37 @@
-import { BookOpen, Lightbulb } from 'lucide-react-native';
-import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BookOpen, Lightbulb, Bookmark, BookmarkCheck } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { toggleBookmark, isBookmarked } from '../../lib/firestore';
 import { Ayah } from '../../types';
 
 interface Props {
   ayah: Ayah;
+  uid?: string;
+  surahName?: string;
 }
 
-export default function AyahDisplay({ ayah }: Props) {
+export default function AyahDisplay({ ayah, uid, surahName }: Props) {
+  const [bookmarked, setBookmarked] = useState(false);
+
+  useEffect(() => {
+    if (!uid) return;
+    isBookmarked(uid, ayah.reference).then(setBookmarked).catch(() => {});
+  }, [uid, ayah.reference]);
+
+  async function handleBookmark() {
+    if (!uid) return;
+    try {
+      const result = await toggleBookmark(uid, {
+        verseKey: ayah.reference,
+        surahName: surahName ?? `Quran ${ayah.reference}`,
+        arabic: ayah.arabic,
+        translation: ayah.translation,
+      });
+      setBookmarked(result);
+    } catch {}
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -21,7 +44,16 @@ export default function AyahDisplay({ ayah }: Props) {
           </View>
           <Text style={styles.ref}>Quran {ayah.reference}</Text>
         </View>
-        <Image source={require('../../../elementsApp/reading-removebg-preview.png')} style={styles.character} />
+        <View style={styles.topRight}>
+          {uid && (
+            <Pressable onPress={handleBookmark} style={[styles.bmBtn, bookmarked && styles.bmBtnActive]}>
+              {bookmarked
+                ? <BookmarkCheck size={16} color={COLORS.primary} />
+                : <Bookmark size={16} color={COLORS.textMuted} />}
+            </Pressable>
+          )}
+          <Image source={require('../../../elementsApp/reading-removebg-preview.png')} style={styles.character} />
+        </View>
       </View>
 
       {/* Arabic card */}
@@ -57,6 +89,15 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 16, gap: 14, paddingBottom: 8 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   labelBlock: { gap: 6 },
+  topRight: { alignItems: 'center', gap: 6 },
+  bmBtn: {
+    padding: 8,
+    borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+  },
+  bmBtnActive: { backgroundColor: COLORS.primaryBg, borderColor: COLORS.primary },
   refBadge: {
     flexDirection: 'row',
     alignItems: 'center',

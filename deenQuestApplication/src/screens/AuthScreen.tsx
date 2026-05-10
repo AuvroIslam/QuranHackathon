@@ -1,9 +1,12 @@
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithCredential,
   signInWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
@@ -61,6 +64,50 @@ export default function AuthScreen() {
         'auth/too-many-requests': 'Too many attempts. Please try again later.',
       };
       setError(msg[e.code] ?? 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await GoogleSignin.hasPlayServices();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken;
+      if (!idToken) throw new Error('No ID token');
+      const credential = GoogleAuthProvider.credential(idToken);
+      const cred = await signInWithCredential(auth, credential);
+      // Merge so existing users aren't overwritten
+      await setDoc(
+        doc(db, 'users', cred.user.uid),
+        {
+          name: cred.user.displayName ?? '',
+          email: cred.user.email ?? '',
+          xp: 0,
+          streak: 0,
+          tasksCompleted: 0,
+          lastActive: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          goal: null,
+          level: null,
+          timePerDay: null,
+          quranProgress: null,
+          currentDay: 1,
+        },
+        { merge: true }
+      );
+    } catch (e: any) {
+      if (e.code === statusCodes.SIGN_IN_CANCELLED) {
+        // user cancelled — do nothing
+      } else if (e.code === statusCodes.IN_PROGRESS) {
+        setError('Sign-in already in progress.');
+      } else if (e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        setError('Google Play Services not available.');
+      } else {
+        setError('Google sign-in failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -148,6 +195,25 @@ export default function AuthScreen() {
                   : <Text style={styles.submitText}>
                       {mode === 'signin' ? 'Sign In' : 'Create Account'}
                     </Text>}
+              </Pressable>
+
+              {/* Divider */}
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Google Sign-In */}
+              <Pressable
+                style={[styles.googleBtn, loading && styles.submitBtnDisabled]}
+                onPress={handleGoogleSignIn}
+                disabled={loading}
+              >
+                <View style={styles.googleG}>
+                  <Text style={styles.googleGText}>G</Text>
+                </View>
+                <Text style={styles.googleBtnText}>Continue with Google</Text>
               </Pressable>
 
               <View style={styles.switchRow}>
@@ -247,4 +313,30 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   switchLabel: { color: COLORS.textMuted, fontSize: 14 },
   switchLink: { color: COLORS.primary, fontSize: 14, fontWeight: '700' },
+
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.cardBorder },
+  dividerText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
+
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: RADIUS.xl,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.cardBorder,
+  },
+  googleG: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleGText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  googleBtnText: { color: '#1a1a2e', fontSize: 15, fontWeight: '700' },
 });

@@ -18,7 +18,10 @@
       "Bash(dir /b \"d:\\\\Quranhackathon\\\\elementsApp\")",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(Get-ChildItem -Path \"d:\\\\Quranhackathon\" -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)"
     ],
     "additionalDirectories": [
       "C:\\Users\\oitij\\.claude"

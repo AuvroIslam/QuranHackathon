@@ -3,23 +3,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { BookOpen, GraduationCap, Clock, Check, Loader2 } from "lucide-react";
+import { BookOpen, GraduationCap, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { saveUserGoal } from "@/lib/firestore";
+import { initiateQFOAuth } from "@/lib/qf-user-auth";
 import type { UserGoal, UserLevel, TimePerDay } from "@/lib/types";
 
-type WizardStep = "goal" | "level" | "time";
+type WizardStep = "goal" | "level" | "time" | "quran-connect";
 
 const MASCOTS: Record<WizardStep, string> = {
   goal: "/waving_onboarding-removebg-preview.png",
   level: "/achievement-removebg-preview.png",
   time: "/reading-removebg-preview.png",
+  "quran-connect": "/waving_onboarding-removebg-preview.png",
 };
 
 const MASCOT_SPEECH: Record<WizardStep, string> = {
   goal: "Assalamu Alaykum! What brings you here today? 🌙",
   level: "Great choice! How familiar are you with Arabic? 📖",
   time: "Almost there! How much time can you give each day? ⏰",
+  "quran-connect": "One last thing — connect your Quran.com account to sync your progress! 🔗",
 };
 
 const LEVEL_IMAGES: Record<UserLevel, string> = {
@@ -36,8 +39,12 @@ export default function SetupPage() {
   const [level, setLevel] = useState<UserLevel | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const stepNum = step === "goal" ? 1 : step === "level" ? 2 : goal === "learn" ? 3 : 2;
-  const totalSteps = goal === "learn" ? 3 : 2;
+  const stepNum =
+    step === "goal" ? 1
+    : step === "level" ? 2
+    : step === "time" ? (goal === "learn" ? 3 : 2)
+    : goal === "learn" ? 4 : 3;
+  const totalSteps = goal === "learn" ? 4 : 3;
 
   function handleGoalSelect(selected: UserGoal) {
     setGoal(selected);
@@ -59,10 +66,16 @@ export default function SetupPage() {
     try {
       await saveUserGoal(user.uid, goal, { level: level ?? undefined, timePerDay: time });
       await refreshProfile();
-      router.push("/");
+      setStep("quran-connect");
     } catch {
+      // keep saving=false so user can retry
+    } finally {
       setSaving(false);
     }
+  }
+
+  function handleQFConnect() {
+    initiateQFOAuth().catch(console.error);
   }
 
   return (
@@ -111,7 +124,10 @@ export default function SetupPage() {
             Step {stepNum} of {totalSteps}
           </p>
           <h1 className="text-2xl font-bold text-white">
-            {step === "goal" ? "What is your goal?" : step === "level" ? "What is your level?" : "How much time per day?"}
+            {step === "goal" ? "What is your goal?"
+              : step === "level" ? "What is your level?"
+              : step === "time" ? "How much time per day?"
+              : "Connect Quran.com"}
           </h1>
         </div>
 
@@ -180,6 +196,52 @@ export default function SetupPage() {
                 onPress={() => handleTimeSelect(10)}
                 loading={saving}
               />
+            </>
+          )}
+
+          {step === "quran-connect" && (
+            <>
+              <div className="glass-card rounded-2xl p-6 space-y-4">
+                <div className="flex justify-center">
+                  <Image
+                    src="/quran.comLogo.png"
+                    alt="Quran.com"
+                    width={160}
+                    height={48}
+                    className="object-contain"
+                  />
+                </div>
+                <p className="text-white/55 text-sm text-center leading-relaxed">
+                  Sync your bookmarks, reading goals, and streaks across all your devices.
+                </p>
+                <div className="space-y-2 pt-1">
+                  {["Sync bookmarks & collections", "Track your reading streaks", "Cross-device progress"].map((b) => (
+                    <div key={b} className="flex items-center gap-2 text-white/60 text-sm">
+                      <span className="text-accent text-xs">●</span>
+                      {b}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={handleQFConnect}
+                className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 text-left hover:bg-white/10 transition-all group border border-accent/30"
+              >
+                <div className="w-14 h-14 rounded-2xl bg-accent/15 flex items-center justify-center shrink-0 group-hover:bg-accent/25 transition-colors">
+                  <BookOpen size={26} className="text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-white text-sm">Connect Quran.com</p>
+                  <p className="text-xs text-white/55 mt-0.5">You&apos;ll be redirected to authorise DeenQuest</p>
+                </div>
+                <span className="text-accent text-lg font-bold shrink-0">→</span>
+              </button>
+              <button
+                onClick={() => router.push("/")}
+                className="w-full text-center text-white/40 text-sm py-2 hover:text-white/60 transition-colors"
+              >
+                Skip for now
+              </button>
             </>
           )}
         </div>

@@ -8,11 +8,13 @@ import {
   saveListeningProgress,
   getListeningProgress,
   type ListeningProgress,
+  toggleBookmark,
+  getBookmarks,
 } from "@/lib/firestore";
 import { getQFAccessToken } from "@/lib/qf-user-auth";
 import {
   Play, Pause, ChevronLeft, CheckCircle, ChevronDown, AudioLines,
-  Shuffle, BookOpen, Headphones, ScrollText, Loader2, CloudUpload,
+  Shuffle, BookOpen, Headphones, ScrollText, Loader2, CloudUpload, Bookmark, BookmarkCheck,
 } from "lucide-react";
 import PageContainer from "../../components/PageContainer";
 import toast from "react-hot-toast";
@@ -96,6 +98,7 @@ export default function ListenPage() {
   const [loadingAudioKey, setLoadingAudioKey] = useState<string | null>(null);
   const [sessionSynced, setSessionSynced] = useState(false);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [bookmarkedKeys, setBookmarkedKeys] = useState<Set<string>>(new Set());
 
   const verseStartRef = useRef<{ key: string; startedAt: number } | null>(null);
 
@@ -108,6 +111,14 @@ export default function ListenPage() {
   useEffect(() => {
     if (!loading && !user) router.push("/");
   }, [loading, user, router]);
+
+  // Load existing bookmarks when chapter is opened
+  useEffect(() => {
+    if (!user || !selectedChapter) return;
+    getBookmarks(user.uid).then((bms) => {
+      setBookmarkedKeys(new Set(bms.map((b) => b.verseKey)));
+    }).catch(() => {});
+  }, [user, selectedChapter]);
 
   function reportActivity(verseKey: string, seconds: number, chapterId: number, verseNumber: number) {
     const qfToken = getQFAccessToken();
@@ -505,6 +516,52 @@ export default function ListenPage() {
                             <Play size={11} />
                           )}
                           {isThisPlaying ? "Pause" : "Play"}
+                        </button>
+                        {/* Bookmark button */}
+                        <button
+                          onClick={async () => {
+                            if (!user) return;
+                            const chapterName = selectedChapter?.name_simple ?? "";
+                            const arabicText = wordsOnly.map((w) => w.text_uthmani).join(" ");
+                            const trans = stripHtml(verse.translations?.find((t) => t.resource_id === 20)?.text ?? "");
+                            const wasBookmarked = bookmarkedKeys.has(vk);
+                            setBookmarkedKeys((prev) => {
+                              const s = new Set(prev);
+                              wasBookmarked ? s.delete(vk) : s.add(vk);
+                              return s;
+                            });
+                            try {
+                              await toggleBookmark(user.uid, {
+                                verseKey: vk,
+                                surahName: chapterName,
+                                arabic: arabicText,
+                                translation: trans,
+                              });
+                              // Sync to QF API if connected
+                              const qfToken = getQFAccessToken();
+                              if (qfToken) {
+                                const [chStr, vStr] = vk.split(":");
+                                fetch("/api/qf/bookmark", {
+                                  method: wasBookmarked ? "DELETE" : "POST",
+                                  headers: { "x-qf-token": qfToken, "Content-Type": "application/json" },
+                                  body: JSON.stringify({ chapterNumber: parseInt(chStr, 10), verseNumber: parseInt(vStr, 10) }),
+                                }).catch(() => {});
+                              }
+                            } catch {
+                              setBookmarkedKeys((prev) => {
+                                const s = new Set(prev);
+                                wasBookmarked ? s.add(vk) : s.delete(vk);
+                                return s;
+                              });
+                            }
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                            bookmarkedKeys.has(vk)
+                              ? "bg-secondary/20 text-secondary"
+                              : "bg-white/8 text-white/30 hover:bg-secondary/15 hover:text-secondary"
+                          }`}
+                        >
+                          {bookmarkedKeys.has(vk) ? <BookmarkCheck size={11} /> : <Bookmark size={11} />}
                         </button>
                       </div>
                     </div>

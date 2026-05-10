@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  Animated, Dimensions, FlatList, Image, ImageBackground,
-  Pressable, StyleSheet, Text, View,
+  ActivityIndicator, Animated, Dimensions, FlatList, Image, ImageBackground,
+  Linking, Pressable, StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../context/AuthContext';
+import { saveQFTokens } from '../lib/firestore';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 
 const { width } = Dimensions.get('window');
@@ -32,8 +34,12 @@ const SLIDES = [
 ];
 
 export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
+  const { uid } = useAuth();
   const [index, setIndex] = useState(0);
   const flatRef = useRef<FlatList>(null);
+  const [showQFConnect, setShowQFConnect] = useState(false);
+  const [waitingForQF, setWaitingForQF] = useState(false);
+  const [qfSuccess, setQFSuccess] = useState(false);
   // First dot starts active (1), rest inactive (0)
   const dotAnim = useRef(SLIDES.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
 
@@ -58,9 +64,43 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
     if (index < SLIDES.length - 1) {
       goTo(index + 1);
     } else {
-      await finish();
+      setShowQFConnect(true);
     }
   };
+
+  const handleQFConnect = async () => {
+    if (!uid) { await finish(); return; }
+    setWaitingForQF(true);
+    const url = `https://quran-hackathon-omega.vercel.app/auth/qf-start?from=mobile&uid=${encodeURIComponent(uid)}`;
+    Linking.openURL(url).catch(() => setWaitingForQF(false));
+  };
+
+  useEffect(() => {
+    const handleDeepLink = async ({ url }: { url: string }) => {
+      if (!url.startsWith('deenquest://qf-connected')) return;
+      const queryString = url.split('?')[1] ?? '';
+      const params: Record<string, string> = {};
+      queryString.split('&').forEach((pair) => {
+        const idx = pair.indexOf('=');
+        if (idx > -1) params[pair.slice(0, idx)] = decodeURIComponent(pair.slice(idx + 1));
+      });
+      const at = params.at ?? '';
+      const rt = params.rt ?? '';
+      const ea = parseInt(params.ea ?? '0', 10);
+      if (at && uid) {
+        setQFSuccess(true);
+        setWaitingForQF(false);
+        saveQFTokens(uid, at, rt, ea).catch(() => {});
+        setTimeout(() => finish(), 1500);
+      } else {
+        await finish();
+      }
+    };
+
+    Linking.getInitialURL().then((url) => { if (url) handleDeepLink({ url }); });
+    const sub = Linking.addEventListener('url', handleDeepLink);
+    return () => sub.remove();
+  }, [uid]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -110,6 +150,62 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
           )}
         </View>
       </ImageBackground>
+
+      {/* Quran.com connect overlay */}
+      {showQFConnect && (
+        <View style={qfStyles.overlay}>
+          {qfSuccess ? (
+            <View style={qfStyles.card}>
+              <View style={qfStyles.successIcon}>
+                <Text style={qfStyles.successEmoji}>✓</Text>
+              </View>
+              <Text style={qfStyles.cardTitle}>Connected!</Text>
+              <Text style={qfStyles.cardSub}>
+                Your Quran.com account is linked. Loading DeenQuest…
+              </Text>
+            </View>
+          ) : waitingForQF ? (
+            <View style={qfStyles.card}>
+              <ActivityIndicator size="large" color={COLORS.primary} style={{ marginBottom: 20 }} />
+              <Text style={qfStyles.cardTitle}>Waiting for connection…</Text>
+              <Text style={qfStyles.cardSub}>
+                Complete sign-in on Quran.com, then return here automatically.
+              </Text>
+              <Pressable style={qfStyles.skipBtn} onPress={finish}>
+                <Text style={qfStyles.skipText}>Skip for now</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={qfStyles.card}>
+              <View style={qfStyles.logoRow}>
+                <Image
+                  source={require('../../elementsApp/quran.comLogo.png')}
+                  style={qfStyles.logo}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={qfStyles.cardTitle}>Connect your{'\n'}Quran.com account</Text>
+              <Text style={qfStyles.cardSub}>
+                Sync your bookmarks, reading goals, and streaks across devices.
+              </Text>
+              <View style={qfStyles.benefits}>
+                {['Sync bookmarks & collections', 'Track reading streaks', 'Cross-device progress'].map((b) => (
+                  <View key={b} style={qfStyles.benefitRow}>
+                    <Text style={qfStyles.benefitDot}>●</Text>
+                    <Text style={qfStyles.benefitText}>{b}</Text>
+                  </View>
+                ))}
+              </View>
+              <Pressable style={qfStyles.connectBtn} onPress={handleQFConnect}>
+                <Text style={qfStyles.connectBtnText}>Connect Quran.com</Text>
+              </Pressable>
+              <Pressable style={qfStyles.skipBtn} onPress={finish}>
+                <Text style={qfStyles.skipText}>Skip for now</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -166,3 +262,75 @@ const styles = StyleSheet.create({
   skipBtn: { paddingVertical: 8 },
   skipText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
 });
+
+const qfStyles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10,15,30,0.97)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  card: {
+    width: '100%',
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.xl,
+    padding: 28,
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+  },
+  logoRow: {
+    backgroundColor: COLORS.primaryBg,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginBottom: 4,
+    alignItems: 'center',
+  },
+  logo: { width: 140, height: 40 },
+  cardTitle: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 30,
+  },
+  cardSub: {
+    color: COLORS.textSub,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  benefits: {
+    width: '100%',
+    gap: 8,
+    marginVertical: 4,
+  },
+  benefitRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  benefitDot: { color: COLORS.primary, fontSize: 8 },
+  benefitText: { color: COLORS.textSub, fontSize: 14, flex: 1 },
+  connectBtn: {
+    width: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.xl,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  connectBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  skipBtn: { paddingVertical: 8 },
+  skipText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
+  successIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  successEmoji: { color: COLORS.primary, fontSize: 32, fontWeight: '800' },
+});
+

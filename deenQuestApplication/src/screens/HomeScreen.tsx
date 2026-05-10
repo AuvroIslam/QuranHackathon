@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AlertTriangle, BookOpen, CheckCircle, ChevronDown, ChevronRight, Circle, Flame, Moon, X, Zap } from 'lucide-react-native';
+import { AlertTriangle, BookOpen, CheckCircle, ChevronDown, ChevronRight, ChevronUp, Circle, Flame, Moon, X, Zap } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { completeTask, getDailySessionCount, getUserProfile, getUserTasksForDate, resetStreak } from '../lib/firestore';
+import { cancelStreakReminder, scheduleStreakReminder } from '../lib/notifications';
 import { getTodaysTasks, Task } from '../lib/tasks-data';
 import { getStreakStatus } from '../lib/streakUtils';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
@@ -108,11 +109,23 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Schedule or cancel the streak reminder whenever session/streak state is known
+  useEffect(() => {
+    if (loadingTasks) return;
+    if (sessionsToday > 0) {
+      cancelStreakReminder().catch(() => {});
+    } else {
+      scheduleStreakReminder(streak).catch(() => {});
+    }
+  }, [streak, sessionsToday, loadingTasks]);
+
   const handleComplete = async (task: Task) => {
     if (!uid || completedIds.has(task.id) || completing) return;
     setCompleting(task.id);
     setCompletedIds((prev) => new Set([...prev, task.id]));
     setXp((prev) => prev + task.xpReward);
+    // Cancel the streak reminder as soon as any task is completed
+    cancelStreakReminder().catch(() => {});
     const status = getStreakStatus(lastSessionDate, streak);
     const isRecoveryTask =
       status.status === 'recovery' &&
@@ -411,6 +424,7 @@ function StatCard({ icon, value, label, bg, color }: {
 function TaskCard({ task, done, completing, onComplete }: {
   task: Task; done: boolean; completing: boolean; onComplete: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const CATEGORY_COLORS: Record<string, string> = {
     reading: '#7C3AED', prayer: '#059669', charity: '#F59E0B',
     memorization: '#2563EB', character: '#DC2626', kindness: '#EC4899',
@@ -420,29 +434,46 @@ function TaskCard({ task, done, completing, onComplete }: {
 
   return (
     <View style={[styles.taskCard, done && styles.taskCardDone]}>
-      <Pressable onPress={onComplete} disabled={done || completing} style={styles.taskCheck}>
-        {completing
-          ? <ActivityIndicator size="small" color={COLORS.primary} />
-          : done
-            ? <CheckCircle size={26} color={COLORS.primary} fill={COLORS.primaryBg} />
-            : <Circle size={26} color={COLORS.cardBorder} />}
-      </Pressable>
+      <View style={styles.taskRow}>
+        <Pressable onPress={onComplete} disabled={done || completing} style={styles.taskCheck}>
+          {completing
+            ? <ActivityIndicator size="small" color={COLORS.primary} />
+            : done
+              ? <CheckCircle size={26} color={COLORS.primary} fill={COLORS.primaryBg} />
+              : <Circle size={26} color={COLORS.cardBorder} />}
+        </Pressable>
 
-      <View style={styles.taskBody}>
-        <Text style={[styles.taskTitle, done && styles.taskTitleDone]}>{task.title}</Text>
-        <Text style={styles.taskDesc} numberOfLines={1}>{task.description}</Text>
-        <View style={styles.taskMeta}>
-          <View style={[styles.catPill, { backgroundColor: `${catColor}18`, borderColor: `${catColor}44` }]}>
-            <Text style={[styles.catText, { color: catColor }]}>{task.category}</Text>
+        <Pressable style={styles.taskBody} onPress={() => setExpanded(v => !v)}>
+          <View style={styles.taskTitleRow}>
+            <Text style={[styles.taskTitle, done && styles.taskTitleDone]}>{task.title}</Text>
+            {expanded
+              ? <ChevronUp size={16} color={COLORS.textMuted} />
+              : <ChevronDown size={16} color={COLORS.textMuted} />}
           </View>
-          <Text style={styles.taskRef}>Quran {task.ayahRef}</Text>
-        </View>
+          <Text style={styles.taskDesc} numberOfLines={expanded ? undefined : 1}>{task.description}</Text>
+          <View style={styles.taskMeta}>
+            <Text style={styles.taskRef}>Quran {task.ayahRef}</Text>
+            <View style={[styles.xpPill, done && styles.xpPillDone]}>
+              <Zap size={11} color={done ? COLORS.primary : COLORS.textMuted} />
+              <Text style={[styles.xpText, done && styles.xpTextDone]}>+{task.xpReward} XP</Text>
+            </View>
+          </View>
+        </Pressable>
       </View>
 
-      <View style={[styles.xpPill, done && styles.xpPillDone]}>
-        <Zap size={11} color={done ? COLORS.primary : COLORS.textMuted} />
-        <Text style={[styles.xpText, done && styles.xpTextDone]}>+{task.xpReward} XP</Text>
-      </View>
+      {expanded && (
+        <View style={styles.taskDetail}>
+          <View style={styles.taskDetailSection}>
+            <Text style={styles.taskDetailLabel}>What Quran says</Text>
+            <Text style={styles.taskDetailText}>{task.quranGuidance}</Text>
+          </View>
+          <View style={styles.taskDetailDivider} />
+          <View style={styles.taskDetailSection}>
+            <Text style={styles.taskDetailLabel}>Benefit & reward</Text>
+            <Text style={styles.taskDetailText}>{task.deedBenefit}</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -500,15 +531,16 @@ const styles = StyleSheet.create({
 
   taskList: { paddingHorizontal: 16, gap: 10 },
   taskCard: {
-    flexDirection: 'row', alignItems: 'center',
     backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
     borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    padding: 14, gap: 12, ...SHADOW.card,
+    padding: 14, ...SHADOW.card,
   },
   taskCardDone: { backgroundColor: COLORS.primaryBg, borderColor: `${COLORS.primary}44` },
+  taskRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   taskCheck: { padding: 2 },
   taskBody: { flex: 1, gap: 4 },
-  taskTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
+  taskTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
+  taskTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700', flex: 1 },
   taskTitleDone: { color: COLORS.textMuted, textDecorationLine: 'line-through' },
   taskDesc: { color: COLORS.textSub, fontSize: 12 },
   taskMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
@@ -519,10 +551,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: COLORS.surfaceDark, paddingHorizontal: 8,
     paddingVertical: 5, borderRadius: RADIUS.full,
+    marginLeft: 'auto',
   },
   xpPillDone: { backgroundColor: COLORS.primaryBg },
   xpText: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700' },
   xpTextDone: { color: COLORS.primary },
+  taskDetail: {
+    marginTop: 10, paddingTop: 10,
+    borderTopWidth: 1, borderTopColor: COLORS.cardBorder,
+    gap: 8,
+  },
+  taskDetailSection: { gap: 3 },
+  taskDetailLabel: { color: COLORS.primary, fontSize: 11, fontWeight: '700' },
+  taskDetailText: { color: COLORS.textSub, fontSize: 12, lineHeight: 18 },
+  taskDetailDivider: { height: 1, backgroundColor: COLORS.cardBorder },
 
   allDoneBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 14,

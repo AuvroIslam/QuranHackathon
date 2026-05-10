@@ -1,10 +1,10 @@
 import {
   doc, getDoc, setDoc, updateDoc, writeBatch,
-  collection, query, where, getDocs, increment,
+  collection, query, where, getDocs, increment, deleteDoc, orderBy,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { UserTask } from './tasks-data';
-import type { TimePerDay, UserGoal, UserLevel } from '../types';
+import type { TimePerDay, UserGoal, UserLevel, Bookmark } from '../types';
 
 export interface UserProfile {
   id: string;
@@ -164,5 +164,65 @@ export async function incrementDailySession(uid: string): Promise<number> {
   const newCount = isToday ? (data.sessionsToday ?? 0) + 1 : 1;
   await updateDoc(ref, { sessionDate: today, sessionsToday: newCount });
   return newCount;
+}
+
+// ── Quran Foundation (QF) token bridge ────────────────────────────────────────
+
+export async function saveQFTokens(
+  uid: string,
+  accessToken: string,
+  refreshToken: string,
+  expiresAt: number
+) {
+  await updateDoc(doc(db, 'users', uid), {
+    qfAccessToken: accessToken,
+    qfRefreshToken: refreshToken,
+    qfTokenExpiresAt: expiresAt,
+    qfConnectedAt: new Date().toISOString(),
+  });
+}
+
+export async function getQFTokens(
+  uid: string
+): Promise<{ accessToken: string; refreshToken: string; expiresAt: number } | null> {
+  const snap = await getDoc(doc(db, 'users', uid));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  if (!data.qfAccessToken) return null;
+  return {
+    accessToken: data.qfAccessToken,
+    refreshToken: data.qfRefreshToken ?? '',
+    expiresAt: data.qfTokenExpiresAt ?? 0,
+  };
+}
+
+// ── Bookmarks ──────────────────────────────────────────────────
+
+const bmDocId = (verseKey: string) => verseKey.replace(':', '_');
+
+export async function toggleBookmark(
+  uid: string,
+  data: Omit<Bookmark, 'id' | 'createdAt'>
+): Promise<boolean> {
+  const ref = doc(db, 'users', uid, 'bookmarks', bmDocId(data.verseKey));
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    await deleteDoc(ref);
+    return false;
+  }
+  await setDoc(ref, { ...data, createdAt: new Date().toISOString() });
+  return true;
+}
+
+export async function getBookmarks(uid: string): Promise<Bookmark[]> {
+  const snap = await getDocs(
+    query(collection(db, 'users', uid, 'bookmarks'), orderBy('createdAt', 'desc'))
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Bookmark));
+}
+
+export async function isBookmarked(uid: string, verseKey: string): Promise<boolean> {
+  const snap = await getDoc(doc(db, 'users', uid, 'bookmarks', bmDocId(verseKey)));
+  return snap.exists();
 }
 

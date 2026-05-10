@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BookOpen, Check, Clock, GraduationCap } from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
+import { BookOpen, Check, CheckCircle, GraduationCap } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Animated, Image, Pressable, ScrollView, StyleSheet, Text, View,
+  ActivityIndicator, Animated, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { saveUserGoal } from '../lib/firestore';
+import { saveQFTokens, saveUserGoal } from '../lib/firestore';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
 import { TimePerDay, UserGoal, UserLevel } from '../types';
 
@@ -23,18 +23,20 @@ interface Props {
   onDone: () => void;
 }
 
-type WizardStep = 'goal' | 'level' | 'time';
+type WizardStep = 'goal' | 'level' | 'time' | 'qfConnect';
 
 const MASCOTS: Record<WizardStep, any> = {
   goal: require('../../elementsApp/waving_onboarding-removebg-preview.png'),
   level: require('../../elementsApp/achievement-removebg-preview.png'),
   time: require('../../elementsApp/reading-removebg-preview.png'),
+  qfConnect: require('../../elementsApp/waving_onboarding-removebg-preview.png'),
 };
 
 const MASCOT_SPEECH: Record<WizardStep, string> = {
   goal: "Assalamu Alaykum! What brings you here today? 🌙",
   level: "Great choice! Now, how familiar are you with Arabic? 📖",
   time: "Almost there! How much time can you give each day? ⏰",
+  qfConnect: "",
 };
 
 export default function GoalSetupScreen({ uid, onDone }: Props) {
@@ -44,6 +46,8 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
   const [goal, setGoal] = useState<UserGoal | null>(null);
   const [level, setLevel] = useState<UserLevel | null>(null);
   const [saving, setSaving] = useState(false);
+  const [waitingForQF, setWaitingForQF] = useState(false);
+  const [qfSuccess, setQFSuccess] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const mascotAnim = useRef(new Animated.Value(1)).current;
@@ -83,15 +87,124 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
     try {
       await saveUserGoal(effectiveUid, goal, { level: level ?? undefined, timePerDay: time });
       await AsyncStorage.setItem(key, 'true');
-      onDone();
     } catch {
       await AsyncStorage.setItem(key, 'true').catch(() => {});
-      onDone();
+    } finally {
+      setSaving(false);
     }
+    slideForward(() => setWizardStep('qfConnect'));
   };
 
-  const stepNum = wizardStep === 'goal' ? 1 : wizardStep === 'level' ? 2 : goal === 'learn' ? 3 : 2;
+  const handleQFConnect = () => {
+    if (!effectiveUid) { onDone(); return; }
+    setWaitingForQF(true);
+    const url = `https://quran-hackathon-omega.vercel.app/auth/qf-start?from=mobile&uid=${encodeURIComponent(effectiveUid)}`;
+    Linking.openURL(url).catch(() => setWaitingForQF(false));
+  };
+
+  useEffect(() => {
+    const handleDeepLink = ({ url }: { url: string }) => {
+      if (!url.startsWith('deenquest://qf-connected')) return;
+      const qs = url.split('?')[1] ?? '';
+      const params: Record<string, string> = {};
+      qs.split('&').forEach((pair) => {
+        const idx = pair.indexOf('=');
+        if (idx > -1) params[pair.slice(0, idx)] = decodeURIComponent(pair.slice(idx + 1));
+      });
+      const at = params.at ?? '';
+      const rt = params.rt ?? '';
+      const ea = parseInt(params.ea ?? '0', 10);
+      if (at && effectiveUid) {
+        setQFSuccess(true);
+        setWaitingForQF(false);
+        saveQFTokens(effectiveUid, at, rt, ea).catch(() => {});
+        setTimeout(() => onDone(), 1800);
+      } else {
+        onDone();
+      }
+    };
+    Linking.getInitialURL().then((url) => { if (url) handleDeepLink({ url }); });
+    const sub = Linking.addEventListener('url', handleDeepLink);
+    return () => sub.remove();
+  }, [effectiveUid]);
+
+  const stepNum = wizardStep === 'goal' ? 1 : wizardStep === 'level' ? 2 : wizardStep === 'time' ? (goal === 'learn' ? 3 : 2) : -1;
   const totalSteps = goal === 'learn' ? 3 : 2;
+
+  // QF Connect — full page, no wizard chrome
+  if (wizardStep === 'qfConnect') {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <ScrollView contentContainerStyle={qfStyles.page} showsVerticalScrollIndicator={false}>
+
+          {/* Logo banner */}
+          <View style={qfStyles.logoBanner}>
+            <Image
+              source={require('../../elementsApp/quran.comLogo.png')}
+              style={qfStyles.logo}
+              resizeMode="contain"
+            />
+          </View>
+
+          {/* Heading */}
+          <View style={qfStyles.headingBlock}>
+            <Text style={qfStyles.eyebrow}>One last thing 🌙</Text>
+            <Text style={qfStyles.title}>Connect your{'\n'}Quran.com account</Text>
+            <Text style={qfStyles.subtitle}>
+              Sync your bookmarks, reading streaks, and goals across all your devices — automatically.
+            </Text>
+          </View>
+
+          {/* Benefits */}
+          <View style={qfStyles.benefitList}>
+            {[
+              { icon: '🔖', text: 'Bookmarks & collections' },
+              { icon: '🔥', text: 'Reading streaks & activity' },
+              { icon: '🎯', text: 'Goals synced across devices' },
+            ].map((b) => (
+              <View key={b.text} style={qfStyles.benefitRow}>
+                <View style={qfStyles.benefitIconWrap}>
+                  <Text style={qfStyles.benefitIcon}>{b.icon}</Text>
+                </View>
+                <Text style={qfStyles.benefitText}>{b.text}</Text>
+                <CheckCircle size={18} color={COLORS.success} />
+              </View>
+            ))}
+          </View>
+
+          {/* Actions */}
+          {qfSuccess ? (
+            <View style={qfStyles.successBlock}>
+              <View style={qfStyles.successCircle}>
+                <Check size={32} color={COLORS.success} />
+              </View>
+              <Text style={qfStyles.successTitle}>Connected!</Text>
+              <Text style={qfStyles.successSub}>Your Quran.com account is linked. Opening DeenQuest…</Text>
+            </View>
+          ) : waitingForQF ? (
+            <View style={qfStyles.waitingBlock}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={qfStyles.waitingText}>Waiting for Quran.com…</Text>
+              <Text style={qfStyles.waitingSub}>Complete sign-in in the browser, then return here.</Text>
+              <Pressable onPress={onDone} style={qfStyles.skipLink}>
+                <Text style={qfStyles.skipText}>Skip for now</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={qfStyles.actions}>
+              <Pressable style={qfStyles.connectBtn} onPress={handleQFConnect}>
+                <Text style={qfStyles.connectText}>Connect Quran.com</Text>
+              </Pressable>
+              <Pressable onPress={onDone} style={qfStyles.skipLink}>
+                <Text style={qfStyles.skipText}>Maybe later</Text>
+              </Pressable>
+            </View>
+          )}
+
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -292,4 +405,108 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center',
   },
+});
+
+const qfStyles = StyleSheet.create({
+  page: {
+    flexGrow: 1,
+    padding: 28,
+    paddingTop: 40,
+    gap: 28,
+    alignItems: 'center',
+  },
+
+  logoBanner: {
+    width: '100%',
+    backgroundColor: COLORS.primaryBg,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1.5,
+    borderColor: COLORS.cardBorder,
+    paddingVertical: 24,
+    alignItems: 'center',
+    ...SHADOW.card,
+  },
+  logo: { width: 180, height: 48 },
+
+  headingBlock: { width: '100%', gap: 10, alignItems: 'center' },
+  eyebrow: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  title: {
+    color: COLORS.text,
+    fontSize: 28,
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 36,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    color: COLORS.textSub,
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 23,
+  },
+
+  benefitList: {
+    width: '100%',
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1.5,
+    borderColor: COLORS.cardBorder,
+    overflow: 'hidden',
+    ...SHADOW.card,
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.cardBorder,
+  },
+  benefitIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  benefitIcon: { fontSize: 18 },
+  benefitText: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: '600' },
+
+  actions: { width: '100%', gap: 14, alignItems: 'center' },
+  connectBtn: {
+    width: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.xl,
+    paddingVertical: 18,
+    alignItems: 'center',
+    ...SHADOW.glow(COLORS.primary),
+    ...DEPTH.button,
+  },
+  connectText: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.2 },
+  skipLink: { paddingVertical: 10 },
+  skipText: { color: COLORS.textMuted, fontSize: 15, fontWeight: '600' },
+
+  waitingBlock: { width: '100%', alignItems: 'center', gap: 14 },
+  waitingText: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
+  waitingSub: { color: COLORS.textSub, fontSize: 14, textAlign: 'center', lineHeight: 21 },
+
+  successBlock: { width: '100%', alignItems: 'center', gap: 14 },
+  successCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.successLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successTitle: { color: COLORS.text, fontSize: 22, fontWeight: '800' },
+  successSub: { color: COLORS.textSub, fontSize: 14, textAlign: 'center', lineHeight: 21 },
 });

@@ -71,18 +71,8 @@ function RootNavigator() {
     }
     const key = `${GOAL_SET_KEY}_${user.uid}`;
     AsyncStorage.getItem(key)
-      .then((val) => {
-        if (val === 'true') {
-          setGoalSet(true);
-        } else {
-          // Fallback: if this is the user's very first sign-in ever, they need goal setup
-          // Otherwise treat as goalSet (handles AsyncStorage wipe edge-case)
-          const isFirstSignIn =
-            user.metadata?.creationTime === user.metadata?.lastSignInTime;
-          setGoalSet(!isFirstSignIn);
-        }
-      })
-      .catch(() => setGoalSet(true));
+      .then((val) => setGoalSet(val === 'true'))
+      .catch(() => setGoalSet(false));
   }, [user]);
 
 

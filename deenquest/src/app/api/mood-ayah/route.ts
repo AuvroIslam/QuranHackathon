@@ -64,7 +64,8 @@ const PUBLIC_QURAN_API = "https://api.quran.com/api/v4";
 
 async function fetchVerseFromQF(chapter: number, verse: number, token: string | null) {
   const path = `verses/by_key/${chapter}:${verse}`;
-  const params = "?words=true&translations=131&fields=text_uthmani&word_fields=text_uthmani,transliteration_en";
+  // Translation ID 20 = Saheeh International (confirmed from /resources/translations)
+  const params = "?words=true&translations=20&fields=text_uthmani&word_fields=text_uthmani,transliteration_en";
 
   if (token) {
     try {
@@ -108,7 +109,9 @@ export async function GET(req: NextRequest) {
       .join(" ");
 
     const arabic: string = v.text_uthmani ?? "";
-    const translation: string = v.translations?.[0]?.text ?? "";
+    // Strip HTML tags (QF returns <sup foot_note=...> footnote markers)
+    const rawTranslation: string = v.translations?.[0]?.text ?? "";
+    const translation: string = rawTranslation.replace(/<[^>]*>/g, "").trim();
 
     const question = MCQ_BANK[entry.ref] ?? {
       question: "What is the main message of this ayah?",

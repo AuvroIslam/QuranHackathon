@@ -15,6 +15,7 @@ export default function AppNavigator() {
   return (
     <Tab.Navigator
       initialRouteName="Home"
+      sceneContainerStyle={{ backgroundColor: 'transparent' }}
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,

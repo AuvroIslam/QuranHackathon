@@ -265,9 +265,9 @@ export default function HomePage() {
                 </div>
                 {/* Quran progress pill (complete mode only) */}
                 {!isLearn && profile.quranProgress && (
-                  <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-white/10 border border-white/15">
-                    <BookOpen size={13} className="text-blue-300" />
-                    <span className="text-xs font-bold text-white/80">
+                  <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-400/40">
+                    <BookOpen size={13} className="text-purple-300" />
+                    <span className="text-xs font-bold text-purple-300">
                       Surah {profile.quranProgress.surahNumber}, Ayah {profile.quranProgress.ayahNumber}
                     </span>
                   </div>

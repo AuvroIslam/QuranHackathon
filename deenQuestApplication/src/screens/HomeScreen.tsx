@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AlertTriangle, BookOpen, CheckCircle, Circle, Flame, Moon, X, Zap } from 'lucide-react-native';
+import { AlertTriangle, BookOpen, CheckCircle, ChevronDown, ChevronRight, Circle, Flame, Moon, X, Zap } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { completeTask, getDailySessionCount, getUserProfile, getUserTasksForDate } from '../lib/firestore';
+import { completeTask, getDailySessionCount, getUserProfile, getUserTasksForDate, resetStreak } from '../lib/firestore';
 import { getTodaysTasks, Task } from '../lib/tasks-data';
 import { getStreakStatus } from '../lib/streakUtils';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
@@ -43,6 +43,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   const [sessionsToday, setSessionsToday] = useState(0);
   const [hasInProgress, setHasInProgress] = useState(false);
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [showWeekly, setShowWeekly] = useState(false);
   const today = new Date().toISOString().split('T')[0];
 
   useFocusEffect(
@@ -86,9 +87,17 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
         getUserTasksForDate(uid, today),
       ]);
       if (profile) {
-        setStreak(profile.streak ?? 0);
+        const currentStreak = profile.streak ?? 0;
+        const lastDate = profile.lastSessionDate ?? null;
+        const status = getStreakStatus(lastDate, currentStreak);
+        if (status.status === 'broken' && currentStreak !== 0) {
+          resetStreak(uid).catch(() => {});
+          setStreak(0);
+        } else {
+          setStreak(currentStreak);
+        }
         setXp(profile.xp ?? 0);
-        setLastSessionDate(profile.lastSessionDate ?? null);
+        setLastSessionDate(lastDate);
         setGoal(profile.goal ?? null);
         setQuranProgress(profile.quranProgress ?? null);
       }
@@ -120,15 +129,6 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.brand}>
-            <Image source={require('../../assets/logo.png')} style={styles.logo} />
-            <Text style={styles.brandName}>DeenQuest</Text>
-          </View>
-          <Text style={styles.greeting}>مرحباً، {displayName}</Text>
-        </View>
-
         {/* Streak Week Widget */}
         {(() => {
           const today = new Date();
@@ -154,38 +154,52 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
           return (
             <View style={streakWidgetStyles.card}>
               <View style={streakWidgetStyles.header}>
-                <View style={streakWidgetStyles.flameCircle}>
-                  <Flame size={18} color="#FF6B35" fill="#FF6B35" />
-                </View>
-                <View style={streakWidgetStyles.headerText}>
-                  <Text style={streakWidgetStyles.label}>STREAK</Text>
-                  <Text style={streakWidgetStyles.value}>{streak} <Text style={streakWidgetStyles.unit}>DAYS</Text></Text>
-                </View>
-                <View style={streakWidgetStyles.xpBlock}>
-                  <Text style={streakWidgetStyles.label}>XP</Text>
-                  <View style={streakWidgetStyles.xpRow}>
-                    <Zap size={14} color="#a855f7" fill="#a855f7" />
-                    <Text style={streakWidgetStyles.value}>{xp}</Text>
+                <View style={streakWidgetStyles.col}>
+                  <View style={streakWidgetStyles.flameCircle}>
+                    <Flame size={20} color="#FF6B35" fill="#FF6B35" />
+                  </View>
+                  <View>
+                    <Text style={streakWidgetStyles.label}>STREAK</Text>
+                    <Text style={streakWidgetStyles.value} numberOfLines={1}>{streak} <Text style={streakWidgetStyles.unit}>Days</Text></Text>
+                    <Text style={streakWidgetStyles.tagline}>Keep going!</Text>
                   </View>
                 </View>
-              </View>
-              <View style={streakWidgetStyles.divider} />
-              <View style={streakWidgetStyles.weekRow}>
-                {weekDays.map((day, i) => (
-                  <View key={i} style={streakWidgetStyles.dayCol}>
-                    <View style={[
-                      streakWidgetStyles.dayCircle,
-                      day.completed && streakWidgetStyles.dayCircleDone,
-                      day.missed && streakWidgetStyles.dayCircleMissed,
-                      day.isToday && !day.completed && streakWidgetStyles.dayCircleToday,
-                    ]}>
-                      {day.completed && <CheckCircle size={16} color="#fff" fill="#f97316" />}
-                      {day.missed && <X size={14} color="#f87171" strokeWidth={2.5} />}
-                    </View>
-                    <Text style={streakWidgetStyles.dayLabel}>{day.label.substring(0, 3)}</Text>
+                <View style={streakWidgetStyles.vDivider} />
+                <Pressable style={streakWidgetStyles.col} onPress={() => setShowWeekly(v => !v)}>
+                  <View style={streakWidgetStyles.zapCircle}>
+                    <Zap size={20} color={COLORS.primary} fill={COLORS.primary} />
                   </View>
-                ))}
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={streakWidgetStyles.label} numberOfLines={1}>XP</Text>
+                    <Text style={[streakWidgetStyles.value, { color: COLORS.primaryDark }]} numberOfLines={1}>{xp} <Text style={streakWidgetStyles.unit}>XP</Text></Text>
+                    <Text style={[streakWidgetStyles.tagline, { color: COLORS.primary }]} numberOfLines={1}>Keep growing!</Text>
+                  </View>
+                  {showWeekly
+                    ? <ChevronDown size={18} color={COLORS.textMuted} />
+                    : <ChevronRight size={18} color={COLORS.textMuted} />}
+                </Pressable>
               </View>
+              {showWeekly && (
+                <>
+                  <View style={streakWidgetStyles.divider} />
+                  <View style={streakWidgetStyles.weekRow}>
+                    {weekDays.map((day, i) => (
+                      <View key={i} style={streakWidgetStyles.dayCol}>
+                        <View style={[
+                          streakWidgetStyles.dayCircle,
+                          day.completed && streakWidgetStyles.dayCircleDone,
+                          day.missed && streakWidgetStyles.dayCircleMissed,
+                          day.isToday && !day.completed && streakWidgetStyles.dayCircleToday,
+                        ]}>
+                          {day.completed && <CheckCircle size={16} color="#fff" fill="#f97316" />}
+                          {day.missed && <X size={14} color="#f87171" strokeWidth={2.5} />}
+                        </View>
+                        <Text style={streakWidgetStyles.dayLabel}>{day.label.substring(0, 3)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
             </View>
           );
         })()}
@@ -212,7 +226,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
 
         {/* Start Today's Lesson card */}
         <ImageBackground
-          source={require('../../elementsApp/cardBg1.png')}
+          source={require('../../elementsApp/homecardBGmoon.png')}
           style={styles.lessonCard}
           imageStyle={styles.lessonCardBg}
         >
@@ -270,7 +284,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                     </Text>
                     {goal === 'complete' && quranProgress && (
                       <View style={styles.progressPill}>
-                        <BookOpen size={11} color="#60a5fa" />
+                        <BookOpen size={11} color="#a78bfa" />
                         <Text style={styles.progressPillText}>Surah {quranProgress.surahNumber}, Ayah {quranProgress.ayahNumber}</Text>
                       </View>
                     )}
@@ -435,11 +449,11 @@ function TaskCard({ task, done, completing, onComplete }: {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { paddingBottom: 100 },
+  scroll: { paddingBottom: 100, paddingTop: 12 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4,
+    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,
   },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logo: { width: 30, height: 30, borderRadius: 8 },
@@ -451,8 +465,8 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: '800' },
   statLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '600' },
 
-  lessonCard: { marginHorizontal: 20, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: 24, backgroundColor: COLORS.bgDeep, ...SHADOW.strong },
-  lessonCardBg: { borderRadius: RADIUS.xl, opacity: 1 },
+  lessonCard: { marginHorizontal: 20, marginTop: 12, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: 24, backgroundColor: COLORS.bgDeep, ...SHADOW.strong },
+  lessonCardBg: { borderRadius: RADIUS.xl, opacity: 0.7 },
   lessonCardContent: { padding: 16, gap: 12 },
   lessonBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
@@ -468,11 +482,11 @@ const styles = StyleSheet.create({
   progressPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4,
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(96,165,250,0.12)',
+    backgroundColor: 'rgba(167,139,250,0.15)',
     borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 1, borderColor: 'rgba(96,165,250,0.3)',
+    borderWidth: 1, borderColor: 'rgba(167,139,250,0.4)',
   },
-  progressPillText: { color: '#93c5fd', fontSize: 11, fontWeight: '700' },
+  progressPillText: { color: '#a78bfa', fontSize: 11, fontWeight: '700' },
   lessonBtn: {
     backgroundColor: COLORS.primary, borderRadius: RADIUS.xl,
     paddingVertical: 15, alignItems: 'center',
@@ -532,45 +546,44 @@ const styles = StyleSheet.create({
 
 const streakWidgetStyles = StyleSheet.create({
   card: {
-    marginHorizontal: 16, marginBottom: 4,
+    marginHorizontal: 16, marginBottom: 4, marginTop: 4,
     backgroundColor: COLORS.card,
     borderRadius: RADIUS.xl, borderWidth: 1, borderColor: COLORS.cardBorder,
     borderBottomWidth: 3, borderBottomColor: COLORS.cardBorder,
-    padding: 16, gap: 12,
+    padding: 12, gap: 10,
   },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
+  col: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
   flameCircle: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40, height: 40, borderRadius: 12,
     backgroundColor: '#FFF0EB',
     alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
   },
-  headerText: { flex: 1 },
-  xpBlock: { alignItems: 'flex-end' },
-  xpRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  label: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.8 },
-  value: { fontSize: 22, fontWeight: '800', color: COLORS.text },
-  unit: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
+  zapCircle: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: COLORS.primaryBg,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  vDivider: { width: 1, height: 44, backgroundColor: COLORS.cardBorder, marginHorizontal: 8, flexShrink: 0 },
+  label: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.8 },
+  value: { fontSize: 18, fontWeight: '800', color: COLORS.text, lineHeight: 24 },
+  unit: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
+  tagline: { fontSize: 10, fontWeight: '700', color: '#FF6B35', marginTop: 1 },
   divider: { height: 1, backgroundColor: COLORS.cardBorder },
   weekRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  dayCol: { alignItems: 'center', gap: 5 },
+  dayCol: { alignItems: 'center', gap: 4 },
   dayCircle: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 32, height: 32, borderRadius: 16,
     borderWidth: 2, borderColor: COLORS.cardBorder,
     backgroundColor: COLORS.surfaceDark,
     alignItems: 'center', justifyContent: 'center',
   },
-  dayCircleDone: {
-    backgroundColor: '#f97316',
-    borderColor: '#fb923c',
-  },
-  dayCircleMissed: {
-    backgroundColor: 'rgba(239,68,68,0.12)',
-    borderColor: 'rgba(239,68,68,0.4)',
-  },
-  dayCircleToday: {
-    borderColor: '#a855f7',
-  },
-  dayLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
+  dayCircleDone: { backgroundColor: '#f97316', borderColor: '#fb923c' },
+  dayCircleMissed: { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.4)' },
+  dayCircleToday: { borderColor: '#a855f7' },
+  dayLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted },
 });
 
 const modalStyles = StyleSheet.create({

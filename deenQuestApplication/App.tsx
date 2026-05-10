@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ImageBackground, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -10,6 +10,12 @@ import AuthScreen from './src/screens/AuthScreen';
 import GoalSetupScreen, { GOAL_SET_KEY } from './src/screens/GoalSetupScreen';
 import OnboardingScreen, { ONBOARDING_KEY } from './src/screens/OnboardingScreen';
 import { COLORS } from './src/theme';
+
+const AppBg = require('./elementsApp/AppBg.png');
+const NAV_THEME = {
+  ...DefaultTheme,
+  colors: { ...DefaultTheme.colors, background: 'transparent' },
+};
 
 function RootNavigator() {
   const { user, uid, loading } = useAuth();
@@ -75,7 +81,7 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={NAV_THEME}>
       <AppNavigator />
     </NavigationContainer>
   );
@@ -84,10 +90,12 @@ function RootNavigator() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" backgroundColor={COLORS.bg} />
-      <AuthProvider>
-        <RootNavigator />
-      </AuthProvider>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <ImageBackground source={AppBg} style={{ flex: 1 }} resizeMode="cover">
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
+      </ImageBackground>
     </SafeAreaProvider>
   );
 }
@@ -95,7 +103,7 @@ export default function App() {
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -92,6 +92,10 @@ export async function completeJourney(uid: string, xpEarned: number, isStreakRec
   return { newStreak };
 }
 
+export async function resetStreak(uid: string) {
+  await updateDoc(doc(db, 'users', uid), { streak: 0 });
+}
+
 export async function saveUserGoal(
   uid: string,
   goal: UserGoal,

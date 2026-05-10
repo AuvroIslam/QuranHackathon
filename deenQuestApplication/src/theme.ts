@@ -1,6 +1,6 @@
 export const COLORS = {
   // Backgrounds
-  bg: '#F0EBFF',
+  bg: 'transparent',
   bgDeep: '#E4DBFF',
 
   // Cards & surfaces

@@ -37,8 +37,8 @@ export default function AppNavigator() {
       >
         {({ navigation }) => (
           <HomeScreen
-            onStartLesson={() => navigation.navigate('Journey', { ayahOnly: false })}
-            onGetAyah={() => navigation.navigate('Journey', { ayahOnly: true })}
+            onStartLesson={(resume) => navigation.navigate('Journey', { ayahOnly: false, resume })}
+            onGetAyah={() => navigation.navigate('Journey', { ayahOnly: true, resume: false })}
           />
         )}
       </Tab.Screen>
@@ -95,8 +95,7 @@ export default function AppNavigator() {
 const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: COLORS.card,
-    borderTopColor: COLORS.cardBorder,
-    borderTopWidth: 1,
+    borderTopWidth: 0,
     height: Platform.OS === 'ios' ? 84 : 64,
     paddingTop: 6,
     paddingBottom: Platform.OS === 'ios' ? 24 : 8,

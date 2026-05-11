@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AlertTriangle, BookOpen, CheckCircle, ChevronDown, ChevronRight, ChevronUp, Circle, Flame, Moon, X, Zap } from 'lucide-react-native';
+import { AlertTriangle, BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Flame, Moon, X, Zap } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -24,7 +24,7 @@ import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
 const SESSION_KEY_PREFIX = '@deenquest_daily_sessions';
 
 interface Props {
-  onStartLesson: () => void;
+  onStartLesson: (resume: boolean) => void;
   onGetAyah: () => void;
 }
 
@@ -142,6 +142,11 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Greeting Header */}
+        <View style={styles.greetingHeader}>
+          <Text style={styles.greetingSub}>Assalamu Alaikum</Text>
+          <Text style={styles.greetingName}>{displayName} ✦</Text>
+        </View>
         {/* Streak Week Widget */}
         {(() => {
           const today = new Date();
@@ -178,7 +183,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                   </View>
                 </View>
                 <View style={streakWidgetStyles.vDivider} />
-                <Pressable style={streakWidgetStyles.col} onPress={() => setShowWeekly(v => !v)}>
+                <View style={streakWidgetStyles.col}>
                   <View style={streakWidgetStyles.zapCircle}>
                     <Zap size={20} color={COLORS.primary} fill={COLORS.primary} />
                   </View>
@@ -187,6 +192,8 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                     <Text style={[streakWidgetStyles.value, { color: COLORS.primaryDark }]} numberOfLines={1}>{xp} <Text style={streakWidgetStyles.unit}>XP</Text></Text>
                     <Text style={[streakWidgetStyles.tagline, { color: COLORS.primary }]} numberOfLines={1}>Keep growing!</Text>
                   </View>
+                </View>
+                <Pressable onPress={() => setShowWeekly(v => !v)} style={streakWidgetStyles.chevronBtn}>
                   {showWeekly
                     ? <ChevronDown size={18} color={COLORS.textMuted} />
                     : <ChevronRight size={18} color={COLORS.textMuted} />}
@@ -204,7 +211,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                           day.missed && streakWidgetStyles.dayCircleMissed,
                           day.isToday && !day.completed && streakWidgetStyles.dayCircleToday,
                         ]}>
-                          {day.completed && <CheckCircle size={16} color="#fff" fill="#f97316" />}
+                          {day.completed && <CircleCheck size={16} color="#fff" fill="#f97316" />}
                           {day.missed && <X size={14} color="#f87171" strokeWidth={2.5} />}
                         </View>
                         <Text style={streakWidgetStyles.dayLabel}>{day.label.substring(0, 3)}</Text>
@@ -310,7 +317,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                     if (streakStatus.status === 'recovery') {
                       setShowRecoveryModal(true);
                     } else {
-                      onStartLesson();
+                      onStartLesson(hasInProgress);
                     }
                   }}
                   style={[styles.lessonBtn, DEPTH.button, lessonPressed && DEPTH.buttonPressed]}
@@ -397,7 +404,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
 
             <Pressable
               style={modalStyles.ghostBtn}
-              onPress={() => { setShowRecoveryModal(false); onStartLesson(); }}
+              onPress={() => { setShowRecoveryModal(false); onStartLesson(false); }}
             >
               <Text style={modalStyles.ghostBtnText}>Proceed anyway</Text>
             </Pressable>
@@ -428,8 +435,8 @@ function TaskCard({ task, done, completing, onComplete }: {
           {completing
             ? <ActivityIndicator size="small" color={COLORS.primary} />
             : done
-              ? <CheckCircle size={26} color={COLORS.primary} fill={COLORS.primaryBg} />
-              : <Circle size={26} color={COLORS.cardBorder} />}
+              ? <View style={styles.checkboxDone}><Check size={14} color="#fff" strokeWidth={3} /></View>
+              : <View style={styles.checkboxEmpty} />}
         </Pressable>
 
         <Pressable style={styles.taskBody} onPress={() => setExpanded(v => !v)}>
@@ -470,6 +477,10 @@ function TaskCard({ task, done, completing, onComplete }: {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { paddingBottom: 100, paddingTop: 12 },
+
+  greetingHeader: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
+  greetingSub: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
+  greetingName: { fontSize: 24, color: COLORS.text, fontWeight: '800' },
 
 
   lessonCard: { marginHorizontal: 20, marginTop: 12, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: 24, backgroundColor: COLORS.bgDeep, ...SHADOW.strong },
@@ -514,6 +525,15 @@ const styles = StyleSheet.create({
   taskCardDone: { backgroundColor: COLORS.primaryBg, borderColor: `${COLORS.primary}44` },
   taskRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   taskCheck: { padding: 2 },
+  checkboxDone: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: '#059669',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  checkboxEmpty: {
+    width: 26, height: 26, borderRadius: 13,
+    borderWidth: 2, borderColor: COLORS.cardBorder,
+  },
   taskBody: { flex: 1, gap: 4 },
   taskTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
   taskTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700', flex: 1 },
@@ -585,6 +605,7 @@ const streakWidgetStyles = StyleSheet.create({
     flexShrink: 0,
   },
   vDivider: { width: 1, height: 44, backgroundColor: COLORS.cardBorder, marginHorizontal: 8, flexShrink: 0 },
+  chevronBtn: { padding: 4, marginLeft: 4 },
   label: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.8 },
   value: { fontSize: 18, fontWeight: '800', color: COLORS.text, lineHeight: 24 },
   unit: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },

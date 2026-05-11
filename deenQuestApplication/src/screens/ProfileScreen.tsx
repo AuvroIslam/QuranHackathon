@@ -1,4 +1,4 @@
-import { Award, Bookmark, BookmarkCheck, BookOpen, ExternalLink, Flame, Star, Target, Zap } from 'lucide-react-native';
+import { Bookmark, BookmarkCheck, BookOpen, BadgeCheck, Crown, GraduationCap, LogOut, Shield, Star, Target, Trophy, TrendingUp } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   ActivityIndicator, Alert, Image, ImageBackground, Linking, Pressable, ScrollView,
@@ -32,13 +32,15 @@ function getLevel(xp: number) {
   return { level: 6, title: 'Scholar', next: Infinity };
 }
 
+const QFLogo = require('../../elementsApp/quran.comLogo.png');
+
 const BADGES = [
-  { id: 'first_lesson', label: 'First Lesson', icon: BookOpen, color: '#7C3AED', xpRequired: 10 },
-  { id: 'streak_3', label: '3-Day Streak', icon: Flame, color: '#FF6B35', streakRequired: 3 },
-  { id: 'xp_100', label: '100 XP', icon: Zap, color: '#F59E0B', xpRequired: 100 },
-  { id: 'tasks_5', label: '5 Tasks Done', icon: Target, color: '#059669', tasksRequired: 5 },
-  { id: 'streak_7', label: 'Week Warrior', icon: Flame, color: '#DC2626', streakRequired: 7 },
-  { id: 'xp_500', label: '500 XP', icon: Star, color: '#6D28D9', xpRequired: 500 },
+  { id: 'first_lesson', label: 'First Lesson', icon: GraduationCap, color: '#7C3AED', xpRequired: 10 },
+  { id: 'streak_3', label: '3-Day Streak', icon: TrendingUp, color: '#FF6B35', streakRequired: 3 },
+  { id: 'xp_100', label: '100 XP', icon: Trophy, color: '#F59E0B', xpRequired: 100 },
+  { id: 'tasks_5', label: '5 Tasks Done', icon: BadgeCheck, color: '#059669', tasksRequired: 5 },
+  { id: 'streak_7', label: 'Week Warrior', icon: Shield, color: '#DC2626', streakRequired: 7 },
+  { id: 'xp_500', label: '500 XP', icon: Crown, color: '#6D28D9', xpRequired: 500 },
 ];
 
 export default function ProfileScreen() {
@@ -157,18 +159,14 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.xpLabel}>{xp.toLocaleString()} / {next === Infinity ? '∞' : next.toLocaleString()} XP</Text>
               </View>
-              {/* Star badge */}
-              <View style={styles.starBadge}>
-                <Star size={28} color={COLORS.primaryLight} fill={`${COLORS.primaryLight}30`} />
-              </View>
             </View>
 
             {/* ── 4-stat row ── */}
             <View style={styles.statsRow}>
-              <StatChip icon={<Flame size={20} color="#FF5F57" fill="#FF5F57" />} value={streak} label="Day Streak" bg="#FFF0EE" />
-              <StatChip icon={<Zap size={20} color={COLORS.primary} fill={COLORS.primary} />} value={xp} label="Total XP" bg={COLORS.primaryBg} />
-              <StatChip icon={<Target size={20} color="#10B981" />} value={tasksCompleted} label="Tasks Done" bg="#ECFDF5" />
-              <StatChip icon={<Award size={20} color="#3B82F6" />} value={earnedBadges.length} label="Badges" bg="#EFF6FF" />
+              <StatChip value={streak} label="Streak" accent="#FF6B35" />
+              <StatChip value={xp} label="XP" accent={COLORS.primary} />
+              <StatChip value={tasksCompleted} label="Tasks" accent="#10B981" />
+              <StatChip value={earnedBadges.length} label="Badges" accent="#6366F1" />
             </View>
 
             {/* ── Daily Plan card ── */}
@@ -208,22 +206,23 @@ export default function ProfileScreen() {
             <View style={styles.sectionWrap}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Your Badges</Text>
-                <Text style={styles.badgeCount}>{earnedBadges.length}/{BADGES.length} earned</Text>
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesScroll}>
+              <View style={styles.badgesGrid}>
                 {BADGES.map((b) => {
                   const earned = earnedBadges.some((e) => e.id === b.id);
                   const Icon = b.icon;
                   return (
-                    <View key={b.id} style={[styles.badgeCard, !earned && styles.badgeCardLocked]}>
-                      <View style={[styles.badgeIconWrap, { backgroundColor: earned ? `${b.color}20` : '#F3F0FF' }]}>
-                        <Icon size={24} color={earned ? b.color : COLORS.textMuted} />
+                    <View key={b.id} style={styles.badgeCell}>
+                      <View style={[styles.badgeCard, !earned && styles.badgeCardLocked]}>
+                        <View style={[styles.badgeIconWrap, { backgroundColor: earned ? `${b.color}20` : '#F3F0FF' }]}>
+                          <Icon size={24} color={earned ? b.color : COLORS.textMuted} />
+                        </View>
+                        <Text style={[styles.badgeLabel, !earned && styles.badgeLabelLocked]}>{b.label}</Text>
                       </View>
-                      <Text style={[styles.badgeLabel, !earned && styles.badgeLabelLocked]}>{b.label}</Text>
                     </View>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
 
             {/* ── Bookmarks ── */}
@@ -231,17 +230,15 @@ export default function ProfileScreen() {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Bookmarks</Text>
                 {bookmarks.length > 5 && (
-                  <Pressable hitSlop={8} onPress={() => setShowAllBookmarks((v) => !v)}>
-                    <Text style={styles.viewAll}>
-                      {showAllBookmarks ? 'Show less ‹' : `View all ${bookmarks.length}  ›`}
-                    </Text>
+                  <Pressable hitSlop={8} onPress={() => setShowAllBookmarks(v => !v)}>
+                    <Text style={styles.viewAll}>{showAllBookmarks ? 'Show less' : 'View all  ›'}</Text>
                   </Pressable>
                 )}
               </View>
               {bookmarks.length === 0 ? (
                 <Text style={styles.bmEmpty}>No bookmarks yet — save an ayah while reading.</Text>
               ) : (
-                (showAllBookmarks ? bookmarks : bookmarks.slice(0, 5)).map((bm) => {
+                (showAllBookmarks ? bookmarks : bookmarks.slice(0, 5)).map((bm, idx) => {
                   const open = expandedBm === bm.id;
                   return (
                     <Pressable key={bm.id} onPress={() => setExpandedBm(open ? null : bm.id)} style={styles.bmRow}>
@@ -250,7 +247,7 @@ export default function ProfileScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.bmTitle}>{bm.surahName || bm.verseKey}</Text>
-                        <Text style={styles.bmSub}>Quran {bm.verseKey}</Text>
+                        <Text style={styles.bmSub}>Page {idx + 1}</Text>
                         {open && <Text style={styles.bmTranslation} numberOfLines={3}>"{bm.translation}"</Text>}
                       </View>
                       {open
@@ -266,7 +263,7 @@ export default function ProfileScreen() {
             <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
               {qfConnected ? (
                 <View style={styles.qfConnectedBadge}>
-                  <ExternalLink size={16} color={COLORS.success} />
+                  <Image source={QFLogo} style={styles.qfLogo} />
                   <Text style={styles.qfConnectedText}>Quran.com Connected</Text>
                 </View>
               ) : (
@@ -278,7 +275,7 @@ export default function ProfileScreen() {
                     Linking.openURL(url).catch(() => {});
                   }}
                 >
-                  <ExternalLink size={18} color={COLORS.white} />
+                  <Image source={QFLogo} style={styles.qfLogo} />
                   <Text style={styles.qfConnectText}>Connect Quran.com</Text>
                 </Pressable>
               )}
@@ -286,7 +283,11 @@ export default function ProfileScreen() {
 
             {/* ── Sign Out ── */}
             <View style={{ paddingHorizontal: 16, marginBottom: 32 }}>
-              <Pressable onPress={handleSignOut} style={styles.signOutBtn}>
+              <Pressable
+                onPress={handleSignOut}
+                style={({ pressed }) => [styles.signOutBtn, pressed && styles.signOutBtnPressed]}
+              >
+                <LogOut size={18} color={COLORS.primary} />
                 <Text style={styles.signOutText}>Sign Out</Text>
               </Pressable>
             </View>
@@ -298,10 +299,10 @@ export default function ProfileScreen() {
   );
 }
 
-function StatChip({ icon, value, label, bg }: { icon: React.ReactNode; value: number; label: string; bg: string }) {
+function StatChip({ value, label, accent }: { value: number; label: string; accent: string }) {
   return (
-    <View style={[styles.statChip, { backgroundColor: bg }]}>
-      {icon}
+    <View style={styles.statChip}>
+      <View style={[styles.statAccentBar, { backgroundColor: accent }]} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -309,8 +310,8 @@ function StatChip({ icon, value, label, bg }: { icon: React.ReactNode; value: nu
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F0EAFF' },
-  scroll: { paddingBottom: 100, backgroundColor: '#F0EAFF' },
+  safe: { flex: 1, backgroundColor: 'transparent' },
+  scroll: { paddingBottom: 100, backgroundColor: 'transparent' },
 
   header: {
     flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
@@ -330,6 +331,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, marginBottom: 16,
     backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
     padding: 16,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
     shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08, shadowRadius: 16, elevation: 6,
   },
@@ -359,13 +361,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, marginBottom: 16,
   },
   statChip: {
-    flex: 1, alignItems: 'center', gap: 3,
-    borderRadius: RADIUS.lg, paddingVertical: 12,
+    flex: 1, alignItems: 'center', gap: 4,
+    borderRadius: RADIUS.lg, paddingVertical: 14,
+    backgroundColor: COLORS.white,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
+    overflow: 'hidden',
     shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
   },
-  statValue: { color: '#1E1B4B', fontSize: 18, fontWeight: '800', marginTop: 2 },
-  statLabel: { color: '#9D99CC', fontSize: 10, fontWeight: '600', textAlign: 'center' },
+  statAccentBar: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+  },
+  statValue: { color: '#1E1B4B', fontSize: 20, fontWeight: '800', marginTop: 6 },
+  statLabel: { color: '#9D99CC', fontSize: 10, fontWeight: '600', textAlign: 'center', letterSpacing: 0.8 },
 
   /* Daily plan */
   planSection: { paddingHorizontal: 16, marginBottom: 24 },
@@ -403,14 +411,15 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { color: '#1E1B4B', fontSize: 17, fontWeight: '800' },
   viewAll: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
-  badgeCount: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
 
-  /* Badges */
-  badgesScroll: { gap: 10, paddingRight: 4 },
+  /* Badges grid */
+  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  badgeCell: { width: '30%', flexGrow: 1 },
   badgeCard: {
-    alignItems: 'center', gap: 8, width: 80,
+    alignItems: 'center', gap: 8,
     backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
     paddingVertical: 14, paddingHorizontal: 8,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
     shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
@@ -425,6 +434,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
     padding: 14, marginBottom: 8,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
     shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
   },
@@ -440,22 +450,28 @@ const styles = StyleSheet.create({
   qfConnectBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     backgroundColor: COLORS.primary, borderRadius: RADIUS.xl, paddingVertical: 16,
+    borderWidth: 1.5, borderColor: `${COLORS.primaryLight}66`,
     ...SHADOW.glow(COLORS.primary), ...DEPTH.button,
   },
   qfConnectText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
   qfConnectedBadge: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: `${COLORS.success}18`, borderRadius: RADIUS.xl, paddingVertical: 14,
-    borderWidth: 1.5, borderColor: `${COLORS.success}44`,
+    backgroundColor: COLORS.primaryBg, borderRadius: RADIUS.xl, paddingVertical: 14,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
   },
-  qfConnectedText: { color: COLORS.success, fontSize: 15, fontWeight: '700' },
+  qfConnectedText: { color: COLORS.primary, fontSize: 15, fontWeight: '700' },
+  qfLogo: { width: 22, height: 22, resizeMode: 'contain' },
 
   /* Sign out */
   signOutBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderRadius: RADIUS.xl, paddingVertical: 16,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: '#DC262644',
-    backgroundColor: '#FFF5F5',
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
+    backgroundColor: COLORS.primaryBg,
+    ...DEPTH.button,
   },
-  signOutText: { color: '#DC2626', fontSize: 16, fontWeight: '700' },
+  signOutBtnPressed: {
+    ...DEPTH.buttonPressed,
+  },
+  signOutText: { color: COLORS.primary, fontSize: 16, fontWeight: '700' },
 });

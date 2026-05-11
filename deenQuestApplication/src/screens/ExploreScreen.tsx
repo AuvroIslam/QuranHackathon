@@ -1,4 +1,4 @@
-import { BookOpen, MessageCircle, Send, Sparkles } from 'lucide-react-native';
+import { BotMessageSquare, Moon, UsersRound } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,9 +8,9 @@ import DawahTab from './explore/DawahTab';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 
 const TABS = [
-  { id: 'dawah', label: 'Dawah', icon: Send },
-  { id: 'community', label: 'Community', icon: MessageCircle },
-  { id: 'askai', label: 'Ask AI', icon: Sparkles },
+  { id: 'dawah', label: 'Dawah', icon: Moon },
+  { id: 'community', label: 'Community', icon: UsersRound },
+  { id: 'askai', label: 'Ask AI', icon: BotMessageSquare },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -19,7 +19,7 @@ export default function ExploreScreen() {
   const [active, setActive] = useState<TabId>('dawah');
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Tab bar */}
       <View style={styles.tabBar}>
         {TABS.map(({ id, label, icon: Icon }) => {

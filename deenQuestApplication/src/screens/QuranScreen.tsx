@@ -208,7 +208,7 @@ export default function QuranScreen() {
 
   if (selectedChapter) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.surahHeader}>
           <Pressable
             onPress={() => { stopAudio(); setSelectedChapter(null); }}
@@ -228,9 +228,9 @@ export default function QuranScreen() {
             {loadingKey ? (
               <ActivityIndicator size="small" color={COLORS.primary} />
             ) : isPlaying ? (
-              <Pause size={17} color={COLORS.white} fill={COLORS.white} />
+              <Pause size={17} color={COLORS.white} strokeWidth={1.75} />
             ) : (
-              <Play size={17} color={isPlaying ? COLORS.white : COLORS.primary} fill={isPlaying ? COLORS.white : COLORS.primary} />
+              <Play size={17} color={isPlaying ? COLORS.white : COLORS.primary} strokeWidth={1.75} />
             )}
           </Pressable>
         </View>
@@ -286,7 +286,7 @@ export default function QuranScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Quran</Text>
         <Text style={styles.sub}>114 Surahs</Text>
@@ -347,9 +347,9 @@ function AyahCard({ ayah, isSelected, isPlaying, isLoading, isBookmarked, onPlay
           {isLoading ? (
             <ActivityIndicator size="small" color={COLORS.primary} />
           ) : isPlaying ? (
-            <Pause size={15} color={COLORS.white} fill={COLORS.white} />
+            <Pause size={20} color={COLORS.white} strokeWidth={1.75} />
           ) : (
-            <Play size={15} color={isSelected ? COLORS.primary : COLORS.primary} fill={isSelected ? COLORS.primary : COLORS.primary} />
+            <Play size={20} color={isSelected ? COLORS.primary : COLORS.primary} strokeWidth={1.75} />
           )}
         </Pressable>
         <View style={[styles.ayahNumBadge, isSelected && styles.ayahNumBadgeActive]}>
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
   surahName: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
   surahMeaning: { color: COLORS.textSub, fontSize: 12, marginTop: 1 },
   surahRight: { alignItems: 'flex-end', gap: 2 },
-  surahAr: { color: COLORS.primary, fontSize: 16, fontWeight: '700' },
+  surahAr: { color: COLORS.textSub, fontSize: 18, fontWeight: '700', textAlign: 'right' },
   surahCount: { color: COLORS.textMuted, fontSize: 11 },
 
   surahHeader: {

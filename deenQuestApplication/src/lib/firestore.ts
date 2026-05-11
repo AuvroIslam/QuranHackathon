@@ -250,9 +250,10 @@ export async function toggleBookmark(
     added = true;
   }
 
-  // Sync to Quran.com if user is connected — fire and forget
+  // Sync to Quran.com if user is connected and token is valid — fire and forget
   getQFTokens(uid).then((tokens) => {
     if (!tokens?.accessToken) return;
+    if (tokens.expiresAt && tokens.expiresAt < Date.now()) return; // token expired, skip sync
     syncBookmarkToQF(tokens.accessToken, data.verseKey, added ? 'add' : 'remove');
   }).catch(() => {});
 

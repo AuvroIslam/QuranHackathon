@@ -141,6 +141,22 @@ export function useJourney(goal?: UserGoal | null, uid?: string | null) {
     dispatch({ type: 'RESTART' });
   }, []);
 
+  const loadFull = useCallback(async () => {
+    const raw = await AsyncStorage.getItem(storageKey).catch(() => null);
+    if (!raw) { dispatch({ type: 'RESTART' }); return; }
+    try {
+      const saved: JourneyState = JSON.parse(raw);
+      const inProgress = saved.step && saved.step !== 'mood' && saved.step !== 'completion';
+      if (inProgress) {
+        dispatch({ type: 'LOAD', state: saved });
+      } else {
+        dispatch({ type: 'RESTART' });
+      }
+    } catch {
+      dispatch({ type: 'RESTART' });
+    }
+  }, [storageKey]);
+
   const stepIndex = stepOrder.indexOf(state.step);
   const totalSteps = stepOrder.length;
 
@@ -155,5 +171,6 @@ export function useJourney(goal?: UserGoal | null, uid?: string | null) {
     setAnswer,
     complete,
     restart,
+    loadFull,
   };
 }

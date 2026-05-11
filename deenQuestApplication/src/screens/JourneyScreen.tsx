@@ -115,13 +115,18 @@ export default function JourneyScreen() {
     setAnswer,
     complete,
     restart,
+    loadFull,
   } = useJourney(profileLoaded ? userGoal : null, uid);
 
-  // Restart journey fresh every time this screen gains focus
+  // Resume saved state if requested, otherwise restart fresh
   useFocusEffect(
     useCallback(() => {
-      restart();
-    }, [restart])
+      if (route.params?.resume) {
+        loadFull();
+      } else {
+        restart();
+      }
+    }, [route.params?.resume, restart, loadFull])
   );
 
   const slideAnim = useRef(new Animated.Value(0)).current;

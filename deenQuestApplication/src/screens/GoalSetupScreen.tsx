@@ -286,7 +286,6 @@ function GoalCard({ icon, title, description, onPress }: { icon: React.ReactNode
         <Text style={styles.cardTitle}>{title}</Text>
         <Text style={styles.cardDesc}>{description}</Text>
       </View>
-      <Text style={styles.arrow}>→</Text>
     </Pressable>
   );
 }
@@ -382,7 +381,7 @@ const styles = StyleSheet.create({
   cardTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
   cardDesc: { color: COLORS.textSub, fontSize: 12, lineHeight: 17 },
   cardDetail: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
-  arrow: { color: COLORS.primary, fontSize: 20, fontWeight: '700' },
+
   levelIcon: { width: 58, height: 58, resizeMode: 'cover', borderRadius: 16, overflow: 'hidden' },
   emoji: { fontSize: 24 },
 

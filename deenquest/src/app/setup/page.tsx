@@ -225,16 +225,9 @@ export default function SetupPage() {
               </div>
               <button
                 onClick={handleQFConnect}
-                className="w-full rounded-2xl p-4 flex items-center gap-4 text-left transition-all group border border-secondary/40 bg-linear-to-r from-secondary/20 to-secondary-dark/20 hover:from-secondary/30 hover:to-secondary-dark/30"
+                className="w-full rounded-2xl py-4 px-6 flex items-center justify-center transition-all border border-secondary/60 bg-linear-to-r from-secondary/60 to-secondary-dark/60 hover:from-secondary/80 hover:to-secondary-dark/80"
               >
-                <div className="w-14 h-14 rounded-2xl bg-secondary/25 flex items-center justify-center shrink-0 group-hover:bg-secondary/35 transition-colors overflow-hidden">
-                  <Image src="/quran.comLogo.png" alt="Quran.com" width={40} height={40} className="object-contain" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-white text-sm">Connect Quran.com</p>
-                  <p className="text-xs text-white/55 mt-0.5">You&apos;ll be redirected to authorise DeenQuest</p>
-                </div>
-                <span className="text-secondary text-lg font-bold shrink-0">→</span>
+                <span className="font-bold text-white text-sm tracking-wide">Connect to Quran.com</span>
               </button>
               <button
                 onClick={() => router.push("/")}
@@ -273,7 +266,6 @@ function GoalCard({
         <p className="font-bold text-white text-sm">{title}</p>
         <p className="text-xs text-white/55 mt-0.5 leading-relaxed">{description}</p>
       </div>
-      <span className="text-accent text-lg font-bold shrink-0">→</span>
     </button>
   );
 }
@@ -304,7 +296,6 @@ function LevelCard({
         <p className="text-xs text-white/55 mt-0.5">{desc}</p>
         <p className="text-xs text-white/35 mt-0.5">{detail}</p>
       </div>
-      <span className="text-accent text-lg font-bold shrink-0">→</span>
     </button>
   );
 }

@@ -104,16 +104,11 @@ export function useJourney(goal?: UserGoal | null, uid?: string | null) {
       if (!raw) return;
       try {
         const saved: JourneyState = JSON.parse(raw);
-        if (saved.step === 'completion') {
-          dispatch({
-            type: 'LOAD',
-            state: { ...INITIAL_STATE, streak: saved.streak, lastCompletedDate: saved.lastCompletedDate },
-          });
-        } else {
-          // Validate that the saved step exists in current step order
-          const validStep = stepOrder.includes(saved.step) ? saved.step : 'mood';
-          dispatch({ type: 'LOAD', state: { ...saved, step: validStep } });
-        }
+        // Only restore persistent data (streak, last date) — always start fresh from mood
+        dispatch({
+          type: 'LOAD',
+          state: { ...INITIAL_STATE, streak: saved.streak, lastCompletedDate: saved.lastCompletedDate },
+        });
       } catch {}
     });
   }, [uid]);

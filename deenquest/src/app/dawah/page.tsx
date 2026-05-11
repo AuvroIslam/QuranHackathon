@@ -1,12 +1,28 @@
 "use client";
 
 import { useAuth } from "@/components/AuthProvider";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import PageContainer from "../../components/PageContainer";
 import AyahCard from "@/components/AyahCard";
 import { searchAyahs } from "@/lib/quran";
 import { Loader2 } from "lucide-react";
+import { toggleBookmark, getBookmarks } from "@/lib/firestore";
+import { getQFAccessToken } from "@/lib/qf-user-auth";
+
+function syncQFBookmark(verseKey: string, nowBookmarked: boolean) {
+  const token = getQFAccessToken();
+  if (!token) return;
+  const [chapterStr, verseStr] = verseKey.split(":");
+  const chapterNumber = parseInt(chapterStr, 10);
+  const verseNumber = parseInt(verseStr, 10);
+  if (!chapterNumber || !verseNumber) return;
+  fetch("/api/qf/bookmark", {
+    method: nowBookmarked ? "POST" : "DELETE",
+    headers: { "x-qf-token": token, "Content-Type": "application/json" },
+    body: JSON.stringify({ chapterNumber, verseNumber }),
+  }).catch(() => {});
+}
 
 const TOPICS = [
   "Patience",
@@ -104,10 +120,36 @@ export default function DawahPage() {
   const [quranView, setQuranView] = useState(saved?.quranView ?? "");
   const [scriptures, setScriptures] = useState<ScriptureEntry[]>(saved?.scriptures ?? []);
   const [ummahReasoning, setUmmahReasoning] = useState(saved?.ummahReasoning ?? "");
+  const [bookmarkedKeys, setBookmarkedKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
   }, [loading, user, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    getBookmarks(user.uid).then((bms) => {
+      setBookmarkedKeys(new Set(bms.map((b: any) => b.verseKey as string)));
+    }).catch(() => {});
+  }, [user]);
+
+  const handleBookmark = useCallback(async (ayah: any) => {
+    if (!user) return;
+    const result = await toggleBookmark(user.uid, {
+      verseKey: ayah.verseKey,
+      surahNumber: ayah.surah?.number ?? parseInt(ayah.verseKey?.split(":")[0], 10),
+      ayahNumber: ayah.numberInSurah,
+      arabic: ayah.text,
+      translation: ayah.translation,
+    });
+    setBookmarkedKeys((prev) => {
+      const next = new Set(prev);
+      if (result) next.add(ayah.verseKey);
+      else next.delete(ayah.verseKey);
+      return next;
+    });
+    syncQFBookmark(ayah.verseKey, result);
+  }, [user]);
 
   useEffect(() => {
     if (!selectedTopic) return;
@@ -266,6 +308,8 @@ export default function DawahPage() {
                   numberInSurah={ayah.numberInSurah}
                   verseKey={ayah.verseKey}
                   showAudio={false}
+                  bookmarked={bookmarkedKeys.has(ayah.verseKey)}
+                  onBookmark={() => handleBookmark(ayah)}
                 />
               ))}
             </div>

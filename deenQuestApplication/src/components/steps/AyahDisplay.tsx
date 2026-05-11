@@ -1,6 +1,6 @@
 import { BookOpen, Lightbulb, Bookmark, BookmarkCheck } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { toggleBookmark, isBookmarked } from '../../lib/firestore';
 import { Ayah } from '../../types';
@@ -13,6 +13,7 @@ interface Props {
 
 export default function AyahDisplay({ ayah, uid, surahName }: Props) {
   const [bookmarked, setBookmarked] = useState(false);
+  const [bmLoading, setBmLoading] = useState(false);
 
   useEffect(() => {
     if (!uid) return;
@@ -20,7 +21,8 @@ export default function AyahDisplay({ ayah, uid, surahName }: Props) {
   }, [uid, ayah.reference]);
 
   async function handleBookmark() {
-    if (!uid) return;
+    if (!uid || bmLoading) return;
+    setBmLoading(true);
     try {
       const result = await toggleBookmark(uid, {
         verseKey: ayah.reference,
@@ -29,7 +31,9 @@ export default function AyahDisplay({ ayah, uid, surahName }: Props) {
         translation: ayah.translation,
       });
       setBookmarked(result);
-    } catch {}
+    } catch {} finally {
+      setBmLoading(false);
+    }
   }
 
   return (
@@ -44,22 +48,24 @@ export default function AyahDisplay({ ayah, uid, surahName }: Props) {
           </View>
           <Text style={styles.ref}>Quran {ayah.reference}</Text>
         </View>
-        <View style={styles.topRight}>
-          {uid && (
-            <Pressable onPress={handleBookmark} style={[styles.bmBtn, bookmarked && styles.bmBtnActive]}>
-              {bookmarked
-                ? <BookmarkCheck size={16} color={COLORS.primary} />
-                : <Bookmark size={16} color={COLORS.textMuted} />}
-            </Pressable>
-          )}
-          <Image source={require('../../../elementsApp/reading-removebg-preview.png')} style={styles.character} />
-        </View>
+        <Image source={require('../../../elementsApp/reading-removebg-preview.png')} style={styles.character} />
       </View>
 
       {/* Arabic card */}
       <View style={styles.arabicCard}>
         <View style={styles.cardBar} />
-        <Text style={styles.arabic}>{ayah.arabic}</Text>
+        <View style={styles.arabicRow}>
+          {uid && (
+            <Pressable onPress={handleBookmark} style={[styles.bmBtn, bookmarked && styles.bmBtnActive]} disabled={bmLoading}>
+              {bmLoading
+                ? <ActivityIndicator size={14} color={COLORS.primary} />
+                : bookmarked
+                  ? <BookmarkCheck size={16} color={COLORS.primary} />
+                  : <Bookmark size={16} color={COLORS.textMuted} />}
+            </Pressable>
+          )}
+          <Text style={styles.arabic}>{ayah.arabic}</Text>
+        </View>
         {ayah.transliteration && (
           <Text style={styles.transliteration}>{ayah.transliteration}</Text>
         )}
@@ -89,15 +95,11 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 16, gap: 14, paddingBottom: 8 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   labelBlock: { gap: 6 },
-  topRight: { alignItems: 'center', gap: 6 },
   bmBtn: {
-    padding: 8,
-    borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
+    alignSelf: 'flex-start',
+    padding: 6,
   },
-  bmBtnActive: { backgroundColor: COLORS.primaryBg, borderColor: COLORS.primary },
+  bmBtnActive: {},
   refBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -120,9 +122,18 @@ const styles = StyleSheet.create({
     ...SHADOW.card,
   },
   cardBar: { height: 5, backgroundColor: COLORS.primary },
+  arabicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingTop: 16,
+    paddingBottom: 4,
+    gap: 8,
+  },
   arabic: {
+    flex: 1,
     color: COLORS.text, fontSize: 30, textAlign: 'right',
-    lineHeight: 54, padding: 20, paddingBottom: 4, writingDirection: 'rtl',
+    lineHeight: 54, writingDirection: 'rtl',
   },
   transliteration: {
     color: COLORS.textMuted, fontSize: 12, textAlign: 'center',

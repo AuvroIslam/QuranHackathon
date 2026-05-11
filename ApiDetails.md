@@ -213,3 +213,18 @@ QF uses **parent scopes only** — requesting child scopes (e.g. `bookmark.read`
 | `NEXT_PUBLIC_QF_OAUTH_BASE_URL` | `https://oauth2.quran.foundation` |
 | `QF_AUTH_BASE_URL` | `https://auth.quran.foundation` |
 | `QF_USER_API_BASE_URL` | **delete this var** (routes default to production) |
+| `FIREBASE_SERVICE_ACCOUNT_BASE64` | base64-encoded service account JSON (for Admin SDK — server-side token persistence) |
+
+### Generating `FIREBASE_SERVICE_ACCOUNT_BASE64`
+
+Run once locally and paste the output into Vercel:
+
+```js
+node -e "
+const fs=require('fs');
+const json=fs.readFileSync('./quranhackathon-firebase-adminsdk-fbsvc-06b2957d1d.json','utf8');
+console.log(Buffer.from(json).toString('base64'));
+"
+```
+
+> **Security:** Never commit `*-firebase-adminsdk-*.json` files. The root `.gitignore` and `deenquest/.gitignore` both exclude these patterns.

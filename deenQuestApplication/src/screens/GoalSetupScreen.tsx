@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BookOpen, Check, CheckCircle, GraduationCap } from 'lucide-react-native';
+import { BookOpen, ChevronRight, GraduationCap } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View,
@@ -13,9 +13,9 @@ import { TimePerDay, UserGoal, UserLevel } from '../types';
 export const GOAL_SET_KEY = '@deenquest_goal_set';
 
 const LEVEL_ICONS = {
-  newbie:       require('../../elementsApp/newbie_icon_purple(islamic_style)-_very_simple_202605030448.jpeg'),
-  intermediate: require('../../elementsApp/intermediatite_icon_islamic_style_,_202605030448.jpeg'),
-  fluent:       require('../../elementsApp/expert_icon_islamic_style_,_202605030448.jpeg'),
+  newbie:       require('../../elementsApp/make_it_simple_and_keep_202605102207-removebg-preview.png'),
+  intermediate: require('../../elementsApp/intermediatite_icon_islamic_style___202605030448-removebg-preview.png'),
+  fluent:       require('../../elementsApp/expert_icon_islamic_style___202605030448-removebg-preview.png'),
 };
 
 interface Props {
@@ -33,9 +33,9 @@ const MASCOTS: Record<WizardStep, any> = {
 };
 
 const MASCOT_SPEECH: Record<WizardStep, string> = {
-  goal: "Assalamu Alaykum! What brings you here today? 🌙",
-  level: "Great choice! Now, how familiar are you with Arabic? 📖",
-  time: "Almost there! How much time can you give each day? ⏰",
+  goal: "Assalamu Alaykum! What brings you here today?",
+  level: "Great choice! Now, how familiar are you with Arabic?",
+  time: "Almost there! How much time can you give each day?",
   qfConnect: "",
 };
 
@@ -137,18 +137,16 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={qfStyles.page} showsVerticalScrollIndicator={false}>
 
-          {/* Logo banner */}
-          <View style={qfStyles.logoBanner}>
-            <Image
-              source={require('../../elementsApp/quran.comLogo.png')}
-              style={qfStyles.logo}
-              resizeMode="contain"
-            />
-          </View>
+          {/* Logo */}
+          <Image
+            source={require('../../elementsApp/quran.comLogo.png')}
+            style={qfStyles.logo}
+            resizeMode="contain"
+          />
 
           {/* Heading */}
           <View style={qfStyles.headingBlock}>
-            <Text style={qfStyles.eyebrow}>One last thing 🌙</Text>
+            <Text style={qfStyles.eyebrow}>One last thing</Text>
             <Text style={qfStyles.title}>Connect your{'\n'}Quran.com account</Text>
             <Text style={qfStyles.subtitle}>
               Sync your bookmarks, reading streaks, and goals across all your devices — automatically.
@@ -158,16 +156,12 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
           {/* Benefits */}
           <View style={qfStyles.benefitList}>
             {[
-              { icon: '🔖', text: 'Bookmarks & collections' },
-              { icon: '🔥', text: 'Reading streaks & activity' },
-              { icon: '🎯', text: 'Goals synced across devices' },
-            ].map((b) => (
-              <View key={b.text} style={qfStyles.benefitRow}>
-                <View style={qfStyles.benefitIconWrap}>
-                  <Text style={qfStyles.benefitIcon}>{b.icon}</Text>
-                </View>
-                <Text style={qfStyles.benefitText}>{b.text}</Text>
-                <CheckCircle size={18} color={COLORS.success} />
+              'Bookmarks & collections',
+              'Reading streaks & activity',
+              'Goals synced across devices',
+            ].map((text) => (
+              <View key={text} style={qfStyles.benefitRow}>
+                <Text style={qfStyles.benefitText}>{text}</Text>
               </View>
             ))}
           </View>
@@ -333,12 +327,12 @@ function TimeCard({ minutes, estimate, onPress, loading }: { minutes: number; es
         <Text style={styles.timeUnit}>min</Text>
       </View>
       <View style={styles.cardText}>
-        <Text style={styles.cardTitle}>{minutes} minutes / day</Text>
+        <Text style={styles.cardTitle}>{minutes} min / day</Text>
         <Text style={styles.cardDesc}>{estimate}</Text>
       </View>
       {loading
         ? <ActivityIndicator color={COLORS.primary} size="small" />
-        : <View style={styles.checkCircle}><Check size={16} color={COLORS.primary} /></View>}
+        : <ChevronRight size={20} color={COLORS.textMuted} />}
     </Pressable>
   );
 }
@@ -376,6 +370,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
     borderWidth: 1.5, borderColor: COLORS.cardBorder,
+    borderLeftWidth: 5, borderLeftColor: COLORS.primary,
     padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14,
     ...SHADOW.card,
   },
@@ -392,19 +387,14 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 24 },
 
   timeCircle: {
-    width: 58, height: 58, borderRadius: 29,
+    width: 60, height: 60, borderRadius: 16,
     backgroundColor: COLORS.primaryBg,
-    borderWidth: 2, borderColor: COLORS.cardBorder,
+    borderWidth: 0,
     alignItems: 'center', justifyContent: 'center',
+    gap: 0,
   },
-  timeNum: { color: COLORS.primary, fontSize: 15, fontWeight: '800', lineHeight: 17 },
-  timeUnit: { color: COLORS.textMuted, fontSize: 10, fontWeight: '600' },
-  checkCircle: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: COLORS.primaryBg,
-    borderWidth: 1.5, borderColor: COLORS.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  timeNum: { color: COLORS.primary, fontSize: 22, fontWeight: '900', lineHeight: 26 },
+  timeUnit: { color: COLORS.primary, fontSize: 11, fontWeight: '600', opacity: 0.7 },
 });
 
 const qfStyles = StyleSheet.create({
@@ -416,17 +406,7 @@ const qfStyles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  logoBanner: {
-    width: '100%',
-    backgroundColor: COLORS.primaryBg,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    paddingVertical: 24,
-    alignItems: 'center',
-    ...SHADOW.card,
-  },
-  logo: { width: 180, height: 48 },
+  logo: { width: 300, height: 90 },
 
   headingBlock: { width: '100%', gap: 10, alignItems: 'center' },
   eyebrow: {
@@ -469,15 +449,6 @@ const qfStyles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.cardBorder,
   },
-  benefitIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primaryBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  benefitIcon: { fontSize: 18 },
   benefitText: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: '600' },
 
   actions: { width: '100%', gap: 14, alignItems: 'center' },

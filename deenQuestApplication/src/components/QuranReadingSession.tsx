@@ -1,9 +1,11 @@
 import { Audio } from 'expo-av';
-import { CheckCircle, Loader, Pause, Play } from 'lucide-react-native';
+import { Bookmark, BookmarkCheck, Loader, Pause, Play } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { isBookmarked, toggleBookmark } from '../lib/firestore';
 import { API_BASE } from '../services/api';
 import { COLORS, RADIUS, SHADOW } from '../theme';
 
@@ -35,7 +37,10 @@ function qfProxy(path: string, params: Record<string, string> = {}): string {
 }
 
 export default function QuranReadingSession({ surahNumber, startAyah, ayahCount, onComplete }: Props) {
+  const { uid } = useAuth();
   const [ayahs, setAyahs] = useState<AyahData[]>([]);
+  const [bookmarked, setBookmarked] = useState<Record<string, boolean>>({});
+  const [bmLoading, setBmLoading] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [totalInSurah, setTotalInSurah] = useState(0);
@@ -84,6 +89,15 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
 
       setAyahs(allAyahs);
       setTotalInSurah(total);
+
+      // Load bookmark state for these verses
+      if (uid) {
+        const keys = allAyahs.map((a) => `${safeSurah}:${a.numberInSurah}`);
+        const results = await Promise.all(keys.map((k) => isBookmarked(uid, k).catch(() => false)));
+        const map: Record<string, boolean> = {};
+        keys.forEach((k, i) => { map[k] = results[i]; });
+        setBookmarked(map);
+      }
     } catch {
       setError(true);
     } finally {
@@ -158,6 +172,20 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
     await startPlaying(firstUnread >= 0 ? firstUnread : 0);
   };
 
+  const handleBookmark = async (verseKey: string, arabic: string, translation: string) => {
+    if (!uid || bmLoading[verseKey]) return;
+    const next = !bookmarked[verseKey];
+    setBookmarked((prev) => ({ ...prev, [verseKey]: next }));
+    setBmLoading((prev) => ({ ...prev, [verseKey]: true }));
+    try {
+      await toggleBookmark(uid, { verseKey, surahName: `Surah ${surahNumber}`, arabic, translation });
+    } catch {
+      setBookmarked((prev) => ({ ...prev, [verseKey]: !next }));
+    } finally {
+      setBmLoading((prev) => ({ ...prev, [verseKey]: false }));
+    }
+  };
+
   const markRead = (index: number) => {
     setAyahs((prev) => prev.map((a, i) => i === index ? { ...a, read: true } : a));
   };
@@ -220,14 +248,23 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
         </Pressable>
       </View>
 
-      {ayahs.map((ayah, index) => (
+      {ayahs.map((ayah, index) => {
+        const verseKey = `${surahNumber}:${ayah.numberInSurah}`;
+        const isBm = bookmarked[verseKey] ?? false;
+        return (
         <View key={ayah.numberInSurah} style={[styles.ayahCard, ayah.read && styles.ayahCardRead]}>
           <View style={styles.ayahHeader}>
-            <View style={[styles.ayahNumBadge, ayah.read && styles.ayahNumBadgeRead]}>
-              {ayah.read
-                ? <CheckCircle size={14} color={COLORS.primary} />
-                : <Text style={styles.ayahNum}>{ayah.numberInSurah}</Text>}
-            </View>
+            <Pressable
+              onPress={() => handleBookmark(verseKey, ayah.arabic, ayah.translation)}
+              style={[styles.bmBtn, isBm && styles.bmBtnActive]}
+              disabled={bmLoading[verseKey]}
+            >
+              {bmLoading[verseKey]
+                ? <ActivityIndicator size={13} color={COLORS.primary} />
+                : isBm
+                  ? <BookmarkCheck size={15} color={COLORS.primary} />
+                  : <Bookmark size={15} color={COLORS.textMuted} />}
+            </Pressable>
             <Pressable
               onPress={() => playAyah(index)}
               style={[styles.playBtn, playingIndex === index && styles.playBtnActive]}
@@ -250,7 +287,8 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
             </Pressable>
           )}
         </View>
-      ))}
+        );
+      })}
 
       <Pressable
         onPress={handleComplete}
@@ -292,13 +330,11 @@ const styles = StyleSheet.create({
   },
   ayahCardRead: { borderColor: `${COLORS.primary}66`, backgroundColor: COLORS.primaryBg },
   ayahHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  ayahNumBadge: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: COLORS.primaryBg,
+  bmBtn: {
+    padding: 6,
     alignItems: 'center', justifyContent: 'center',
   },
-  ayahNumBadgeRead: { backgroundColor: `${COLORS.primary}25` },
-  ayahNum: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
+  bmBtnActive: {},
   playBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: COLORS.primaryBg,

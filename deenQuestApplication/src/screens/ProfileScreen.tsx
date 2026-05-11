@@ -1,14 +1,15 @@
-import { Award, BookOpen, Bookmark, BookmarkCheck, Clock, Flame, LogOut, Star, Target, Zap } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { Award, BookOpen, Bookmark, BookmarkCheck, Clock, ExternalLink, Flame, LogOut, Star, Target, Zap } from 'lucide-react-native';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
-  ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView,
+  ActivityIndicator, Alert, Image, ImageBackground, Linking, Pressable, ScrollView,
   StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useAuth } from '../context/AuthContext';
 import { auth } from '../lib/firebase';
-import { getUserProfile, getBookmarks, updateUserPlan } from '../lib/firestore';
+import { getUserProfile, getBookmarks, updateUserPlan, getQFTokens } from '../lib/firestore';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
 import { Bookmark as BookmarkType, TimePerDay, UserGoal, UserLevel } from '../types';
 import { signOut } from 'firebase/auth';
@@ -46,6 +47,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [bookmarks, setBookmarks] = useState<BookmarkType[]>([]);
   const [expandedBm, setExpandedBm] = useState<string | null>(null);
+  const [qfConnected, setQfConnected] = useState(false);
 
   useEffect(() => {
     if (!uid) return;
@@ -53,7 +55,23 @@ export default function ProfileScreen() {
       .then((data) => { if (data) setProfile(data as Profile); })
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, [uid]);
+
+  // Re-fetch bookmarks + QF connection status every time this tab comes into focus
+  useFocusEffect(useCallback(() => {
+    if (!uid) return;
     getBookmarks(uid).then(setBookmarks).catch(() => {});
+    getQFTokens(uid).then((tokens) => setQfConnected(!!tokens)).catch(() => {});
+  }, [uid]));
+
+  // Listen for deep link fired after OAuth completes
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      if (url.startsWith('deenquest://qf-connected') && uid) {
+        getQFTokens(uid).then((tokens) => setQfConnected(!!tokens)).catch(() => {});
+      }
+    });
+    return () => sub.remove();
   }, [uid]);
 
   const handleSignOut = () => {
@@ -262,6 +280,28 @@ export default function ProfileScreen() {
               )}
             </View>
 
+            {/* Connect Quran.com */}
+            <View style={styles.section}>
+              {qfConnected ? (
+                <View style={styles.qfConnectedBadge}>
+                  <ExternalLink size={16} color={COLORS.success} />
+                  <Text style={styles.qfConnectedText}>Quran.com Connected</Text>
+                </View>
+              ) : (
+                <Pressable
+                  style={styles.qfConnectBtn}
+                  onPress={() => {
+                    if (!uid) return;
+                    const url = `https://quran-hackathon-omega.vercel.app/auth/qf-start?from=mobile&uid=${encodeURIComponent(uid)}`;
+                    Linking.openURL(url).catch(() => {});
+                  }}
+                >
+                  <ExternalLink size={18} color={COLORS.white} />
+                  <Text style={styles.qfConnectText}>Connect Quran.com</Text>
+                </Pressable>
+              )}
+            </View>
+
           </>
         )}
       </ScrollView>
@@ -282,6 +322,30 @@ function StatCard({ icon, value, label, bg, color }: {
 }
 
 const styles = StyleSheet.create({
+  qfConnectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.xl,
+    paddingVertical: 16,
+    ...SHADOW.glow(COLORS.primary),
+    ...DEPTH.button,
+  },
+  qfConnectText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  qfConnectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: `${COLORS.success}18`,
+    borderRadius: RADIUS.xl,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: `${COLORS.success}44`,
+  },
+  qfConnectedText: { color: COLORS.success, fontSize: 15, fontWeight: '700' },
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { paddingBottom: 100 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },

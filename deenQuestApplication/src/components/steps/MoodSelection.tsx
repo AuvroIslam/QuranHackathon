@@ -1,9 +1,12 @@
 import React, { useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   Image,
   ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -40,7 +43,6 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
   const [situation, setSituation] = useState('');
   const [findPressed, setFindPressed] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  const inputY = useRef(0);
 
   const handleMoodPress = (mood: Mood) => {
     if (loading) return;
@@ -59,6 +61,16 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
   }
 
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 60}
+    >
+    {loading && (
+      <View style={styles.loadingOverlay} pointerEvents="none">
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    )}
     <ScrollView
       ref={scrollRef}
       contentContainerStyle={styles.scrollContent}
@@ -82,7 +94,7 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
       </ImageBackground>
 
       {/* Mood grid */}
-      <View style={[styles.grid, loading && { opacity: 0.5 }]}>
+      <View style={styles.grid}>
         {rows.map((row, ri) => (
           <View key={ri} style={[styles.row, row.length < 3 && styles.rowCentered]}>
             {row.map((mood) => (
@@ -107,7 +119,6 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
       {/* Custom text box */}
       <View
         style={styles.textBoxWrap}
-        onLayout={(e) => { inputY.current = e.nativeEvent.layout.y; }}
       >
         <TextInput
           style={styles.textInput}
@@ -119,7 +130,9 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
           onSubmitEditing={handleCustomSubmit}
           multiline={false}
           onFocus={() => {
-            setTimeout(() => scrollRef.current?.scrollTo({ y: inputY.current - 100, animated: true }), 200);
+            setTimeout(() => {
+              scrollRef.current?.scrollToEnd({ animated: true });
+            }, 300);
           }}
         />
       </View>
@@ -140,6 +153,7 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
         <Text style={styles.findBtnText}>Find Ayah</Text>
       </Pressable>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -219,7 +233,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    ...SHADOW.card,
+    backgroundColor: COLORS.primaryBg,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardSelected: {
     borderColor: COLORS.primary,

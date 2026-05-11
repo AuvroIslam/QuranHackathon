@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { X } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Pressable,
   StyleSheet,
@@ -116,6 +117,13 @@ export default function JourneyScreen() {
     restart,
   } = useJourney(profileLoaded ? userGoal : null, uid);
 
+  // Restart journey fresh every time this screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      restart();
+    }, [restart])
+  );
+
   const slideAnim = useRef(new Animated.Value(0)).current;
   const animateTo = (dir: 1 | -1, cb: () => void) => {
     Animated.timing(slideAnim, { toValue: -40 * dir, duration: 140, useNativeDriver: true }).start(() => {
@@ -159,9 +167,19 @@ export default function JourneyScreen() {
   const handleNext = () => animateTo(1, nextStep);
 
   const handleComplete = () => {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Optimistic updates — CompletionStep must see correct values on first mount
+    const isNewDay = lastSessionDate !== today;
+    const optimisticStreak = isNewDay ? firestoreStreak + 1 : firestoreStreak;
+    const optimisticSessions = sessionsToday + 1;
+    setFirestoreStreak(optimisticStreak);
+    setSessionsToday(optimisticSessions);
+    if (isNewDay) setLastSessionDate(today);
+
     animateTo(1, complete);
+
     if (uid) {
-      const today = new Date().toISOString().split('T')[0];
       const sessionKey = `${SESSION_KEY_PREFIX}_${uid}`;
       const streakStatus = getStreakStatus(lastSessionDate, firestoreStreak);
       const isStreakRecoveryComplete =
@@ -172,13 +190,13 @@ export default function JourneyScreen() {
       incrementDailySession(uid).then((newCount) => {
         setSessionsToday(newCount);
         AsyncStorage.setItem(sessionKey, JSON.stringify({ date: today, count: newCount })).catch(() => {});
-      }).catch(() => { setSessionsToday((s) => s + 1); });
+      }).catch(() => {});
 
       completeJourney(uid, state.xpEarned + 10, isStreakRecoveryComplete)
         .then(({ newStreak }) => setFirestoreStreak(newStreak))
         .catch(() => {});
 
-      if (userGoal === 'learn' && currentDay <= 10) {
+      if (userGoal === 'learn' && currentDay <= 10 && isNewDay) {
         incrementCurrentDay(uid).catch(() => {});
         setCurrentDay((d) => d + 1);
       }
@@ -244,6 +262,13 @@ export default function JourneyScreen() {
   const progressPct = totalSteps > 1 ? Math.min((stepIndex / (totalSteps - 1)) * 100, 100) : 0;
 
   const renderStep = () => {
+    if (!profileLoaded) {
+      return (
+        <View style={styles.loadingCenter}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      );
+    }
     switch (state.step) {
       case 'mood':
         if (isLessonDay && todayLesson && !ayahOnly) {
@@ -320,7 +345,7 @@ export default function JourneyScreen() {
               <Animated.View style={[styles.progressFill, { width: `${progressPct}%` }]} />
             </View>
 
-            {state.step === 'mood' ? (
+            {state.step === 'mood' && !(isLessonDay && todayLesson && !ayahOnly) ? (
               <Pressable
                 onPress={handleSkip}
                 disabled={ayahOnly}
@@ -433,6 +458,7 @@ const styles = StyleSheet.create({
   skipHeaderBtnTextDisabled: { color: COLORS.textMuted },
 
   stepArea: { flex: 1 },
+  loadingCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   footer: {
     paddingHorizontal: 16,

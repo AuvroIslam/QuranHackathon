@@ -1,0 +1,11 @@
+# Firebase service account keys — NEVER commit these
+*-firebase-adminsdk-*.json
+*.serviceAccount.json
+serviceAccount.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json

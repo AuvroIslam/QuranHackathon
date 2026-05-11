@@ -3,16 +3,175 @@
 ## Repository Structure
 
 ```
-├── deenquest/                  # Next.js 14 web application (COMPLETE)
-├── deenQuestApplication/       # Expo React Native mobile app (IN PROGRESS)
+├── deenquest/                  # Next.js web application (COMPLETE)
+├── deenQuestApplication/       # Expo React Native mobile app (COMPLETE)
+├── ApiDetails.md               # QF API credentials & endpoint reference
 ├── prompt.md                   # Base feature specification
 ├── questionHackathon.md        # Official hackathon questions & requirements
 └── README.md                   # This file
 ```
 
+> **Security note:** Firebase service account JSON files (`*-firebase-adminsdk-*.json`) are git-ignored at both root and `deenquest/` level. Never commit them.
+
 ---
 
-## 1. Web App — `deenquest/` (Next.js 14, App Router)
+## 1. Web App — `deenquest/` (Next.js, App Router)
+
+### Tech Stack
+- Next.js 16, TypeScript, Tailwind CSS v4
+- Firebase JS SDK v12 (Firestore + Auth) + Firebase Admin SDK (server-side)
+- OpenAI / Groq / Mistral APIs (chatbot, speech check, dawah)
+- Quran.Foundation (QF) OAuth2 PKCE + user/content APIs
+- Deployed on Vercel
+
+### Pages (`src/app/`)
+| Route | Description |
+|---|---|
+| `/` | Home — mood selector, personalised ayah, today's tasks, streak/XP stats |
+| `/session` | Guided session — mood → ayah → reading journey with streak tracking |
+| `/listen` | Full Quran reader — surah list, word-by-word Arabic, audio, per-ayah bookmark, tafsir |
+| `/community` | Firestore community posts — share reflections & questions |
+| `/chatbot` | Ask AI — Islamic Q&A (Groq-powered) |
+| `/dawah` | Dawah perspectives — topic search, Quranic guidance, cross-scripture comparison |
+| `/perspective` | AI-powered perspective & reflection on any topic |
+| `/levels` | XP levels & badge gallery |
+| `/login` | Firebase email/password auth |
+| `/setup` | Goal setup wizard |
+| `/terms` | Terms of service |
+| `/privacy` | Privacy policy |
+| `/auth/qf-start` | Initiates QF OAuth PKCE flow (mobile deep-link trigger) |
+| `/auth/qf-callback` | QF OAuth callback — exchanges code, saves tokens via Admin SDK |
+
+### API Routes (`src/app/api/`)
+| Route | Description |
+|---|---|
+| `/api/chatbot` | POST `{ messages }` → Groq/OpenAI response (used by web + mobile) |
+| `/api/speech-check` | POST audio → OpenAI Whisper transcription + accuracy check |
+| `/api/deepseek` | Mistral/DeepSeek fallback for dawah generation |
+| `/api/quran` | QF Content API proxy (verses, chapters, recitations, tafsir, search) |
+| `/api/quran/search` | Quran full-text search |
+| `/api/mood-ayah` | POST `{ mood }` → returns curated ayah for mood |
+| `/api/qf/token` | QF OAuth token exchange + Firestore token persistence (Admin SDK) |
+| `/api/qf/reading-session` | QF reading session sync |
+| `/api/qf/bookmark` | QF bookmark add/remove |
+| `/api/qf/collections` | QF collections |
+| `/api/qf/streak` | QF activity-day reporting + streak sync |
+
+### Key Lib Files (`src/lib/`)
+- `firebase.ts` — Firebase client SDK init
+- `firebase-admin.ts` — Firebase Admin SDK init (base64 service account via `FIREBASE_SERVICE_ACCOUNT_BASE64`)
+- `firestore.ts` — User profile, XP, streak, bookmarks, QF token helpers
+- `tasks-data.ts` — 12 `DAILY_TASKS` array; deterministic daily selection: `dayOfYear % 12`
+- `qf-auth.ts` / `qf-user-auth.ts` — QF PKCE flow, session storage, OAuth state helpers
+- `quran.ts` / `quran-mcp.ts` — Quran data helpers + MCP tool calls
+
+### Environment Variables (Vercel + `.env.local`)
+```
+FIREBASE_SERVICE_ACCOUNT_BASE64=...   # base64(service-account.json) — Admin SDK
+NEXT_PUBLIC_FIREBASE_*=...            # Firebase client config
+QF_CLIENT_ID / QF_CLIENT_SECRET=...   # Quran Foundation OAuth
+OPENAI_API_KEY=...                    # Whisper speech check
+GROQ_API_KEY=...                      # Chatbot (primary)
+MISTRAL_API_KEY=...                   # Dawah generation
+DEEPSEEK_API_KEY=...                  # Fallback
+```
+See `ApiDetails.md` for the full variable list.
+
+---
+
+## 2. Mobile App — `deenQuestApplication/` (Expo SDK 54, React Native 0.81.5)
+
+### Tech Stack
+- Expo SDK 54, React Native 0.81.5, React 19.1.0, TypeScript
+- `@react-navigation/bottom-tabs` + `@react-navigation/native`
+- Firebase JS SDK v10.14.1 (same Firestore project as web)
+- `expo-av` for Quran audio playback
+- `lucide-react-native` + `react-native-svg` for icons
+- `react-native-safe-area-context` v5.6 — all screens use `SafeAreaView` from this package
+- `@react-native-async-storage/async-storage` for local persistence
+- Metro config: `unstable_enablePackageExports: true` (required for Firebase CJS modules)
+- Deep link scheme: `deenquest://` (registered in `app.json`)
+
+### App Entry Flow (`App.tsx`)
+```
+SafeAreaProvider
+  └── AuthProvider (Firebase onAuthStateChanged)
+        └── RootNavigator
+              ├── [loading] ActivityIndicator
+              ├── [not onboarded] OnboardingScreen
+              ├── [no user] AuthScreen
+              ├── [!goalSet] GoalSetupScreen
+              └── [authenticated + goalSet] AppNavigator (5 tabs)
+```
+
+### Tab Navigation
+| Tab | Screen | Icon |
+|---|---|---|
+| Home | `HomeScreen` | Home |
+| Journey | `JourneyScreen` | Map |
+| Quran | `QuranScreen` | BookOpen |
+| Explore | `ExploreScreen` | Compass |
+| Profile | `ProfileScreen` | User |
+
+---
+
+## 3. Screens
+
+### `OnboardingScreen.tsx`
+3 animated slides → saves `@deenquest_onboarded`
+
+### `AuthScreen.tsx`
+Email/password sign in + sign up. Creates Firestore `users/{uid}` doc on first signup.
+
+### `GoalSetupScreen.tsx`
+3-step animated wizard (goal → level/time). Saves goal to Firestore + `@deenquest_goal_set`.
+
+### `HomeScreen.tsx`
+Arabic greeting, streak/XP/hasanat stats, lesson card, today's 3 tasks (deterministic).
+
+### `JourneyScreen.tsx`
+Duolingo-style lesson flow. Learn path (days 1–10): intro → ayah → listen → speak → MCQ → action → completion. Complete Quran path: mood → ayah → reading session → completion.
+
+### `QuranScreen.tsx`
+114 surahs, searchable. Per-ayah audio playback via `everyayah.com`.
+
+### `ExploreScreen.tsx`
+Pill tab bar: Dawah | Community | Ask AI
+
+### `ProfileScreen.tsx`
+Level/XP, 4-stat grid, 6 achievement badges, bookmarks list, Quran.com connection badge, sign out.
+
+---
+
+## 4. Journey Step Components
+
+| Component | Description |
+|---|---|
+| `LessonIntroStep` | Day intro for learn path (days 1–10) |
+| `MoodSelection` | 7 mood card grid with custom text input |
+| `AyahDisplay` | Arabic + transliteration + translation with bookmark button |
+| `ListenStep` | Audio playback of ayah |
+| `SpeakStep` | Mic → Whisper → word-chip accuracy feedback |
+| `MCQQuestion` | 4-option MCQ |
+| `ActionSelection` | Spiritual action picker |
+| `CompletionStep` | XP + streak summary |
+| `QuranReadingSession` | Per-ayah reading session — Arabic/transliteration/translation, audio, bookmark button (with loading state) |
+
+---
+
+## 5. QF OAuth Flow (Mobile)
+
+```
+ProfileScreen "Connect Quran.com"
+  → opens browser: /auth/qf-start
+  → redirects to oauth2.quran.foundation
+  → user authenticates
+  → callback: /auth/qf-callback
+  → /api/qf/token (server) exchanges code + saves tokens via Admin SDK → Firestore users/{uid}
+  → deep link: deenquest://qf-connected
+  → ProfileScreen reads tokens via getQFTokens(uid) → shows green "Connected" badge
+```
+
 
 ### Tech Stack
 - Next.js 14 (App Router), TypeScript, Tailwind CSS

@@ -27,11 +27,17 @@ const OFFLINE_FALLBACK: { ayah: Ayah; question: MCQData } = {
 
 export async function getAyahByMood(mood: Mood): Promise<{ ayah: Ayah; question: MCQData }> {
   try {
-    const res = await fetch(`${API_BASE}/api/mood-ayah?mood=${encodeURIComponent(mood)}`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) throw new Error(`${res.status}`);
-    return await res.json();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
+    try {
+      const res = await fetch(`${API_BASE}/api/mood-ayah?mood=${encodeURIComponent(mood)}`, {
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
   } catch {
     return OFFLINE_FALLBACK;
   }

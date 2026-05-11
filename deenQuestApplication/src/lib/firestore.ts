@@ -200,18 +200,63 @@ export async function getQFTokens(
 
 const bmDocId = (verseKey: string) => verseKey.replace(':', '_');
 
+const VERCEL_BASE = 'https://quran-hackathon-omega.vercel.app';
+
+/** Fire-and-forget sync to Quran.com — never throws */
+async function syncBookmarkToQF(
+  accessToken: string,
+  verseKey: string,
+  action: 'add' | 'remove'
+): Promise<void> {
+  try {
+    const [chapterStr, verseStr] = verseKey.split(':');
+    const chapterNumber = parseInt(chapterStr, 10);
+    const verseNumber = parseInt(verseStr, 10);
+    if (!chapterNumber || !verseNumber) return;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      await fetch(`${VERCEL_BASE}/api/qf/bookmark`, {
+        method: action === 'add' ? 'POST' : 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-qf-token': accessToken,
+        },
+        body: JSON.stringify({ chapterNumber, verseNumber }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    // Best-effort — local bookmark is already saved
+  }
+}
+
 export async function toggleBookmark(
   uid: string,
   data: Omit<Bookmark, 'id' | 'createdAt'>
 ): Promise<boolean> {
   const ref = doc(db, 'users', uid, 'bookmarks', bmDocId(data.verseKey));
   const snap = await getDoc(ref);
+
+  let added: boolean;
   if (snap.exists()) {
     await deleteDoc(ref);
-    return false;
+    added = false;
+  } else {
+    await setDoc(ref, { ...data, createdAt: new Date().toISOString() });
+    added = true;
   }
-  await setDoc(ref, { ...data, createdAt: new Date().toISOString() });
-  return true;
+
+  // Sync to Quran.com if user is connected — fire and forget
+  getQFTokens(uid).then((tokens) => {
+    if (!tokens?.accessToken) return;
+    syncBookmarkToQF(tokens.accessToken, data.verseKey, added ? 'add' : 'remove');
+  }).catch(() => {});
+
+  return added;
 }
 
 export async function getBookmarks(uid: string): Promise<Bookmark[]> {

@@ -26,9 +26,9 @@ const MASCOT_SPEECH: Record<WizardStep, string> = {
 };
 
 const LEVEL_IMAGES: Record<UserLevel, string> = {
-  newbie: "/newbie_icon_purple(islamic_style)-_very_simple_202605030448.jpeg",
-  intermediate: "/intermediatite_icon_islamic_style_,_202605030448.jpeg",
-  fluent: "/expert_icon_islamic_style_,_202605030448.jpeg",
+  newbie: "/make_it_simple_and_keep_202605102207-removebg-preview.png",
+  intermediate: "/intermediatite_icon_islamic_style___202605030448-removebg-preview.png",
+  fluent: "/expert_icon_islamic_style___202605030448-removebg-preview.png",
 };
 
 export default function SetupPage() {
@@ -227,8 +227,8 @@ export default function SetupPage() {
                 onClick={handleQFConnect}
                 className="w-full rounded-2xl p-4 flex items-center gap-4 text-left transition-all group border border-secondary/40 bg-linear-to-r from-secondary/20 to-secondary-dark/20 hover:from-secondary/30 hover:to-secondary-dark/30"
               >
-                <div className="w-14 h-14 rounded-2xl bg-secondary/25 flex items-center justify-center shrink-0 group-hover:bg-secondary/35 transition-colors">
-                  <BookOpen size={26} className="text-secondary" />
+                <div className="w-14 h-14 rounded-2xl bg-secondary/25 flex items-center justify-center shrink-0 group-hover:bg-secondary/35 transition-colors overflow-hidden">
+                  <Image src="/quran.comLogo.png" alt="Quran.com" width={40} height={40} className="object-contain" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-white text-sm">Connect Quran.com</p>

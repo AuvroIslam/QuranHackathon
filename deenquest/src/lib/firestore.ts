@@ -152,6 +152,12 @@ export async function completeSession(
 
 // ─── Tasks ──────────────────────────────────────────────────────
 
+export async function getTasksCompletedCount(uid: string): Promise<number> {
+  const q = query(collection(db, "userTasks"), where("userId", "==", uid));
+  const snap = await getDocs(q);
+  return snap.size;
+}
+
 export async function getUserTasksForDate(uid: string, date: string): Promise<UserTask[]> {
   const q = query(
     collection(db, "userTasks"),

@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCheck, BookOpen, BadgeCheck, Crown, GraduationCap, LogOut, Shield, Star, Target, Trophy, TrendingUp } from 'lucide-react-native';
+import { BadgeCheck, Bookmark, BookmarkCheck, BookOpen, ClipboardCheck, Crown, Flame, GraduationCap, LogOut, Medal, Shield, Star, Target, Trophy, TrendingUp, Zap } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   ActivityIndicator, Alert, Image, ImageBackground, Linking, Pressable, ScrollView,
@@ -163,10 +163,10 @@ export default function ProfileScreen() {
 
             {/* ── 4-stat row ── */}
             <View style={styles.statsRow}>
-              <StatChip value={streak} label="Streak" accent="#FF6B35" />
-              <StatChip value={xp} label="XP" accent={COLORS.primary} />
-              <StatChip value={tasksCompleted} label="Tasks" accent="#10B981" />
-              <StatChip value={earnedBadges.length} label="Badges" accent="#6366F1" />
+              <StatChip value={streak} label="Streak" accent="#FF6B35" icon={<Flame size={18} color="#FF6B35" fill="#FF6B35" />} />
+              <StatChip value={xp} label="XP" accent={COLORS.primary} icon={<Zap size={18} color={COLORS.primary} fill={COLORS.primary} />} />
+              <StatChip value={tasksCompleted} label="Tasks" accent="#10B981" icon={<ClipboardCheck size={18} color="#10B981" />} />
+              <StatChip value={earnedBadges.length} label="Badges" accent="#6366F1" icon={<Medal size={18} color="#6366F1" />} />
             </View>
 
             {/* ── Daily Plan card ── */}
@@ -299,10 +299,13 @@ export default function ProfileScreen() {
   );
 }
 
-function StatChip({ value, label, accent }: { value: number; label: string; accent: string }) {
+function StatChip({ value, label, accent, icon }: { value: number; label: string; accent: string; icon: React.ReactNode }) {
   return (
     <View style={styles.statChip}>
       <View style={[styles.statAccentBar, { backgroundColor: accent }]} />
+      <View style={[styles.statIconWrap, { backgroundColor: `${accent}18` }]}>
+        {icon}
+      </View>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -372,7 +375,12 @@ const styles = StyleSheet.create({
   statAccentBar: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 3,
   },
-  statValue: { color: '#1E1B4B', fontSize: 20, fontWeight: '800', marginTop: 6 },
+  statIconWrap: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 6,
+  },
+  statValue: { color: '#1E1B4B', fontSize: 18, fontWeight: '800' },
   statLabel: { color: '#9D99CC', fontSize: 10, fontWeight: '600', textAlign: 'center', letterSpacing: 0.8 },
 
   /* Daily plan */
@@ -424,7 +432,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
   badgeCardLocked: { opacity: 0.45 },
-  badgeIconWrap: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  badgeIconWrap: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   badgeLabel: { color: '#1E1B4B', fontSize: 10, fontWeight: '700', textAlign: 'center' },
   badgeLabelLocked: { color: COLORS.textMuted },
 

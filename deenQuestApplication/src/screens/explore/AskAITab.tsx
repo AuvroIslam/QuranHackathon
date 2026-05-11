@@ -116,11 +116,11 @@ export default function AskAITab() {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior="padding"
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {messages.length === 0 ? (
-        <ScrollView contentContainerStyle={styles.emptyContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.emptyContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <Image source={require('../../../elementsApp/thinking-removebg-preview.png')} style={styles.emptyChar} />
           <Text style={styles.emptyTitle}>Ask AI</Text>
           <Text style={styles.emptySub}>Ask any question about Islam, the Quran, or your spiritual journey</Text>
@@ -139,6 +139,7 @@ export default function AskAITab() {
           style={styles.flex}
           contentContainerStyle={styles.messages}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {messages.map((msg, i) => (
             <View key={i} style={[styles.bubble, msg.role === 'user' ? styles.bubbleUser : styles.bubbleAI]}>

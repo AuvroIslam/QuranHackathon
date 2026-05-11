@@ -3,10 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
   ActivityIndicator, KeyboardAvoidingView, Modal, Platform,
-  ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { getPosts, createPost, upvotePost } from '../../lib/firestore-community';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
 
 interface Post {
   id: string;
@@ -28,6 +28,8 @@ export default function CommunityTab() {
   const [content, setContent] = useState('');
   const [type, setType] = useState<'question' | 'reflection'>('reflection');
   const [posting, setPosting] = useState(false);
+  const [postPressed, setPostPressed] = useState(false);
+  const [newBtnPressed, setNewBtnPressed] = useState(false);
 
   const load = async () => {
     try {
@@ -72,10 +74,15 @@ export default function CommunityTab() {
             <Text style={styles.heading}>Community</Text>
             <Text style={styles.sub}>Share reflections & questions</Text>
           </View>
-          <TouchableOpacity style={styles.newBtn} onPress={() => setShowModal(true)}>
+          <Pressable
+            onPressIn={() => setNewBtnPressed(true)}
+            onPressOut={() => setNewBtnPressed(false)}
+            onPress={() => setShowModal(true)}
+            style={[styles.newBtn, DEPTH.button, newBtnPressed && DEPTH.buttonPressed]}
+          >
             <Plus size={16} color={COLORS.white} />
             <Text style={styles.newBtnText}>Post</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {loading ? (
@@ -148,10 +155,16 @@ export default function CommunityTab() {
             textAlignVertical="top"
           />
 
-          <TouchableOpacity
-            style={[styles.submitBtn, (!title.trim() || !content.trim()) && styles.submitBtnDisabled]}
-            disabled={!title.trim() || !content.trim() || posting}
+          <Pressable
+            onPressIn={() => { if (title.trim() && content.trim() && !posting) setPostPressed(true); }}
+            onPressOut={() => setPostPressed(false)}
             onPress={handlePost}
+            disabled={!title.trim() || !content.trim() || posting}
+            style={[styles.submitBtn,
+              (!title.trim() || !content.trim() || posting)
+                ? styles.submitBtnDisabled
+                : [DEPTH.button, postPressed && DEPTH.buttonPressed],
+            ]}
           >
             {posting ? (
               <ActivityIndicator color={COLORS.white} size="small" />
@@ -161,7 +174,7 @@ export default function CommunityTab() {
                 <Text style={styles.submitBtnText}>Post</Text>
               </>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </KeyboardAvoidingView>
       </Modal>
     </View>
@@ -178,6 +191,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: COLORS.primary, paddingHorizontal: 14,
     paddingVertical: 9, borderRadius: RADIUS.full,
+    ...SHADOW.glow(COLORS.primary),
   },
   newBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
   postCard: {
@@ -228,6 +242,7 @@ const styles = StyleSheet.create({
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: COLORS.primary, borderRadius: RADIUS.xl, paddingVertical: 16,
+    ...SHADOW.glow(COLORS.primary),
   },
   submitBtnDisabled: { opacity: 0.45 },
   submitBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },

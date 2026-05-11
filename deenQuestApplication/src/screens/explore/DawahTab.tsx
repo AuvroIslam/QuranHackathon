@@ -2,6 +2,8 @@ import { BookOpen, Share2 } from 'lucide-react-native';
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -160,6 +162,11 @@ export default function DawahTab() {
   const hasResults = !searching && selectedTopic && (quranView || scriptures.length > 0 || ummahReasoning);
 
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
     <ScrollView
       ref={scrollRef}
       contentContainerStyle={styles.container}
@@ -290,6 +297,7 @@ export default function DawahTab() {
         </>
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

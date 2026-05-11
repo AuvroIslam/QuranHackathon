@@ -137,8 +137,7 @@ export default function DawahPage() {
     if (!user) return;
     const result = await toggleBookmark(user.uid, {
       verseKey: ayah.verseKey,
-      surahNumber: ayah.surah?.number ?? parseInt(ayah.verseKey?.split(":")[0], 10),
-      ayahNumber: ayah.numberInSurah,
+      surahName: ayah.surah?.englishName ?? ayah.verseKey?.split(":")[0] ?? "",
       arabic: ayah.text,
       translation: ayah.translation,
     });

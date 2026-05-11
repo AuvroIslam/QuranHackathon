@@ -37,20 +37,59 @@ function stripHtml(html: string) {
   return html.replace(/<sup[^>]*>.*?<\/sup>/gi, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 }
 
+/** Walk character-by-character to find the first balanced { } object. */
+function extractFirstJsonObject(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+/** Last-resort regex extraction of a single string field from raw JSON text. */
+function extractStringField(text: string, field: string): string | null {
+  const m = text.match(new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`, 's'));
+  return m ? m[1].replace(/\\n/g, ' ').replace(/\\"/g, '"').trim() : null;
+}
+
 function parseDawahSections(raw: string): DawahSections {
   const clean = raw.trim();
   const fallback: DawahSections = {
-    quranView: clean || 'No Quranic summary generated yet.',
+    quranView: 'Unable to generate a Quranic summary right now. Please try again.',
     scriptures: [],
     ummahReasoning: 'Could not parse the ummah-focused reasoning. Please retry.',
   };
   if (!clean) return fallback;
+
+  // Strip markdown fences if present
   const fenced = clean.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = (fenced?.[1] ?? clean).trim();
-  const jsonMatch = candidate.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return fallback;
+
+  // Use balanced extraction instead of greedy regex
+  const jsonStr = extractFirstJsonObject(candidate);
+  if (!jsonStr) {
+    // Try regex field extraction as last resort
+    const qv = extractStringField(candidate, 'quranView');
+    const ur = extractStringField(candidate, 'ummahReasoning');
+    if (qv) return { quranView: qv, scriptures: [], ummahReasoning: ur ?? fallback.ummahReasoning };
+    return fallback;
+  }
+
   try {
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(jsonStr);
     const parsedScriptures: ScriptureEntry[] = Array.isArray(parsed?.scriptures)
       ? parsed.scriptures
           .map((entry: any) => ({
@@ -68,7 +107,12 @@ function parseDawahSections(raw: string): DawahSections {
         ummahReasoning: parsed.ummahReasoning.trim(),
       };
     }
-  } catch {}
+  } catch {
+    // JSON.parse failed — try regex field extraction on the raw candidate
+    const qv = extractStringField(candidate, 'quranView');
+    const ur = extractStringField(candidate, 'ummahReasoning');
+    if (qv) return { quranView: qv, scriptures: [], ummahReasoning: ur ?? fallback.ummahReasoning };
+  }
   return fallback;
 }
 
@@ -102,6 +146,7 @@ export default function DawahTab() {
 
       const mapped = results.map((r: any) => ({
         verseKey: r.verse_key,
+        arabic: (r.text ?? '') as string,
         translation: stripHtml(r.translations?.[0]?.text ?? ''),
       }));
       setAyahs(mapped);
@@ -252,6 +297,9 @@ export default function DawahTab() {
                     <BookOpen size={13} color={COLORS.primary} />
                     <Text style={styles.ayahRef}>{ayah.verseKey}</Text>
                   </View>
+                  {!!ayah.arabic && (
+                    <Text style={styles.ayahArabic}>{ayah.arabic}</Text>
+                  )}
                   <Text style={styles.ayahTranslation}>"{ayah.translation}"</Text>
                 </View>
               ))}
@@ -353,6 +401,15 @@ const styles = StyleSheet.create({
   },
   ayahHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   ayahRef: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
+  ayahArabic: {
+    color: COLORS.text,
+    fontSize: 17,
+    lineHeight: 28,
+    textAlign: 'right',
+    fontWeight: '600',
+    marginBottom: 6,
+    writingDirection: 'rtl',
+  },
   ayahTranslation: { color: COLORS.textSub, fontSize: 13, lineHeight: 20, fontStyle: 'italic' },
 
   resultCard: {

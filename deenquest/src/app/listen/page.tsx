@@ -14,7 +14,7 @@ import {
 import { getQFAccessToken } from "@/lib/qf-user-auth";
 import {
   Play, Pause, ChevronLeft, CheckCircle, ChevronDown, AudioLines,
-  Shuffle, BookOpen, Headphones, ScrollText, Loader2, CloudUpload, Bookmark, BookmarkCheck,
+  Shuffle, BookOpen, Headphones, ScrollText, Loader2, Bookmark, BookmarkCheck,
 } from "lucide-react";
 import PageContainer from "../../components/PageContainer";
 import toast from "react-hot-toast";
@@ -399,11 +399,6 @@ export default function ListenPage() {
               </div>
               <p className="text-sm font-arabic text-accent/70">{selectedChapter.name_arabic}</p>
             </div>
-            {/* Quran.com sync indicator */}
-            <span className={`flex items-center gap-1 text-xs shrink-0 transition-colors duration-300 ${sessionSynced ? "text-secondary animate-pulse" : "text-white/30"}`}>
-              <CloudUpload size={13} />
-              {sessionSynced ? "Synced" : "Quran.com"}
-            </span>
             {/* Pronunciation toggle */}
             <button
               onClick={() => setShowAllPronunciation((p) => !p)}
@@ -555,7 +550,7 @@ export default function ListenPage() {
                               });
                             }
                           }}
-                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all ${
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                             bookmarkedKeys.has(vk)
                               ? "bg-secondary/20 text-secondary"
                               : "bg-white/8 text-white/30 hover:bg-secondary/15 hover:text-secondary"

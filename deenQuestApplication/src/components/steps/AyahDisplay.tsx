@@ -132,8 +132,8 @@ const styles = StyleSheet.create({
   },
   arabic: {
     flex: 1,
-    color: COLORS.text, fontSize: 30, textAlign: 'right',
-    lineHeight: 54, writingDirection: 'rtl',
+    color: COLORS.text, fontSize: 22, textAlign: 'right',
+    lineHeight: 40, writingDirection: 'rtl',
   },
   transliteration: {
     color: COLORS.textMuted, fontSize: 12, textAlign: 'center',

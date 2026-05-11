@@ -6,8 +6,8 @@ import {
   GraduationCap, TrendingUp, Trophy, BadgeCheck, Shield, Crown, Star, LogOut,
 } from "lucide-react";
 import { useAuth } from "./AuthProvider";
-import { updateUserName, getBookmarks, getTasksCompletedCount, updateUserPlan } from "@/lib/firestore";
-import type { Bookmark as BookmarkType, TimePerDay } from "@/lib/types";
+import { updateUserName, getBookmarks, getTasksCompletedCount } from "@/lib/firestore";
+import type { Bookmark as BookmarkType } from "@/lib/types";
 import { getQFAccessToken, isQFConnected, initiateQFOAuth, clearQFSession } from "@/lib/qf-user-auth";
 import toast from "react-hot-toast";
 

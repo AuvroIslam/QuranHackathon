@@ -225,16 +225,16 @@ export default function SetupPage() {
               </div>
               <button
                 onClick={handleQFConnect}
-                className="w-full glass-card rounded-2xl p-4 flex items-center gap-4 text-left hover:bg-white/10 transition-all group border border-accent/30"
+                className="w-full rounded-2xl p-4 flex items-center gap-4 text-left transition-all group border border-secondary/40 bg-linear-to-r from-secondary/20 to-secondary-dark/20 hover:from-secondary/30 hover:to-secondary-dark/30"
               >
-                <div className="w-14 h-14 rounded-2xl bg-accent/15 flex items-center justify-center shrink-0 group-hover:bg-accent/25 transition-colors">
-                  <BookOpen size={26} className="text-accent" />
+                <div className="w-14 h-14 rounded-2xl bg-secondary/25 flex items-center justify-center shrink-0 group-hover:bg-secondary/35 transition-colors">
+                  <BookOpen size={26} className="text-secondary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-white text-sm">Connect Quran.com</p>
                   <p className="text-xs text-white/55 mt-0.5">You&apos;ll be redirected to authorise DeenQuest</p>
                 </div>
-                <span className="text-accent text-lg font-bold shrink-0">→</span>
+                <span className="text-secondary text-lg font-bold shrink-0">→</span>
               </button>
               <button
                 onClick={() => router.push("/")}

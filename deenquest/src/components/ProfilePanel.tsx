@@ -5,6 +5,7 @@ import {
   X, Edit2, Check, Wifi, WifiOff, Bookmark, Flame, Zap, ClipboardCheck, Medal,
   GraduationCap, TrendingUp, Trophy, BadgeCheck, Shield, Crown, Star, LogOut,
 } from "lucide-react";
+import Image from "next/image";
 import { useAuth } from "./AuthProvider";
 import { updateUserName, getBookmarks, getTasksCompletedCount } from "@/lib/firestore";
 import type { Bookmark as BookmarkType } from "@/lib/types";
@@ -205,9 +206,7 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
           {/* Quran.com */}
           <div className="glass rounded-xl p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {qfConnected
-                ? <Wifi size={14} className="text-secondary" />
-                : <WifiOff size={14} className="text-white/30" />}
+              <Image src="/quran.comLogo.png" alt="Quran.com" width={20} height={20} className="rounded-sm opacity-90" />
               <span className="text-sm text-white/70">Quran.com</span>
               {qfConnected && <span className="text-xs text-secondary/70">Connected</span>}
             </div>

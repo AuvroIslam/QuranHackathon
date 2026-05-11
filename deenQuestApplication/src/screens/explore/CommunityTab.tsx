@@ -1,11 +1,13 @@
-import { ThumbsUp, MessageSquare, Plus, Send } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, MessageSquare, Plus, Search, Send, ThumbsUp, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
   ActivityIndicator, KeyboardAvoidingView, Modal, Platform,
   Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { getPosts, createPost, upvotePost } from '../../lib/firestore-community';
+import {
+  Answer, createAnswer, createPost, getAnswers, getPosts, upvoteAnswer, upvotePost,
+} from '../../lib/firestore-community';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
 
 interface Post {
@@ -31,6 +33,16 @@ export default function CommunityTab() {
   const [postPressed, setPostPressed] = useState(false);
   const [newBtnPressed, setNewBtnPressed] = useState(false);
 
+  // Replies state
+  const [expandedPost, setExpandedPost] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, Answer[]>>({});
+  const [answerInput, setAnswerInput] = useState<Record<string, string>>({});
+  const [answerLoading, setAnswerLoading] = useState<Record<string, boolean>>({});
+  const [loadingAnswers, setLoadingAnswers] = useState<Record<string, boolean>>({});
+  // replyingTo[postId] = { answerId, userName } when replying to a specific answer
+  const [replyingTo, setReplyingTo] = useState<Record<string, { answerId: string; userName: string } | null>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+
   const load = async () => {
     try {
       const data = await getPosts();
@@ -40,6 +52,23 @@ export default function CommunityTab() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const handleToggleExpand = async (postId: string) => {
+    if (expandedPost === postId) {
+      setExpandedPost(null);
+      return;
+    }
+    setExpandedPost(postId);
+    if (answers[postId]) return; // already loaded
+    setLoadingAnswers((prev) => ({ ...prev, [postId]: true }));
+    try {
+      const data = await getAnswers(postId);
+      setAnswers((prev) => ({ ...prev, [postId]: data }));
+    } catch {
+      setAnswers((prev) => ({ ...prev, [postId]: [] }));
+    }
+    setLoadingAnswers((prev) => ({ ...prev, [postId]: false }));
+  };
 
   const handlePost = async () => {
     if (!title.trim() || !content.trim()) return;
@@ -57,14 +86,63 @@ export default function CommunityTab() {
       const currentUid = uid ?? 'anon';
       await upvotePost(postId, currentUid);
       setPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId
-            ? { ...p, upvotes: p.upvotedBy.includes(currentUid) ? p.upvotes - 1 : p.upvotes + 1 }
-            : p
-        )
+        prev.map((p) => {
+          if (p.id !== postId) return p;
+          const already = p.upvotedBy.includes(currentUid);
+          return {
+            ...p,
+            upvotes: already ? p.upvotes - 1 : p.upvotes + 1,
+            upvotedBy: already
+              ? p.upvotedBy.filter((id) => id !== currentUid)
+              : [...p.upvotedBy, currentUid],
+          };
+        })
       );
     } catch {}
   };
+
+  const handleReply = async (postId: string) => {
+    const text = answerInput[postId]?.trim();
+    if (!text || !uid) return;
+    setAnswerLoading((prev) => ({ ...prev, [postId]: true }));
+    try {
+      const parent = replyingTo[postId];
+      const answer = await createAnswer(postId, uid, user?.displayName ?? 'Anonymous', text, parent?.answerId ?? null);
+      setAnswers((prev) => ({ ...prev, [postId]: [...(prev[postId] ?? []), answer] }));
+      setAnswerInput((prev) => ({ ...prev, [postId]: '' }));
+      setReplyingTo((prev) => ({ ...prev, [postId]: null }));
+    } catch {}
+    setAnswerLoading((prev) => ({ ...prev, [postId]: false }));
+  };
+
+  const handleAnswerUpvote = async (answerId: string, postId: string) => {
+    if (!uid) return;
+    try {
+      await upvoteAnswer(answerId, uid);
+      setAnswers((prev) => ({
+        ...prev,
+        [postId]: (prev[postId] ?? []).map((a) => {
+          if (a.id !== answerId) return a;
+          const already = a.upvotedBy.includes(uid);
+          return {
+            ...a,
+            upvotes: already ? a.upvotes - 1 : a.upvotes + 1,
+            upvotedBy: already
+              ? a.upvotedBy.filter((id) => id !== uid)
+              : [...a.upvotedBy, uid],
+          };
+        }),
+      }));
+    } catch {}
+  };
+
+  const postAnswers = (postId: string) => answers[postId] ?? [];
+
+  const filteredPosts = posts.filter((p) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return p.title?.toLowerCase().includes(q) || p.content.toLowerCase().includes(q);
+  });
 
   return (
     <View style={styles.flex}>
@@ -85,32 +163,216 @@ export default function CommunityTab() {
           </Pressable>
         </View>
 
+        {/* Search bar */}
+        <View style={styles.searchWrap}>
+          <Search size={15} color={COLORS.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search posts by keyword…"
+            placeholderTextColor={COLORS.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.searchClear}>
+              <X size={13} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {loading ? (
           <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
+        ) : filteredPosts.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <MessageSquare size={36} color={COLORS.textMuted} />
+            <Text style={styles.emptyText}>
+              {searchQuery.trim() ? 'No posts match your search.' : 'No posts yet — be the first to share!'}
+            </Text>
+          </View>
         ) : (
-          posts.map((post) => (
-            <View key={post.id} style={styles.postCard}>
-              <View style={styles.postHeader}>
-                <View style={[styles.typePill, post.type === 'question' && styles.typePillQ]}>
-                  <Text style={[styles.typeText, post.type === 'question' && styles.typeTextQ]}>
-                    {post.type === 'question' ? 'Question' : 'Reflection'}
+          filteredPosts.map((post) => {
+            const expanded = expandedPost === post.id;
+            const replies = postAnswers(post.id);
+            const replyCount = expanded ? replies.length : (answers[post.id]?.length ?? 0);
+            const isUpvoted = uid ? post.upvotedBy.includes(uid) : false;
+
+            return (
+              <View key={post.id} style={styles.postCard}>
+                {/* Post header */}
+                <View style={styles.postHeader}>
+                  <View style={[styles.typePill, post.type === 'question' && styles.typePillQ]}>
+                    <Text style={[styles.typeText, post.type === 'question' && styles.typeTextQ]}>
+                      {post.type === 'question' ? 'Question' : 'Reflection'}
+                    </Text>
+                  </View>
+                  <Text style={styles.postTime}>
+                    {new Date(post.createdAt).toLocaleDateString()}
                   </Text>
                 </View>
-                <Text style={styles.postTime}>
-                  {new Date(post.createdAt).toLocaleDateString()}
-                </Text>
+
+                <Text style={styles.postTitle}>{post.title}</Text>
+                <Text style={styles.postContent} numberOfLines={expanded ? undefined : 3}>{post.content}</Text>
+
+                {/* Post footer actions */}
+                <View style={styles.postFooter}>
+                  <Text style={styles.postAuthor}>by {post.userName}</Text>
+                  <View style={styles.postActions}>
+                    <TouchableOpacity
+                      style={[styles.actionChip, isUpvoted && styles.actionChipActive]}
+                      onPress={() => handleUpvote(post.id)}
+                    >
+                      <ThumbsUp size={13} color={isUpvoted ? COLORS.white : COLORS.primary} />
+                      <Text style={[styles.actionChipText, isUpvoted && styles.actionChipTextActive]}>
+                        {post.upvotes}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.replyChip}
+                      onPress={() => handleToggleExpand(post.id)}
+                    >
+                      <MessageSquare size={13} color={COLORS.textMuted} />
+                      <Text style={styles.replyChipText}>
+                        {replyCount > 0 ? replyCount : ''} {replyCount === 1 ? 'Reply' : 'Replies'}
+                      </Text>
+                      {expanded
+                        ? <ChevronUp size={13} color={COLORS.textMuted} />
+                        : <ChevronDown size={13} color={COLORS.textMuted} />}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Expanded replies section */}
+                {expanded && (
+                  <View style={styles.repliesSection}>
+                    <View style={styles.repliesDivider} />
+
+                    {loadingAnswers[post.id] ? (
+                      <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 12 }} />
+                    ) : replies.filter((r) => !r.parentAnswerId).length === 0 ? (
+                      <Text style={styles.noReplies}>No replies yet — add the first one!</Text>
+                    ) : (
+                      replies.filter((r) => !r.parentAnswerId).map((answer) => {
+                        const answerUpvoted = uid ? answer.upvotedBy.includes(uid) : false;
+                        const subReplies = replies.filter((r) => r.parentAnswerId === answer.id);
+                        return (
+                          <View key={answer.id}>
+                            <View style={styles.replyRow}>
+                              <View style={styles.replyAvatar}>
+                                <Text style={styles.replyAvatarText}>
+                                  {answer.userName.charAt(0).toUpperCase()}
+                                </Text>
+                              </View>
+                              <View style={styles.replyBody}>
+                                <View style={styles.replyMeta}>
+                                  <Text style={styles.replyName}>{answer.userName}</Text>
+                                  <Text style={styles.replyTime}>
+                                    {new Date(answer.createdAt).toLocaleDateString()}
+                                  </Text>
+                                </View>
+                                <Text style={styles.replyContent}>{answer.content}</Text>
+                                <View style={styles.replyActions}>
+                                  <TouchableOpacity
+                                    style={styles.replyUpvote}
+                                    onPress={() => handleAnswerUpvote(answer.id, post.id)}
+                                  >
+                                    <ThumbsUp size={11} color={answerUpvoted ? COLORS.primary : COLORS.textMuted} />
+                                    <Text style={[styles.replyUpvoteText, answerUpvoted && styles.replyUpvoteTextActive]}>
+                                      {answer.upvotes > 0 ? answer.upvotes : ''}
+                                    </Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    onPress={() => setReplyingTo((prev) => ({
+                                      ...prev,
+                                      [post.id]: prev[post.id]?.answerId === answer.id
+                                        ? null
+                                        : { answerId: answer.id, userName: answer.userName },
+                                    }))}
+                                  >
+                                    <Text style={styles.replyToBtn}>Reply</Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            </View>
+                            {/* Sub-replies indented */}
+                            {subReplies.map((sub) => {
+                              const subUpvoted = uid ? sub.upvotedBy.includes(uid) : false;
+                              return (
+                                <View key={sub.id} style={styles.subReplyRow}>
+                                  <View style={styles.subReplyLine} />
+                                  <View style={[styles.replyRow, { flex: 1 }]}>
+                                    <View style={[styles.replyAvatar, styles.subReplyAvatar]}>
+                                      <Text style={styles.replyAvatarText}>
+                                        {sub.userName.charAt(0).toUpperCase()}
+                                      </Text>
+                                    </View>
+                                    <View style={styles.replyBody}>
+                                      <View style={styles.replyMeta}>
+                                        <Text style={styles.replyName}>{sub.userName}</Text>
+                                        <Text style={styles.replyTime}>
+                                          {new Date(sub.createdAt).toLocaleDateString()}
+                                        </Text>
+                                      </View>
+                                      <Text style={styles.replyContent}>{sub.content}</Text>
+                                      <TouchableOpacity
+                                        style={styles.replyUpvote}
+                                        onPress={() => handleAnswerUpvote(sub.id, post.id)}
+                                      >
+                                        <ThumbsUp size={11} color={subUpvoted ? COLORS.primary : COLORS.textMuted} />
+                                        <Text style={[styles.replyUpvoteText, subUpvoted && styles.replyUpvoteTextActive]}>
+                                          {sub.upvotes > 0 ? sub.upvotes : ''}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  </View>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        );
+                      })
+                    )}
+
+                    {/* Reply input */}
+                    {replyingTo[post.id] && (
+                      <View style={styles.replyingToBanner}>
+                        <Text style={styles.replyingToText}>↩ Replying to {replyingTo[post.id]!.userName}</Text>
+                        <TouchableOpacity onPress={() => setReplyingTo((prev) => ({ ...prev, [post.id]: null }))}>
+                          <Text style={styles.replyingToCancel}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    <View style={styles.replyInput}>
+                      <TextInput
+                        style={styles.replyTextInput}
+                        placeholder={replyingTo[post.id] ? `Reply to ${replyingTo[post.id]!.userName}…` : 'Write a reply…'}
+                        placeholderTextColor={COLORS.textMuted}
+                        value={answerInput[post.id] ?? ''}
+                        onChangeText={(t) => setAnswerInput((prev) => ({ ...prev, [post.id]: t }))}
+                        multiline
+                        returnKeyType="send"
+                        onSubmitEditing={() => handleReply(post.id)}
+                      />
+                      <TouchableOpacity
+                        style={[
+                          styles.replySendBtn,
+                          (!answerInput[post.id]?.trim() || answerLoading[post.id]) && styles.replySendBtnDisabled,
+                        ]}
+                        onPress={() => handleReply(post.id)}
+                        disabled={!answerInput[post.id]?.trim() || answerLoading[post.id]}
+                      >
+                        {answerLoading[post.id]
+                          ? <ActivityIndicator size="small" color={COLORS.white} />
+                          : <Send size={15} color={COLORS.white} />}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </View>
-              <Text style={styles.postTitle}>{post.title}</Text>
-              <Text style={styles.postContent} numberOfLines={3}>{post.content}</Text>
-              <View style={styles.postFooter}>
-                <Text style={styles.postAuthor}>by {post.userName}</Text>
-                <TouchableOpacity style={styles.upvoteBtn} onPress={() => handleUpvote(post.id)}>
-                  <ThumbsUp size={13} color={COLORS.primary} />
-                  <Text style={styles.upvoteCount}>{post.upvotes}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
@@ -160,7 +422,8 @@ export default function CommunityTab() {
             onPressOut={() => setPostPressed(false)}
             onPress={handlePost}
             disabled={!title.trim() || !content.trim() || posting}
-            style={[styles.submitBtn,
+            style={[
+              styles.submitBtn,
               (!title.trim() || !content.trim() || posting)
                 ? styles.submitBtnDisabled
                 : [DEPTH.button, postPressed && DEPTH.buttonPressed],
@@ -184,6 +447,7 @@ export default function CommunityTab() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { padding: 16, gap: 12, paddingBottom: 40 },
+
   rowHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   heading: { color: COLORS.text, fontSize: 20, fontWeight: '800' },
   sub: { color: COLORS.textSub, fontSize: 13 },
@@ -194,12 +458,25 @@ const styles = StyleSheet.create({
     ...SHADOW.glow(COLORS.primary),
   },
   newBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+
+  searchWrap: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
+    paddingHorizontal: 12, paddingVertical: 8, gap: 8,
+  },
+  searchInput: { flex: 1, color: COLORS.text, fontSize: 13, paddingVertical: 0 },
+  searchClear: { padding: 2 },
+
+  emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 12 },
+  emptyText: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center' },
+
   postCard: {
     backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
     borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    padding: 16, gap: 8, ...SHADOW.card,
+    overflow: 'hidden', ...SHADOW.card,
   },
-  postHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  postHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, paddingBottom: 6 },
   typePill: {
     backgroundColor: COLORS.primaryBg, paddingHorizontal: 10,
     paddingVertical: 3, borderRadius: RADIUS.full,
@@ -208,16 +485,84 @@ const styles = StyleSheet.create({
   typeText: { color: COLORS.primary, fontSize: 11, fontWeight: '700' },
   typeTextQ: { color: COLORS.accentDark },
   postTime: { color: COLORS.textMuted, fontSize: 11, marginLeft: 'auto' },
-  postTitle: { color: COLORS.text, fontSize: 16, fontWeight: '700' },
-  postContent: { color: COLORS.textSub, fontSize: 13, lineHeight: 20 },
-  postFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  postTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700', paddingHorizontal: 14, marginBottom: 4 },
+  postContent: { color: COLORS.textSub, fontSize: 13, lineHeight: 20, paddingHorizontal: 14 },
+  postFooter: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 14, paddingVertical: 10, marginTop: 4,
+  },
   postAuthor: { color: COLORS.textMuted, fontSize: 12 },
-  upvoteBtn: {
+  postActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: COLORS.primaryBg, paddingHorizontal: 10,
     paddingVertical: 5, borderRadius: RADIUS.full,
+    borderWidth: 1, borderColor: `${COLORS.primary}33`,
   },
-  upvoteCount: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
+  actionChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  actionChipText: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
+  actionChipTextActive: { color: COLORS.white },
+  replyChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: COLORS.surfaceDark, borderRadius: RADIUS.full,
+    borderWidth: 1, borderColor: COLORS.cardBorder,
+  },
+  replyChipText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
+
+  // Replies
+  repliesSection: { paddingHorizontal: 14, paddingBottom: 12, gap: 10 },
+  repliesDivider: { height: 1, backgroundColor: COLORS.cardBorder, marginBottom: 4 },
+  noReplies: { color: COLORS.textMuted, fontSize: 12, fontStyle: 'italic', textAlign: 'center', paddingVertical: 8 },
+
+  replyRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  replyAvatar: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: COLORS.primaryBg,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  replyAvatarText: { color: COLORS.primary, fontSize: 12, fontWeight: '800' },
+  replyBody: { flex: 1, gap: 3 },
+  replyMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  replyName: { color: COLORS.text, fontSize: 12, fontWeight: '700' },
+  replyTime: { color: COLORS.textMuted, fontSize: 11 },
+  replyContent: { color: COLORS.textSub, fontSize: 13, lineHeight: 19 },
+  replyActions: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
+  replyUpvote: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  replyUpvoteText: { color: COLORS.textMuted, fontSize: 11 },
+  replyUpvoteTextActive: { color: COLORS.primary },
+  replyToBtn: { color: COLORS.primary, fontSize: 11, fontWeight: '700' },
+  subReplyRow: { flexDirection: 'row', marginLeft: 14, marginTop: 6 },
+  subReplyLine: { width: 2, backgroundColor: COLORS.cardBorder, borderRadius: 2, marginRight: 8, marginLeft: 6 },
+  subReplyAvatar: { width: 24, height: 24, borderRadius: 12 },
+  replyingToBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: COLORS.primaryBg, borderRadius: RADIUS.md,
+    paddingHorizontal: 10, paddingVertical: 6, marginBottom: 4,
+  },
+  replyingToText: { color: COLORS.primary, fontSize: 12, fontWeight: '600' },
+  replyingToCancel: { color: COLORS.primary, fontSize: 13, fontWeight: '700', paddingHorizontal: 4 },
+
+  replyInput: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 8,
+    marginTop: 4,
+  },
+  replyTextInput: {
+    flex: 1,
+    backgroundColor: COLORS.surfaceDark,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
+    paddingHorizontal: 12, paddingVertical: 8,
+    color: COLORS.text, fontSize: 13, maxHeight: 80,
+  },
+  replySendBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  replySendBtnDisabled: { opacity: 0.4 },
+
+  // Modal
   modal: { flex: 1, backgroundColor: COLORS.bg, padding: 20, gap: 14 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
   modalTitle: { color: COLORS.text, fontSize: 20, fontWeight: '800' },

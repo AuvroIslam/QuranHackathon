@@ -409,17 +409,6 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   );
 }
 
-function StatCard({ icon, value, label, bg, color }: {
-  icon: React.ReactNode; value: number; label: string; bg: string; color: string;
-}) {
-  return (
-    <View style={[styles.statCard, { backgroundColor: bg }]}>
-      {icon}
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
 
 function TaskCard({ task, done, completing, onComplete }: {
   task: Task; done: boolean; completing: boolean; onComplete: () => void;
@@ -482,19 +471,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { paddingBottom: 100, paddingTop: 12 },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12,
-  },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logo: { width: 30, height: 30, borderRadius: 8 },
-  brandName: { color: COLORS.primaryDark, fontSize: 18, fontWeight: '800' },
-  greeting: { color: COLORS.textSub, fontSize: 14, fontStyle: 'italic' },
-
-  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingVertical: 12 },
-  statCard: { flex: 1, borderRadius: RADIUS.xl, padding: 12, alignItems: 'center', gap: 4 },
-  statValue: { fontSize: 20, fontWeight: '800' },
-  statLabel: { color: COLORS.textMuted, fontSize: 11, fontWeight: '600' },
 
   lessonCard: { marginHorizontal: 20, marginTop: 12, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: 24, backgroundColor: COLORS.bgDeep, ...SHADOW.strong },
   lessonCardBg: { borderRadius: RADIUS.xl, opacity: 0.7 },

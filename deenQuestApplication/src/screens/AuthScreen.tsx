@@ -5,7 +5,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -79,10 +79,11 @@ export default function AuthScreen() {
       if (!idToken) throw new Error('No ID token');
       const credential = GoogleAuthProvider.credential(idToken);
       const cred = await signInWithCredential(auth, credential);
-      // Merge so existing users aren't overwritten
-      await setDoc(
-        doc(db, 'users', cred.user.uid),
-        {
+      const userRef = doc(db, 'users', cred.user.uid);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        // New user — create profile with initial values
+        await setDoc(userRef, {
           name: cred.user.displayName ?? '',
           email: cred.user.email ?? '',
           xp: 0,
@@ -95,9 +96,15 @@ export default function AuthScreen() {
           timePerDay: null,
           quranProgress: null,
           currentDay: 1,
-        },
-        { merge: true }
-      );
+        });
+      } else {
+        // Returning user — only update mutable identity fields
+        await updateDoc(userRef, {
+          name: cred.user.displayName ?? snap.data().name ?? '',
+          email: cred.user.email ?? snap.data().email ?? '',
+          lastActive: new Date().toISOString(),
+        });
+      }
     } catch (e: any) {
       if (e.code === statusCodes.SIGN_IN_CANCELLED) {
         // user cancelled — do nothing

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { groundWithMCP } from "@/lib/quran-mcp";
+import { checkRateLimit, getClientIp } from "@/lib/server/rate-limit";
 
 type ProviderMode = "default" | "dawah";
 
@@ -157,6 +158,15 @@ async function callOpenAICompatibleProvider(
 }
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(ip, "deepseek", 20);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment before trying again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.resetInMs / 1000)) } }
+    );
+  }
+
   const requestId = createRequestId();
   const requestStart = Date.now();
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchVerseContent } from "@/lib/server/qf-verse";
+import { checkRateLimit, getClientIp } from "@/lib/server/rate-limit";
 
 // ── Reference bank: only stores verse keys, explanations, and audio URLs.
 // Arabic text and translations are fetched from the QF API — never hardcoded.
@@ -66,6 +67,15 @@ const DEFAULT_QUESTION = {
 };
 
 export async function GET(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(ip, "mood-ayah", 10);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment before trying again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.resetInMs / 1000)) } }
+    );
+  }
+
   const { searchParams } = req.nextUrl;
   const mood = searchParams.get("mood") ?? "justHere";
 

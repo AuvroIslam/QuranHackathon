@@ -76,20 +76,21 @@ export default function Navbar() {
           <p className="text-sm text-white/85 mt-1">Your Journey Back to the Quran</p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1" aria-label="Main navigation">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
               <Link
                 key={href}
                 href={href}
+                aria-current={active ? "page" : undefined}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   active
                     ? "bg-white/15 text-white shadow-lg shadow-black/25"
                     : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
-                <Icon size={18} />
+                <Icon size={18} aria-hidden="true" />
                 {label}
               </Link>
             );
@@ -100,6 +101,7 @@ export default function Navbar() {
           <button
             onClick={() => setProfileOpen(true)}
             className="flex items-center gap-3 mb-3 w-full hover:bg-white/5 rounded-xl p-1.5 -mx-1.5 transition-colors group"
+            aria-label={`Open profile for ${profile?.name}`}
           >
             <div className="w-9 h-9 rounded-full bg-linear-to-br from-secondary to-secondary-dark flex items-center justify-center text-white font-semibold text-sm shadow-lg shadow-secondary/25 shrink-0">
               {profile?.name?.charAt(0).toUpperCase() || "U"}
@@ -112,8 +114,9 @@ export default function Navbar() {
           <button
             onClick={signOut}
             className="flex items-center gap-2 text-sm text-slate-400 hover:text-red-400 transition-colors w-full px-2"
+            aria-label="Sign out of DeenQuest"
           >
-            <LogOut size={16} />
+            <LogOut size={16} aria-hidden="true" />
             Sign out
           </button>
         </div>
@@ -126,37 +129,45 @@ export default function Navbar() {
           <Image src="/deenQuestLogo.png" alt="DeenQuest" width={28} height={28} className="rounded-lg" />
           <h1 className="brand-title font-heading text-2xl font-bold tracking-normal">DeenQuest</h1>
         </div>
-        <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-300">
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="text-slate-300"
+          aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu"
+        >
           {menuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </header>
 
       {/* Mobile menu overlay */}
       {menuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={() => setMenuOpen(false)}>
+        <div className="md:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={() => setMenuOpen(false)} role="dialog" aria-modal="true" aria-label="Navigation menu">
           <div
+            id="mobile-menu"
             className="absolute right-0 top-0 bottom-0 w-64 glass-dark p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-6">
               <span className="font-bold text-accent">Menu</span>
-              <button onClick={() => setMenuOpen(false)}>
+              <button onClick={() => setMenuOpen(false)} aria-label="Close navigation menu">
                 <X size={20} className="text-slate-400" />
               </button>
             </div>
-            <nav className="space-y-1">
+            <nav className="space-y-1" aria-label="Mobile navigation">
               {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
                 <Link
                   key={href}
                   href={href}
                   onClick={() => setMenuOpen(false)}
+                  aria-current={pathname === href ? "page" : undefined}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                     pathname === href
                       ? "bg-accent/15 text-accent"
                       : "text-slate-300 hover:bg-white/10"
                   }`}
                 >
-                  <Icon size={18} />
+                  <Icon size={18} aria-hidden="true" />
                   {label}
                 </Link>
               ))}
@@ -175,18 +186,20 @@ export default function Navbar() {
       )}
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 glass-dark rounded-t-2xl flex items-center justify-around z-40">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 glass-dark rounded-t-2xl flex items-center justify-around z-40" aria-label="Bottom navigation">
         {NAV_ITEMS.slice(0, 4).map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
             <Link
               key={href}
               href={href}
+              aria-current={active ? "page" : undefined}
+              aria-label={label}
               className={`flex flex-col items-center gap-0.5 text-xs ${
                 active ? "text-accent" : "text-slate-400"
               }`}
             >
-              <Icon size={20} />
+              <Icon size={20} aria-hidden="true" />
               {label}
             </Link>
           );

@@ -40,6 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# API debug / temp output
+response.json
+
 # Claude Code
 CLAUDE.md
 AGENTS.md

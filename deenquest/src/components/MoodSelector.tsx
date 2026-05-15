@@ -31,13 +31,15 @@ export default function MoodSelector({ onSelect, onCustomSituation, selected, lo
 
   return (
     <div>
-      <h3 className="text-sm font-medium text-primary/70 mb-3">How are you feeling today?</h3>
-      <div className="flex flex-wrap gap-2">
+      <h3 id="mood-label" className="text-sm font-medium text-primary/70 mb-3">How are you feeling today?</h3>
+      <div className="flex flex-wrap gap-2" role="group" aria-labelledby="mood-label">
         {MOODS.map(({ key, label, color }) => (
           <button
             key={key}
             onClick={() => onSelect(key)}
             disabled={loading}
+            aria-pressed={selected === key}
+            aria-label={`I am feeling ${label}`}
             className={`px-4 py-2 rounded-full text-sm font-medium border transition-all disabled:opacity-50 backdrop-blur-sm ${
               selected === key
                 ? "bg-[rgba(108,36,112,0.72)] border-accent/40 text-accent ring-1 ring-accent/45 scale-105 shadow-md shadow-secondary/20"
@@ -59,6 +61,8 @@ export default function MoodSelector({ onSelect, onCustomSituation, selected, lo
               onChange={(e) => setSituation(e.target.value)}
               disabled={loading}
               rows={3}
+              aria-label="Describe your situation for a personalised ayah"
+              maxLength={200}
               className="w-full px-4 py-2.5 bg-white/25 border border-white/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 disabled:opacity-50 placeholder:text-primary/35 transition-all duration-300 resize-none"
             />
           </div>

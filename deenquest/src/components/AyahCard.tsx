@@ -70,7 +70,7 @@ export default function AyahCard({
   }
 
   return (
-    <div className="glass-card rounded-2xl p-6 space-y-4">
+    <article className="glass-card rounded-2xl p-6 space-y-4" aria-label={`Verse ${numberInSurah} from ${surahName}`}>
       <div className="flex items-start justify-between">
         <span className="text-xs font-medium text-secondary bg-accent/15 px-3 py-1 rounded-full">
           {surahName} : {numberInSurah}
@@ -84,7 +84,7 @@ export default function AyahCard({
               aria-label={playing ? "Pause audio" : "Play audio"}
             >
               {loading ? (
-                <Loader2 size={18} className="animate-spin" />
+                <Loader2 size={18} className="animate-spin" aria-label="Loading audio" />
               ) : playing ? (
                 <PauseCircle size={18} />
               ) : (
@@ -126,6 +126,6 @@ export default function AyahCard({
           <p className="text-sm text-primary/75 leading-relaxed">{explanation}</p>
         </div>
       ) : null}
-    </div>
+    </article>
   );
 }

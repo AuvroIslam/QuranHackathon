@@ -3,6 +3,15 @@
 *.serviceAccount.json
 serviceAccount.json
 
+# API debug / temp output
+response.json
+
+# Internal hackathon planning docs
+feature.md
+prompt.md
+questionHackathon.md
+ApiDetails.md
+
 # OS
 .DS_Store
 Thumbs.db

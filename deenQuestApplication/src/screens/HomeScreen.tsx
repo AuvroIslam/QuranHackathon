@@ -193,7 +193,14 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                     <Text style={[streakWidgetStyles.tagline, { color: COLORS.primary }]} numberOfLines={1}>Keep growing!</Text>
                   </View>
                 </View>
-                <Pressable onPress={() => setShowWeekly(v => !v)} style={streakWidgetStyles.chevronBtn}>
+                <Pressable
+                  onPress={() => setShowWeekly(v => !v)}
+                  style={streakWidgetStyles.chevronBtn}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={showWeekly ? "Collapse weekly streak view" : "Expand weekly streak view"}
+                  accessibilityState={{ expanded: showWeekly }}
+                >
                   {showWeekly
                     ? <ChevronDown size={18} color={COLORS.textMuted} />
                     : <ChevronRight size={18} color={COLORS.textMuted} />}
@@ -272,6 +279,9 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                   onPressIn={() => setAyahPressed(true)}
                   onPressOut={() => setAyahPressed(false)}
                   onPress={onGetAyah}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel="Get a personalised Ayah"
                   style={[styles.lessonBtn, styles.lessonBtnAyah, DEPTH.button, ayahPressed && DEPTH.buttonPressed]}
                 >
                   <Text style={styles.lessonBtnText}>Get an Ayah</Text>
@@ -320,6 +330,13 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                       onStartLesson(hasInProgress);
                     }
                   }}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    hasInProgress ? 'Continue your Quran journey' :
+                    sessionsToday > 0 ? 'Start another Quran session' :
+                    'Begin today\'s Quran journey'
+                  }
                   style={[styles.lessonBtn, DEPTH.button, lessonPressed && DEPTH.buttonPressed]}
                 >
                   <Text style={styles.lessonBtnText}>
@@ -431,7 +448,15 @@ function TaskCard({ task, done, completing, onComplete }: {
   return (
     <View style={[styles.taskCard, done && styles.taskCardDone]}>
       <View style={styles.taskRow}>
-        <Pressable onPress={onComplete} disabled={done || completing} style={styles.taskCheck}>
+        <Pressable
+          onPress={onComplete}
+          disabled={done || completing}
+          style={styles.taskCheck}
+          accessible={true}
+          accessibilityRole="checkbox"
+          accessibilityLabel={done ? `${task.title} completed` : `Mark ${task.title} as complete`}
+          accessibilityState={{ checked: done, disabled: done || completing }}
+        >
           {completing
             ? <ActivityIndicator size="small" color={COLORS.primary} />
             : done
@@ -439,7 +464,14 @@ function TaskCard({ task, done, completing, onComplete }: {
               : <View style={styles.checkboxEmpty} />}
         </Pressable>
 
-        <Pressable style={styles.taskBody} onPress={() => setExpanded(v => !v)}>
+        <Pressable
+          style={styles.taskBody}
+          onPress={() => setExpanded(v => !v)}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={`${task.title}. +${task.xpReward} XP. ${expanded ? 'Collapse' : 'Expand'} details`}
+          accessibilityState={{ expanded }}
+        >
           <View style={styles.taskTitleRow}>
             <Text style={[styles.taskTitle, done && styles.taskTitleDone]}>{task.title}</Text>
             {expanded

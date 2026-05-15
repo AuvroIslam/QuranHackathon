@@ -87,6 +87,10 @@ export default function NeuButton({
             onPressOut={handlePressOut}
             onPress={onPress}
             disabled={disabled}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            accessibilityState={{ disabled: !!disabled }}
             style={[styles.inner, sizeStyle, { borderRadius: radius, opacity: disabled ? 0.45 : 1 }]}
           >
             {label ? (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { callLLM } from "@/lib/llm";
 import { fetchTafsirMCP } from "@/lib/quran-mcp";
+import { checkRateLimit, getClientIp } from "@/lib/server/rate-limit";
 
 interface Body {
   verseKey?: string;
@@ -11,6 +12,15 @@ interface Body {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rl = checkRateLimit(ip, "reflection", 15);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment before trying again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.resetInMs / 1000)) } }
+    );
+  }
+
   let body: Body;
   try {
     body = await req.json();

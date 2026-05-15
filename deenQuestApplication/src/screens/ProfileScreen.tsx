@@ -54,17 +54,14 @@ export default function ProfileScreen() {
   const [qfConnected, setQfConnected] = useState(false);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
 
-  useEffect(() => {
+  // Re-fetch profile, bookmarks + QF status every time this tab comes into focus.
+  // ProfileScreen is a tab — it never remounts, so streak/XP stay stale without this.
+  useFocusEffect(useCallback(() => {
     if (!uid) return;
     getUserProfile(uid)
       .then((data) => { if (data) setProfile(data as Profile); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [uid]);
-
-  // Re-fetch bookmarks + QF connection status every time this tab comes into focus
-  useFocusEffect(useCallback(() => {
-    if (!uid) return;
     getBookmarks(uid).then(setBookmarks).catch(() => {});
     getQFTokens(uid).then((tokens) => setQfConnected(!!tokens)).catch(() => {});
   }, [uid]));

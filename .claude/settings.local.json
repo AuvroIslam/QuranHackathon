@@ -21,7 +21,10 @@
       "Bash(git push *)",
       "Bash(Get-ChildItem -Path \"d:\\\\Quranhackathon\" -Recurse -Force)",
       "Bash(Select-Object FullName)",
-      "Bash(Sort-Object FullName)"
+      "Bash(Sort-Object FullName)",
+      "Bash(Get-ChildItem -Path \"d:\\\\Quranhackathon\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)"
     ],
     "additionalDirectories": [
       "C:\\Users\\oitij\\.claude"

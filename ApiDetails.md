@@ -19,12 +19,6 @@
 - Same client ID used for both content (client_credentials) and user (PKCE) flows
 - Callback URL registered: `https://quran-hackathon-omega.vercel.app/auth/qf-callback`
 
-### Pre-Production (Testing) — archived, no longer in use
-| Field | Value |
-|-------|-------|
-| OAuth Endpoint | `https://prelive-oauth2.quran.foundation` |
-| User API Base | `https://apis-prelive.quran.foundation` |
-
 ---
 
 ## Environment Variables (`.env.local` + Vercel)
@@ -37,7 +31,7 @@ NEXT_PUBLIC_QF_CLIENT_ID=<prod client id>
 QF_OAUTH_BASE_URL=https://oauth2.quran.foundation
 NEXT_PUBLIC_QF_OAUTH_BASE_URL=https://oauth2.quran.foundation
 
-# Content API (same production credentials)
+# Content api (same production credentials)
 QF_CONTENT_CLIENT_ID=<prod client id>
 QF_CONTENT_CLIENT_SECRET=<prod client secret>
 
@@ -186,20 +180,6 @@ Response:
 
 ---
 
-## Scope Change Notes (Apr 30 2026)
-
-QF uses **parent scopes only** — requesting child scopes (e.g. `bookmark.read`) causes auth errors.
-
-| Old (broken) | New (correct) |
-|---|---|
-| `bookmark.read`, `bookmark.create`, `bookmark.delete` | `bookmark` |
-| `reading_session.read`, `reading_session.create` | `reading_session` |
-| `activity_days.write` | `activity_day` |
-| `goals.read`, `goals.write` | `goal` |
-| `collections.read`, `collections.write` | `collection` |
-
----
-
 ## Vercel Environment Variables Checklist
 
 | Variable | Value |
@@ -212,7 +192,6 @@ QF uses **parent scopes only** — requesting child scopes (e.g. `bookmark.read`
 | `QF_OAUTH_BASE_URL` | `https://oauth2.quran.foundation` |
 | `NEXT_PUBLIC_QF_OAUTH_BASE_URL` | `https://oauth2.quran.foundation` |
 | `QF_AUTH_BASE_URL` | `https://auth.quran.foundation` |
-| `QF_USER_API_BASE_URL` | **delete this var** (routes default to production) |
 | `FIREBASE_SERVICE_ACCOUNT_BASE64` | base64-encoded service account JSON (for Admin SDK — server-side token persistence) |
 
 ### Generating `FIREBASE_SERVICE_ACCOUNT_BASE64`

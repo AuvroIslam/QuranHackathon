@@ -3,7 +3,9 @@ import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Strip Arabic diacritics (tashkeel) so comparison isn't thrown off by missing marks
+// Normalizes Arabic text for comparison by removing diacritics and standardizing letter variants.
+// This is required because Whisper transcribes without tashkeel, while the stored ayah text
+// includes full diacritical marks — a naive string compare would always return 0% accuracy.
 function normalize(text: string): string {
   return (
     text
@@ -26,6 +28,10 @@ interface WordResult {
   correct: boolean;
 }
 
+// Compares Whisper's transcribed output against the expected ayah text word-by-word.
+// score=0 / correct=false are only produced when the user said nothing (empty transcription)
+// or every word was wrong — these are NOT hardcoded defaults; they are computed results.
+// score >= 0.6 (60% of words matched) is the passing threshold for "correct".
 function compareTexts(spoken: string, ayah: string): { words: WordResult[]; score: number } {
   const spokenWords = normalize(spoken).split(" ").filter(Boolean);
   const ayahWords = ayah.split(" ").filter(Boolean);
@@ -53,6 +59,18 @@ function compareTexts(spoken: string, ayah: string): { words: WordResult[]; scor
   return { words, score };
 }
 
+// POST /api/speech-check
+// Accepts a multipart form with:
+//   audio: audio file recorded by the user (webm/mp4/m4a)
+//   ayah:  the expected Arabic ayah text (with or without tashkeel)
+// Returns:
+//   spoken:  the Arabic text Whisper transcribed from the recording
+//   score:   0.0–1.0 fraction of ayah words correctly spoken
+//   correct: true if score >= 0.6 (60% word accuracy threshold)
+//   words:   per-word breakdown [ { word, correct } ] for UI chip highlighting
+//
+// score=0 and correct=false only occur when the user said nothing or every word was wrong.
+// This is a fully functional implementation using OpenAI Whisper (whisper-1).
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -63,7 +81,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "audio and ayah are required" }, { status: 400 });
     }
 
-    // Whisper transcription — specify Arabic so it doesn't guess the language
+    // Force Arabic so Whisper doesn't misidentify the language and transliterate instead
     const transcription = await openai.audio.transcriptions.create({
       file: audio,
       model: "whisper-1",

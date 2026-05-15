@@ -36,7 +36,7 @@
     },
     "production": {
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "apk"
       },
       "env": {
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAJxUgFdrKXqQ-ZT6sL8GwirGe0wdw-X-o",

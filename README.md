@@ -574,12 +574,19 @@ All pages, API routes, and features are implemented and deployed.
 - [x] Hadith sourced from hadithapi.com (Sahih) / curated bank — the LLM only refines the search keyword, never authors citations
 - [x] 60-lesson curriculum (20 per level), wrapping into a review cycle
 - [x] Both codebases type-check cleanly (`npm run typecheck` in the app; `tsc --noEmit` + `next build` for web)
+- [x] Unit test suite — 27 tests (web: arabic-utils, tasks-data, streakUtils) + 11 tests (mobile: tasks-data, streakUtils)
+- [x] GitHub Actions CI — runs both test suites on every push; deploys to Vercel production only after all tests pass on `main`
+- [x] Arabic normalization extracted to `src/lib/arabic-utils.ts` (shared, testable) — fixed a latent regex bug where the diacritic range also stripped base Arabic letters
+- [x] `ListenScreen.tsx` removed — was an orphaned "Coming Soon" placeholder not wired into navigation
 
 #### Pending / Known Issues
 
-- [ ] **`ListenScreen.tsx`** — `src/screens/ListenScreen.tsx` is a placeholder stub. It is NOT in the tab navigator. Can be safely deleted.
-- [ ] **OpenAI API key on Vercel** — must be set in the Vercel dashboard for `/api/speech-check` (Whisper) to work in production.
-- [ ] **Re-record the demo video** against the current deployed build so it reflects the live-fetch lessons and fixes.
+- [ ] **Listen tab** — A dedicated "Listen" tab for full surah playback with word-by-word highlighting is planned but not yet built. Audio playback currently exists inside `QuranScreen` (per-ayah) and `ListenStep` (within sessions).
+- [ ] **Translation switching UI** — The Quran Foundation API supports 50+ translations and they are fetched, but the UI does not expose a language/translation selector. Users cannot switch translations.
+- [ ] **Web transliteration** — The web Quran reader (`/listen`) does not show transliteration. The mobile `QuranScreen` and `SpeakStep` do.
+- [ ] **Accessibility** — No WCAG compliance audit done. No ARIA roles, screen reader support, or high-contrast mode on either platform.
+- [ ] **Dark / light mode** — Both apps use a fixed purple theme with no user toggle.
+- [ ] **Re-record the demo video** — Should reflect the current deployed build with live-fetch lessons, CI pipeline, and test suite.
 
 ---
 

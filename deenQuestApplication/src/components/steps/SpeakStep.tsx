@@ -1,3 +1,6 @@
+// FULLY IMPLEMENTED: Arabic recitation practice step used inside the session flow (useJourney hook).
+// Records user audio via expo-av, sends to /api/speech-check (OpenAI Whisper), and shows
+// word-by-word accuracy feedback with green/red chips. This is NOT a stub.
 import { Audio } from 'expo-av';
 import { Loader, Mic, Pause, Play, RotateCw, Square } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';

@@ -14,7 +14,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AyahDisplay from '../components/steps/AyahDisplay';
 import CompletionStep from '../components/steps/CompletionStep';
-import LessonIntroStep from '../components/steps/LessonIntroStep';
 import ListenStep from '../components/steps/ListenStep';
 import MCQQuestion from '../components/steps/MCQQuestion';
 import MoodSelection from '../components/steps/MoodSelection';
@@ -87,25 +86,28 @@ export default function JourneyScreen() {
     }).catch(() => {});
   }, [uid]);
 
-  useEffect(() => {
+  const loadProfile = useCallback(async () => {
     if (!uid) return;
     const today = new Date().toISOString().split('T')[0];
-    Promise.all([getUserProfile(uid), getUserTasksForDate(uid, today)])
-      .then(([profile, todayTasks]) => {
-        if (profile) {
-          setUserGoal(profile.goal ?? 'learn');
-          setUserLevel(profile.level ?? null);
-          setUserTimePerDay(profile.timePerDay ?? null);
-          setCurrentDay(profile.currentDay ?? 1);
-          if (profile.quranProgress) setQuranProgress(profile.quranProgress);
-          setFirestoreStreak(profile.streak ?? 0);
-          setLastSessionDate(profile.lastSessionDate ?? null);
-        }
-        setRecoveryTasksDoneToday(todayTasks.filter((t) => t.isStreakRecovery).length);
-      })
-      .catch(() => {})
-      .finally(() => setProfileLoaded(true));
+    try {
+      const [profile, todayTasks] = await Promise.all([getUserProfile(uid), getUserTasksForDate(uid, today)]);
+      if (profile) {
+        setUserGoal(profile.goal ?? 'learn');
+        setUserLevel(profile.level ?? null);
+        setUserTimePerDay(profile.timePerDay ?? null);
+        setCurrentDay(profile.currentDay ?? 1);
+        if (profile.quranProgress) setQuranProgress(profile.quranProgress);
+        setFirestoreStreak(profile.streak ?? 0);
+        setLastSessionDate(profile.lastSessionDate ?? null);
+      }
+      setRecoveryTasksDoneToday(todayTasks.filter((t) => t.isStreakRecovery).length);
+    } catch {}
+    setProfileLoaded(true);
   }, [uid]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   // Fetch the lesson (with LIVE Quran text from the backend QF integration)
   // whenever the learner / day changes. No Quran text is bundled in the app.
@@ -134,15 +136,18 @@ export default function JourneyScreen() {
     loadFull,
   } = useJourney(profileLoaded ? userGoal : null, uid);
 
-  // Resume saved state if requested, otherwise restart fresh
+  // Resume saved state if requested, otherwise restart fresh.
+  // Also re-fetch profile on every focus so a mode switch in ProfileScreen
+  // is reflected immediately (JourneyScreen is a tab and doesn't re-mount).
   useFocusEffect(
     useCallback(() => {
+      loadProfile();
       if (route.params?.resume) {
         loadFull();
       } else {
         restart();
       }
-    }, [route.params?.resume, restart, loadFull])
+    }, [loadProfile, route.params?.resume, restart, loadFull])
   );
 
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -186,12 +191,44 @@ export default function JourneyScreen() {
     }
   };
 
-  const handleLessonBegin = () => {
-    // Lesson content (Quran text) comes from the backend, fetched live from
-    // the Quran Foundation API. If it isn't available (e.g. offline), fall
-    // back to the mood-ayah flow rather than any bundled Quran text.
-    if (!apiLesson) { handleMoodSelect('justHere'); return; }
-    animateTo(1, () => selectMood('justHere', apiLesson.learnContent, apiLesson.mcq));
+  const handleLearnMoodSelect = async (mood: Mood, customText?: string) => {
+    if (moodLoading) return;
+    setMoodLoading(true);
+    try {
+      if (apiLesson) {
+        // Use the structured lesson content — mood is recorded but doesn't change the ayah
+        animateTo(1, () => selectMood(mood, apiLesson.learnContent, apiLesson.mcq, customText));
+      } else {
+        // Lesson not yet loaded — fall back to mood-based ayah
+        const res = await getAyahByMood(mood);
+        if (!res) {
+          Alert.alert('Connection issue', "Couldn't load the verse. Please check your connection and try again.");
+          return;
+        }
+        animateTo(1, () => selectMood(mood, res.ayah, res.question, customText));
+      }
+    } finally {
+      setMoodLoading(false);
+    }
+  };
+
+  const handleLearnSkip = async () => {
+    if (moodLoading) return;
+    setMoodLoading(true);
+    try {
+      if (apiLesson) {
+        animateTo(1, () => skipMood('justHere', apiLesson.learnContent, apiLesson.mcq));
+      } else {
+        const res = await getAyahByMood('justHere');
+        if (!res) {
+          Alert.alert('Connection issue', "Couldn't load the verse. Please check your connection and try again.");
+          return;
+        }
+        animateTo(1, () => skipMood('justHere', res.ayah, res.question));
+      }
+    } finally {
+      setMoodLoading(false);
+    }
   };
 
   const handleNext = () => animateTo(1, nextStep);
@@ -329,27 +366,19 @@ export default function JourneyScreen() {
     }
     switch (state.step) {
       case 'mood':
-        if (isLessonDay && !ayahOnly) {
-          if (lessonLoading || !todayLesson) {
-            return (
-              <View style={styles.loadingCenter}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-              </View>
-            );
-          }
+        if (isLessonDay && !ayahOnly && (lessonLoading || (!apiLesson && profileLoaded))) {
           return (
-            <LessonIntroStep
-              lesson={todayLesson}
-              currentDay={todayLesson.day}
-              totalDays={10}
-              onBegin={handleLessonBegin}
-            />
+            <View style={styles.loadingCenter}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
           );
         }
         return (
           <MoodSelection
-            onSelect={handleMoodSelect}
-            onCustomText={handleCustomText}
+            onSelect={isLessonDay && !ayahOnly ? handleLearnMoodSelect : handleMoodSelect}
+            onCustomText={isLessonDay && !ayahOnly
+              ? (text) => handleLearnMoodSelect('justHere', text)
+              : handleCustomText}
             loading={moodLoading}
           />
         );
@@ -423,9 +452,9 @@ export default function JourneyScreen() {
               <Animated.View style={[styles.progressFill, { width: `${progressPct}%` }]} />
             </View>
 
-            {state.step === 'mood' && !(isLessonDay && !ayahOnly) ? (
+            {state.step === 'mood' ? (
               <Pressable
-                onPress={handleSkip}
+                onPress={isLessonDay && !ayahOnly ? handleLearnSkip : handleSkip}
                 disabled={ayahOnly}
                 hitSlop={8}
                 style={[styles.skipHeaderBtn, ayahOnly && styles.skipHeaderBtnDisabled]}

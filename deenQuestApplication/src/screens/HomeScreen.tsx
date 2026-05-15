@@ -47,38 +47,6 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   const [showWeekly, setShowWeekly] = useState(false);
   const today = new Date().toISOString().split('T')[0];
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!uid) return;
-      const sessionKey = `${SESSION_KEY_PREFIX}_${uid}`;
-      // Fast local read first
-      AsyncStorage.getItem(sessionKey).then((raw) => {
-        if (!raw) { setSessionsToday(0); return; }
-        try {
-          const { date, count } = JSON.parse(raw);
-          const todayStr = new Date().toISOString().split('T')[0];
-          setSessionsToday(date === todayStr ? count : 0);
-        } catch {}
-      });
-      // Authoritative Firestore read (cross-device)
-      getDailySessionCount(uid).then((count) => {
-        setSessionsToday(count);
-        const todayStr = new Date().toISOString().split('T')[0];
-        AsyncStorage.setItem(sessionKey, JSON.stringify({ date: todayStr, count })).catch(() => {});
-      }).catch(() => {});
-
-      // Check if there's an in-progress journey step saved
-      AsyncStorage.getItem(`@deenquest_journey_${uid}`).then((raw) => {
-        if (!raw) { setHasInProgress(false); return; }
-        try {
-          const saved = JSON.parse(raw);
-          const mid = saved.step && saved.step !== 'mood' && saved.step !== 'completion';
-          setHasInProgress(mid);
-        } catch { setHasInProgress(false); }
-      });
-    }, [uid])
-  );
-
   const loadData = useCallback(async () => {
     setTasks(getTodaysTasks());
     if (!uid) return;
@@ -108,6 +76,42 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   }, [uid, today]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!uid) return;
+      const sessionKey = `${SESSION_KEY_PREFIX}_${uid}`;
+      // Fast local read first
+      AsyncStorage.getItem(sessionKey).then((raw) => {
+        if (!raw) { setSessionsToday(0); return; }
+        try {
+          const { date, count } = JSON.parse(raw);
+          const todayStr = new Date().toISOString().split('T')[0];
+          setSessionsToday(date === todayStr ? count : 0);
+        } catch {}
+      });
+      // Authoritative Firestore read (cross-device)
+      getDailySessionCount(uid).then((count) => {
+        setSessionsToday(count);
+        const todayStr = new Date().toISOString().split('T')[0];
+        AsyncStorage.setItem(sessionKey, JSON.stringify({ date: todayStr, count })).catch(() => {});
+      }).catch(() => {});
+
+      // Check if there's an in-progress journey step saved
+      AsyncStorage.getItem(`@deenquest_journey_${uid}`).then((raw) => {
+        if (!raw) { setHasInProgress(false); return; }
+        try {
+          const saved = JSON.parse(raw);
+          const mid = saved.step && saved.step !== 'mood' && saved.step !== 'completion';
+          setHasInProgress(mid);
+        } catch { setHasInProgress(false); }
+      });
+
+      // Refresh streak and profile data every time the screen regains focus
+      // (e.g. after returning from JourneyScreen where streak may have changed)
+      loadData();
+    }, [uid, loadData])
+  );
 
   // Schedule or cancel the streak reminder whenever session/streak state is known
   useEffect(() => {

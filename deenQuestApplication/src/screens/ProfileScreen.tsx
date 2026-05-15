@@ -1,7 +1,7 @@
 import { BadgeCheck, Bookmark, BookmarkCheck, BookOpen, Check, ClipboardCheck, Crown, Flame, GraduationCap, LogOut, Medal, Shield, Star, Target, Trophy, TrendingUp, Zap } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  ActivityIndicator, Alert, Image, ImageBackground, Linking, Pressable, ScrollView,
+  ActivityIndicator, Image, ImageBackground, Linking, Modal, Pressable, ScrollView,
   StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -52,6 +52,7 @@ export default function ProfileScreen() {
   const [expandedBm, setExpandedBm] = useState<string | null>(null);
   const [showAllBookmarks, setShowAllBookmarks] = useState(false);
   const [qfConnected, setQfConnected] = useState(false);
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
 
   useEffect(() => {
     if (!uid) return;
@@ -78,16 +79,12 @@ export default function ProfileScreen() {
     return () => sub.remove();
   }, [uid]);
 
-  const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out', style: 'destructive', onPress: async () => {
-          await GoogleSignin.signOut().catch(() => {});
-          signOut(auth);
-        },
-      },
-    ]);
+  const handleSignOut = () => setShowSignOutModal(true);
+
+  const confirmSignOut = async () => {
+    setShowSignOutModal(false);
+    await GoogleSignin.signOut().catch(() => {});
+    signOut(auth);
   };
 
   const handlePlanSwitch = async (newTime: TimePerDay) => {
@@ -334,6 +331,36 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
 
+            {/* ── Sign Out Confirmation Modal ── */}
+            <Modal
+              visible={showSignOutModal}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowSignOutModal(false)}
+            >
+              <Pressable style={styles.modalOverlay} onPress={() => setShowSignOutModal(false)}>
+                <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+                  <View style={styles.modalIconWrap}>
+                    <LogOut size={28} color={COLORS.primary} />
+                  </View>
+                  <Text style={styles.modalTitle}>Sign Out?</Text>
+                  <Text style={styles.modalBody}>You'll need to sign in again to access your progress and streak.</Text>
+                  <Pressable
+                    onPress={confirmSignOut}
+                    style={({ pressed }) => [styles.modalConfirmBtn, pressed && styles.modalConfirmBtnPressed]}
+                  >
+                    <Text style={styles.modalConfirmText}>Yes, Sign Out</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setShowSignOutModal(false)}
+                    style={({ pressed }) => [styles.modalCancelBtn, pressed && styles.modalCancelBtnPressed]}
+                  >
+                    <Text style={styles.modalCancelText}>Cancel</Text>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
+            </Modal>
+
           </>
         )}
       </ScrollView>
@@ -578,4 +605,70 @@ const styles = StyleSheet.create({
     ...DEPTH.buttonPressed,
   },
   signOutText: { color: COLORS.primary, fontSize: 16, fontWeight: '700' },
+
+  /* Sign-out confirmation modal */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(30,27,75,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.xxl,
+    padding: 28,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.cardBorder,
+    ...DEPTH.card,
+  },
+  modalIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: COLORS.cardBorder,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  modalBody: {
+    fontSize: 14,
+    color: COLORS.textSub,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalConfirmBtn: {
+    width: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.xl,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginBottom: 10,
+    ...DEPTH.button,
+  },
+  modalConfirmBtnPressed: { ...DEPTH.buttonPressed },
+  modalConfirmText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  modalCancelBtn: {
+    width: '100%',
+    backgroundColor: COLORS.primaryBg,
+    borderRadius: RADIUS.xl,
+    paddingVertical: 15,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.cardBorder,
+    ...DEPTH.button,
+  },
+  modalCancelBtnPressed: { ...DEPTH.buttonPressed },
+  modalCancelText: { color: COLORS.primary, fontSize: 16, fontWeight: '700' },
 });

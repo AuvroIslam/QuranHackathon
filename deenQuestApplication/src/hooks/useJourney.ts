@@ -19,7 +19,7 @@ type Action =
   | { type: 'SKIP_MOOD'; mood: Mood; ayah: Ayah; question: MCQData; stepOrder: JourneyStep[] }
   | { type: 'NEXT_STEP'; stepOrder: JourneyStep[] }
   | { type: 'SET_SPEECH_RESULT'; result: SpeechResult }
-  | { type: 'SET_ANSWER'; index: number }
+  | { type: 'SET_ANSWER'; index: number; correct: boolean }
   | { type: 'COMPLETE' }
   | { type: 'RESTART' }
   | { type: 'LOAD'; state: JourneyState };
@@ -27,6 +27,8 @@ type Action =
 function reducer(state: JourneyState, action: Action): JourneyState {
   switch (action.type) {
     case 'SET_MOOD':
+      // Starting a fresh journey/lesson — clear any answer/speech carried over
+      // from a previous one so the MCQ/Speak steps never appear pre-completed.
       return {
         ...state,
         step: 'ayah',
@@ -34,11 +36,23 @@ function reducer(state: JourneyState, action: Action): JourneyState {
         customMoodText: action.customText ?? undefined,
         ayah: action.ayah,
         question: action.question,
+        selectedAnswer: undefined,
+        speechResult: undefined,
+        speechAttempts: 0,
       };
     case 'SKIP_MOOD': {
       const ayahIdx = action.stepOrder.indexOf('ayah');
       const nextStep = action.stepOrder[ayahIdx + 1] ?? 'completion';
-      return { ...state, step: nextStep, mood: action.mood, ayah: action.ayah, question: action.question };
+      return {
+        ...state,
+        step: nextStep,
+        mood: action.mood,
+        ayah: action.ayah,
+        question: action.question,
+        selectedAnswer: undefined,
+        speechResult: undefined,
+        speechAttempts: 0,
+      };
     }
     case 'NEXT_STEP': {
       const currentIndex = action.stepOrder.indexOf(state.step);
@@ -55,7 +69,7 @@ function reducer(state: JourneyState, action: Action): JourneyState {
       };
     }
     case 'SET_ANSWER': {
-      const xpBonus = action.index === state.question?.correctIndex ? 5 : 0;
+      const xpBonus = action.correct ? 5 : 0;
       return {
         ...state,
         selectedAnswer: action.index,
@@ -129,8 +143,8 @@ export function useJourney(goal?: UserGoal | null, uid?: string | null) {
     dispatch({ type: 'SET_SPEECH_RESULT', result });
   }, []);
 
-  const setAnswer = useCallback((index: number) => {
-    dispatch({ type: 'SET_ANSWER', index });
+  const setAnswer = useCallback((index: number, correct: boolean) => {
+    dispatch({ type: 'SET_ANSWER', index, correct });
   }, []);
 
   const complete = useCallback(() => {

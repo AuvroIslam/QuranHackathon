@@ -35,11 +35,17 @@ export default function HomePage() {
     Promise.all([
       getUserTasksForDate(user.uid, today),
       getDailySessionCount(user.uid),
-    ]).then(([tasks, count]) => {
-      setCompletedTaskIds(new Set(tasks.map((t) => t.taskId)));
-      setSessionsToday(count);
-      setLoadingTasks(false);
-    });
+    ])
+      .then(([tasks, count]) => {
+        setCompletedTaskIds(new Set(tasks.map((t) => t.taskId)));
+        setSessionsToday(count);
+      })
+      .catch((err) => {
+        console.error("Failed to load home data:", err);
+      })
+      .finally(() => {
+        setLoadingTasks(false);
+      });
   }, [user, today]);
 
   async function handleCompleteTask(taskId: string, xpReward: number, isStreakRecovery: boolean) {
@@ -282,7 +288,7 @@ export default function HomePage() {
           {sessionMaxed ? (
             <button
               onClick={() => router.push("/session?ayahOnly=true")}
-              className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
+              className="w-full py-3.5 rounded-2xl font-bold text-sm text-white cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:brightness-110 hover:shadow-2xl hover:shadow-purple-500/50 active:scale-[0.98] active:brightness-95"
               style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)", boxShadow: "0 4px 20px rgba(168,85,247,0.35)" }}
             >
               Get an Ayah
@@ -296,7 +302,7 @@ export default function HomePage() {
                   router.push("/session");
                 }
               }}
-              className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all"
+              className="w-full py-3.5 rounded-2xl font-bold text-sm text-white cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:brightness-110 hover:shadow-2xl hover:shadow-purple-500/50 active:scale-[0.98] active:brightness-95"
               style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)", boxShadow: "0 4px 20px rgba(168,85,247,0.35)" }}
             >
               {buttonLabel}
@@ -331,10 +337,10 @@ export default function HomePage() {
             return (
               <div
                 key={task.id}
-                className={`rounded-2xl border text-left transition-all ${
+                className={`rounded-2xl border text-left transition-all backdrop-blur-xl  ${
                   done
-                    ? "bg-accent/20 border-accent/30"
-                    : "glass border-white/15 hover:border-accent/30"
+                    ? "bg-purple-950/30 border-accent/40"
+                    : "bg-[#15163a]/30 border-white/20 hover:border-accent/50 hover:bg-[#1a1b45]/90"
                 }`}
               >
                 <div className="flex items-start gap-3 p-4">
@@ -451,14 +457,14 @@ export default function HomePage() {
             <div className="space-y-2 pt-1">
               <button
                 onClick={() => setShowRecoveryModal(false)}
-                className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
+                className="w-full py-3.5 rounded-2xl font-bold text-sm text-white cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:brightness-110 hover:shadow-2xl hover:shadow-orange-500/50 active:scale-[0.98] active:brightness-95"
                 style={{ background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)", boxShadow: "0 4px 16px rgba(249,115,22,0.35)" }}
               >
                 Finish bonus deeds
               </button>
               <button
                 onClick={() => { setShowRecoveryModal(false); router.push("/session"); }}
-                className="w-full py-3 rounded-2xl font-semibold text-sm text-white/60 hover:text-white/80 transition-colors"
+                className="w-full py-3 rounded-2xl font-semibold text-sm text-white/60 hover:text-white/80 hover:bg-white/5 active:scale-[0.98] transition-all"
               >
                 Proceed anyway
               </button>

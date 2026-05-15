@@ -38,7 +38,7 @@ const BEGINNER: Lesson[] = [
     mcq: {
       question: 'Which of the following is the letter Alif (ا)?',
       options: ['ب', 'ا', 'ت'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'Write the letter ا (Alif) 10 times. It is a simple vertical stroke — like a standing person.',
   },
@@ -58,7 +58,7 @@ const BEGINNER: Lesson[] = [
     mcq: {
       question: 'The letter ث (Tha) has how many dots?',
       options: ['1 dot below', '2 dots above', '3 dots above'],
-      correctIndex: 2,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'Write ب ت ث side by side 5 times each. Say each name aloud: "Ba, Ta, Tha."',
   },
@@ -78,7 +78,7 @@ const BEGINNER: Lesson[] = [
     mcq: {
       question: 'Which of these three letters has NO dots?',
       options: ['ج (Jim)', 'ح (Ha)', 'خ (Kha)'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'Practice writing ج ح خ and say them aloud. The Ha (ح) is breathy — breathe out gently as you say it.',
   },
@@ -98,7 +98,7 @@ const BEGINNER: Lesson[] = [
     mcq: {
       question: 'Which pair of letters share the same shape (one has a dot, one does not)?',
       options: ['ج and ح', 'ر and ز', 'ب and ت'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'Write د ذ then ر ز. Notice the difference in size. Say "Dal, Dhal, Ra, Zay" rhythmically.',
   },
@@ -118,7 +118,7 @@ const BEGINNER: Lesson[] = [
     mcq: {
       question: 'A fatha (َ) vowel mark makes which sound?',
       options: ["'i' (as in hit)", "'a' (as in hat)", "'u' (as in put)"],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Write س (no dots) and ش (3 dots) 5 times. Then practice: ba-bi-bu (بَ بِ بُ) to feel all three vowel sounds.",
   },
@@ -138,7 +138,7 @@ const BEGINNER: Lesson[] = [
     mcq: {
       question: 'What is the difference between Rahman and Raheem?',
       options: ['They mean the same thing', 'Rahman is vast mercy for all; Raheem is mercy for believers', 'Raheem means forgiveness'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'Say the Bismillah before everything you do today — eating, leaving home, studying. Make it a habit.',
   },
@@ -158,7 +158,7 @@ const BEGINNER: Lesson[] = [
     mcq: {
       question: 'The Bismillah contains exactly how many Arabic letters?',
       options: ['19 letters', '17 letters', '21 letters'],
-      correctIndex: 0,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'Record yourself saying Bismillah and play it back. Focus on the rolling "r" in Rahman and the soft "h" at the end of Raheem.',
   },
@@ -178,7 +178,7 @@ const BEGINNER: Lesson[] = [
     mcq: {
       question: 'Alhamdulillah (الْحَمْدُ لِلَّهِ) means?',
       options: ['Allah is great', 'All praise is for Allah', 'In the name of Allah'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Say Alhamdulillah when something good happens today — no matter how small. Train yourself to see Allah's gifts.",
   },
@@ -198,7 +198,7 @@ const BEGINNER: Lesson[] = [
     mcq: {
       question: 'Why does إِيَّاكَ (You) come BEFORE نَعْبُدُ (we worship)?',
       options: ['Arabic grammar rule', 'To emphasize ONLY Allah is worshipped — exclusivity', 'It is easier to pronounce first'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'In your next prayer, pause after this ayah and feel the meaning. You are making a promise to Allah right then.',
   },
@@ -218,7 +218,7 @@ const BEGINNER: Lesson[] = [
     mcq: {
       question: 'Al-Fatiha has how many ayahs?',
       options: ['5 ayahs', '7 ayahs', '6 ayahs'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "You completed the beginner curriculum! Recite Al-Fatiha from memory in your next prayer and feel each word you say.",
   },
@@ -243,7 +243,7 @@ const INTERMEDIATE: Lesson[] = [
     mcq: {
       question: 'What does أَحَدٌ (Ahad) mean beyond just "one"?',
       options: ['One of many gods', 'Uniquely One — with nothing comparable', 'First in rank'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'Recite Surah Al-Ikhlas 3 times tonight before sleeping — the Prophet ﷺ said it equals reciting the whole Quran.',
   },
@@ -263,7 +263,7 @@ const INTERMEDIATE: Lesson[] = [
     mcq: {
       question: 'What was the context of the revelation of Surah Al-Kawthar?',
       options: ["After the Prophet's victory in battle", "His enemies mocked him for having no sons", 'On the night of Isra and Miraj'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'Memorise all 3 ayahs of Surah Al-Kawthar. Write it from memory and check yourself.',
   },
@@ -283,7 +283,7 @@ const INTERMEDIATE: Lesson[] = [
     mcq: {
       question: "Which scholar said Surah Al-Asr alone would be sufficient guidance?",
       options: ['Imam Malik', "Imam Al-Shafi'i", 'Imam Ibn Hanbal'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Who can you sincerely advise today? Reach out — that's tawaasaw bil-haqq in action.",
   },
@@ -303,7 +303,7 @@ const INTERMEDIATE: Lesson[] = [
     mcq: {
       question: 'When victory comes, Surah An-Nasr commands us to do what?',
       options: ['Celebrate and rest', 'Praise Allah and seek His forgiveness', 'Share the news widely'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Think of a recent success. Did you thank Allah properly? Say 'Subhanallah wa bihamdih' 100 times today.",
   },
@@ -323,7 +323,7 @@ const INTERMEDIATE: Lesson[] = [
     mcq: {
       question: 'Who led the army of elephants against the Kaaba?',
       options: ['Abu Jahl', 'Abraha, the Abyssinian ruler', 'Pharaoh'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'Memorise Surah Al-Fil (5 ayahs). Recite it slowly and visualise the scene.',
   },
@@ -343,7 +343,7 @@ const INTERMEDIATE: Lesson[] = [
     mcq: {
       question: 'The two journeys of the Quraysh mentioned in this surah were?',
       options: ['Mecca to Madinah and back', 'Winter to Yemen, Summer to Syria', 'Day and night journeys'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'List 3 specific things making you feel secure today. Then say Alhamdulillah for each one.',
   },
@@ -363,7 +363,7 @@ const INTERMEDIATE: Lesson[] = [
     mcq: {
       question: "According to Surah Al-Ma'un, who truly denies the religion?",
       options: ["Only those who reject Allah", "Those who push away the orphan and don't encourage feeding the poor", 'Those who skip prayers'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Do one genuine act of care today — feed someone, check on a neighbor, give sadaqah.",
   },
@@ -383,7 +383,7 @@ const INTERMEDIATE: Lesson[] = [
     mcq: {
       question: 'Why does Surah Al-Masad prove the divine origin of the Quran?',
       options: ['It is beautifully written', "It condemned the Prophet's own uncle by name — no human author would do this", 'It is the shortest surah'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'Memorise Surah Al-Masad. As you recite it, reflect: am I standing on the side of truth or comfort?',
   },
@@ -403,7 +403,7 @@ const INTERMEDIATE: Lesson[] = [
     mcq: {
       question: 'الْوَسْوَاسِ الْخَنَّاسِ (Al-Waswasil Khannas) refers to?',
       options: ['Bad friends', 'Shaytan — who retreats when you remember Allah', 'Your own ego'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Recite Surah An-Nas 3 times before sleeping — a Prophetic Sunnah every single night.",
   },
@@ -423,7 +423,7 @@ const INTERMEDIATE: Lesson[] = [
     mcq: {
       question: 'What does الْفَلَقِ (Al-Falaq) mean?',
       options: ['The night', 'The daybreak — splitting of darkness into light', 'The stars'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "You completed the intermediate curriculum! Add Al-Falaq and An-Nas to your morning and evening adhkar — every single day.",
   },
@@ -448,7 +448,7 @@ const FLUENT: Lesson[] = [
     mcq: {
       question: "In tajweed, a shaddah (ّ) on a letter means?",
       options: ['Make it silent', 'Double the letter — hold it twice as long', 'Make it nasal'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Recite Al-Fatiha slowly in your next salah, pausing after each ayah. Allah replies to each one — it is a conversation.",
   },
@@ -468,7 +468,7 @@ const FLUENT: Lesson[] = [
     mcq: {
       question: 'Reciting Ayatul Kursi after every obligatory prayer gives what benefit?',
       options: ['1000 rewards per letter', 'Protection until the next prayer, and Paradise at death', 'Forgiveness of major sins'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: 'Memorise Ayatul Kursi completely if you have not. Recite it after every fard salah — this is a Sunnah with enormous reward.',
   },
@@ -488,7 +488,7 @@ const FLUENT: Lesson[] = [
     mcq: {
       question: "What did the Prophet ﷺ say about the last two ayahs of Al-Baqarah?",
       options: ['They erase all sins', 'Whoever recites them at night — they will suffice him', 'Best recited at Fajr'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Recite Al-Baqarah 285-286 tonight before sleeping. Make this a permanent nightly habit.",
   },
@@ -508,7 +508,7 @@ const FLUENT: Lesson[] = [
     mcq: {
       question: "Allah's recorded reply to the dua in 2:286 (do not punish us if we forget) is?",
       options: ['I will consider it', 'I have done so — the forgiveness is already granted', 'Recite it 100 times for it to take effect'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Write out the dua from 2:286 and memorise it. Use it when guilt from past mistakes weighs on you.",
   },
@@ -528,7 +528,7 @@ const FLUENT: Lesson[] = [
     mcq: {
       question: 'The three witnesses to Tawheed in 3:18 are?',
       options: ['Prophets, Companions, and Scholars', 'Allah Himself, the Angels, and People of Knowledge', 'The Quran, Sunnah, and Consensus'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Recite this ayah after Fajr. You join the most distinguished group in creation in testifying to La ilaha illallah.",
   },
@@ -548,7 +548,7 @@ const FLUENT: Lesson[] = [
     mcq: {
       question: "The Prophet ﷺ described Ya-Sin as?",
       options: ['The longest surah', 'The heart of the Quran', 'The surah of mercy'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Recite or listen to Ya-Sin today. It has 83 ayahs — take 20 minutes. The Prophet ﷺ recommended it for important occasions.",
   },
@@ -568,7 +568,7 @@ const FLUENT: Lesson[] = [
     mcq: {
       question: "What did the Prophet ﷺ say Al-Mulk will do for its regular reciter?",
       options: ['Give 1000 rewards per letter', 'Intercede for him until he is forgiven', 'Protect him from the evil eye'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Start memorising Al-Mulk (30 ayahs). Begin with the first 5 tonight. The Prophet ﷺ did not sleep without reciting it.",
   },
@@ -588,7 +588,7 @@ const FLUENT: Lesson[] = [
     mcq: {
       question: "In Surah Al-Rahman's opening, what did Allah teach BEFORE mentioning the creation of man?",
       options: ['The laws of nature', 'The Quran — the most important gift', 'The names of things'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Read all of Surah Al-Rahman slowly today, answering 'None of Your favors do I deny, my Lord' after each refrain.",
   },
@@ -608,7 +608,7 @@ const FLUENT: Lesson[] = [
     mcq: {
       question: "Reciting the last 3 ayahs of Al-Hashr morning and evening causes?",
       options: ['All sins to be wiped', '70,000 angels to pray for you until evening/morning', 'Your rizq to increase immediately'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "Memorise Al-Hashr 22-24 and add them to your morning and evening adhkar permanently.",
   },
@@ -628,7 +628,7 @@ const FLUENT: Lesson[] = [
     mcq: {
       question: "الْمُطَهَّرُونَ (Al-Mutahharoon — the purified ones) who touch the Quran in its heavenly form are?",
       options: ['Those with wudu', 'The Angels', 'Prophets only'],
-      correctIndex: 1,
+      correctIndex: -1, // server-validated via /api/lessons/check
     },
     actionText: "You completed the fluent curriculum! Recite these 4 ayahs whenever you open the Quran — a reminder of the honor of what you hold.",
   },
@@ -642,6 +642,10 @@ export const LESSON_PLANS: Record<'beginner' | 'intermediate' | 'fluent', Lesson
 
 export function getLesson(level: 'beginner' | 'intermediate' | 'fluent', day: number): Lesson | null {
   const plan = LESSON_PLANS[level];
-  if (day < 1 || day > plan.length) return null;
-  return plan[day - 1];
+  if (!plan || plan.length === 0 || day < 1) return null;
+  // `day` is a 1-based sequential lesson counter that advances on every
+  // completed lesson (not a calendar day). Once the curriculum is exhausted it
+  // wraps so the learner keeps getting lessons (review cycle) instead of being
+  // stuck repeating lesson 1 on every session.
+  return plan[(day - 1) % plan.length];
 }

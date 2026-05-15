@@ -42,26 +42,40 @@
 | `/auth/qf-start` | Initiates QF OAuth PKCE flow (mobile deep-link trigger) |
 | `/auth/qf-callback` | QF OAuth callback — exchanges code, saves tokens via Admin SDK |
 
-### API Routes (`src/app/api/`)
-| Route | Description |
-|---|---|
-| `/api/chatbot` | POST `{ messages }` → Groq/OpenAI response (used by web + mobile) |
-| `/api/speech-check` | POST audio → OpenAI Whisper transcription + accuracy check |
-| `/api/deepseek` | Mistral/DeepSeek fallback for dawah generation |
-| `/api/quran` | QF Content API proxy (verses, chapters, recitations, tafsir, search) |
-| `/api/quran/search` | Quran full-text search |
-| `/api/mood-ayah` | POST `{ mood }` → returns curated ayah for mood |
-| `/api/qf/token` | QF OAuth token exchange + Firestore token persistence (Admin SDK) |
-| `/api/qf/reading-session` | QF reading session sync |
-| `/api/qf/bookmark` | QF bookmark add/remove |
-| `/api/qf/collections` | QF collections |
-| `/api/qf/streak` | QF activity-day reporting + streak sync |
+### API Routes (`src/app/api/`) — 14 routes
+
+> **No Quran text is hardcoded.** Every ayah's Arabic / transliteration /
+> translation is fetched live by verse key from the Quran Foundation Content
+> API (OAuth2 client-credentials; `api.quran.com` public fallback; 1 h cache).
+> If verified text can't be fetched the route fails (503) and the client shows
+> a retry — it never serves a bundled copy of the Quran.
+
+| Route | Method | Description |
+|---|---|---|
+| `/api/quran` | GET | QF Content API proxy — verses, chapters, recitations, tafsir |
+| `/api/quran/search` | GET | QF full-text Quran search |
+| `/api/mood-ayah` | GET | `?mood=` → a verified ayah (fetched live from QF) + a comprehension MCQ. Fetch-or-fail. |
+| `/api/lessons` | GET | `?level=&day=` → lesson pedagogy from the server bank, with the verse's Arabic/translation fetched live from QF. Fetch-or-fail. |
+| `/api/lessons/check` | POST | Server-side MCQ answer validation — the answer key is never sent to the client |
+| `/api/hadith` | GET | `?mood=&situation=` → authentic hadith from hadithapi.com (Sahih) → curated verified bank. The LLM only refines the search keyword; it never authors hadith text or numbers. |
+| `/api/reflection` | POST | AI reflection on an ayah, **grounded in verified tafsir from the Quran MCP server** |
+| `/api/deepseek` | POST | LLM (Groq → Mistral → DeepSeek) for the chatbot & dawah; grounded via the Quran MCP server |
+| `/api/speech-check` | POST | Audio → OpenAI Whisper transcription + word-level recitation accuracy |
+| `/api/qf/token` | POST | QF OAuth2 (PKCE) code→token exchange + Firestore token persistence (Admin SDK) |
+| `/api/qf/bookmark` | GET/POST/DELETE | QF User API bookmark add/remove |
+| `/api/qf/collections` | GET/POST | QF User API collections |
+| `/api/qf/reading-session` | POST | QF User API reading-session sync |
+| `/api/qf/streak` | GET/POST | QF User API activity-day / streak sync |
+
+> Note: the chatbot UI calls `/api/deepseek` (there is no `/api/chatbot`
+> route). MCP grounding lives in `src/lib/quran-mcp.ts` and is used by
+> `/api/reflection` and `/api/deepseek`.
 
 ### Key Lib Files (`src/lib/`)
 - `firebase.ts` — Firebase client SDK init
 - `firebase-admin.ts` — Firebase Admin SDK init (base64 service account via `FIREBASE_SERVICE_ACCOUNT_BASE64`)
 - `firestore.ts` — User profile, XP, streak, bookmarks, QF token helpers
-- `tasks-data.ts` — 12 `DAILY_TASKS` array; deterministic daily selection: `dayOfYear % 12`
+- `tasks-data.ts` — 12 `DAILY_TASKS`; a seeded (epoch-day) Fisher–Yates shuffle picks 3 distinct tasks that change every calendar day (same algorithm in the mobile app)
 - `qf-auth.ts` / `qf-user-auth.ts` — QF PKCE flow, session storage, OAuth state helpers
 - `quran.ts` / `quran-mcp.ts` — Quran data helpers + MCP tool calls
 
@@ -130,7 +144,7 @@ Email/password sign in + sign up. Creates Firestore `users/{uid}` doc on first s
 Arabic greeting, streak/XP/hasanat stats, lesson card, today's 3 tasks (deterministic).
 
 ### `JourneyScreen.tsx`
-Duolingo-style lesson flow. Learn path (days 1–10): intro → ayah → listen → speak → MCQ → action → completion. Complete Quran path: mood → ayah → reading session → completion.
+Duolingo-style lesson flow. Learn path: intro → ayah → listen → speak → MCQ → action → completion (lesson + live Quran text fetched from `/api/lessons`, advancing each completed session). Complete Quran path: mood → ayah → reading session → completion.
 
 ### `QuranScreen.tsx`
 114 surahs, searchable. Per-ayah audio playback via `everyayah.com`.
@@ -173,62 +187,7 @@ ProfileScreen "Connect Quran.com"
 ```
 
 
-### Tech Stack
-- Next.js 14 (App Router), TypeScript, Tailwind CSS
-- Firebase JS SDK v10 (Firestore + Auth)
-- OpenAI API (chatbot + speech check)
-- Quran.Foundation (QF) API for Quran data & reading sessions
-- Deployed on Vercel — `.env.local` is already present in repo
-
-### Pages (`src/app/`)
-| Route | File | Description |
-|---|---|---|
-| `/` | `page.tsx` | Home — mood selector, ayah display, today's tasks |
-| `/tasks` | `tasks/page.tsx` | Today's 3 deterministic tasks (same algorithm as mobile) |
-| `/community` | `community/page.tsx` | Firestore community posts — share reflections & questions |
-| `/chatbot` | `chatbot/page.tsx` | Ask AI — Islamic Q&A powered by OpenAI |
-| `/dawah` | `dawah/page.tsx` | Dawah cards — common questions about Islam with shareable ayahs |
-| `/listen` | `listen/page.tsx` | Quran listening page via QF API |
-| `/levels` | `levels/page.tsx` | XP levels & badges |
-| `/perspective` | `perspective/page.tsx` | Perspective / reflection page |
-| `/login` | `login/page.tsx` | Firebase email auth |
-| `/terms` | `terms/page.tsx` | Terms of service |
-| `/privacy` | `privacy/page.tsx` | Privacy policy |
-| `/auth/qf-callback` | `auth/qf-callback/page.tsx` | Quran Foundation OAuth callback |
-
-### API Routes (`src/app/api/`)
-| Route | Description |
-|---|---|
-| `/api/chatbot` | POST `{ messages }` → OpenAI response. Used by both web AND mobile AskAI tab |
-| `/api/speech-check` | POST audio → OpenAI Whisper transcription check |
-| `/api/deepseek` | DeepSeek model fallback |
-| `/api/quran` | Quran data proxy |
-| `/api/quran/search` | Quran search |
-| `/api/qf/token` | QF OAuth token exchange |
-| `/api/qf/reading-session` | QF reading session tracking |
-| `/api/qf/bookmark` | QF bookmark management |
-| `/api/qf/collections` | QF collections |
-| `/api/qf/streak` | QF streak data |
-
-### Key Lib Files (`src/lib/`)
-- `firebase.ts` — Firebase app + Firestore init
-- `firestore.ts` — User profile, XP, streak, task completion helpers
-- `tasks-data.ts` — **12 DAILY_TASKS array** — deterministic daily task selection: `dayOfYear % 12` picks 3 tasks. **Identical algorithm used in mobile app.**
-- `types.ts` — Shared TypeScript types
-- `qf-auth.ts` / `qf-user-auth.ts` — Quran Foundation auth helpers
-- `quran.ts` / `quran-mcp.ts` — Quran data helpers
-
-### Environment Variables (Vercel + `.env.local`)
-```
-OPENAI_API_KEY=...         # Required for /api/chatbot and /api/speech-check
-QF_CLIENT_ID=...           # Quran Foundation OAuth
-QF_CLIENT_SECRET=...
-NEXTAUTH_SECRET=...
-```
-
----
-
-## 2. Mobile App — `deenQuestApplication/` (Expo SDK 54, React Native 0.81.5)
+## 6. Mobile App — Detailed Reference (`deenQuestApplication/`)
 
 ### Tech Stack
 - Expo SDK 54, React Native 0.81.5, React 19.1.0, TypeScript
@@ -318,8 +277,7 @@ SafeAreaProvider
   - `←` (X) circular button → navigates to Home tab via `useNavigation`
   - Thick purple progress bar (fills proportionally with `stepIndex / (totalSteps - 1)`)
   - `⚡ {xpEarned}` badge in amber/gold
-- **Learn path (days 1–10):** `'mood'` step renders `LessonIntroStep` with today's lesson from `getLesson(levelKey, currentDay)`. Tapping "Begin Lesson" calls `selectMood('justHere', lesson.learnContent, lesson.mcq)` → flows into ayah → listen → speak → mcq → action → completion
-- **Learn path (days > 10):** `'mood'` step renders `MoodSelection` as free practice
+- **Learn path:** `'mood'` step renders `LessonIntroStep` with the lesson from `fetchLesson(levelKey, currentDay)` (live QF verse text). Tapping "Begin Lesson" calls `selectMood('justHere', lesson.learnContent, lesson.mcq)` → ayah → listen → speak → mcq → action → completion. The curriculum wraps after 20, so learn users always get a lesson; "Get an Ayah" (ayahOnly) still shows `MoodSelection`
 - **Complete Quran path:** uses `COMPLETE_STEP_ORDER` (mood → ayah → reading → completion). `'reading'` step renders `QuranReadingSession`
 - `passThreshold` per level: newbie = 0.4, intermediate = 0.6, fluent = 0.7
 - `showTransliteration`: true for newbie/intermediate, false for fluent
@@ -379,9 +337,9 @@ SafeAreaProvider
 ## 6. Lib Files (`src/lib/`)
 
 ### `firebase.ts`
-- `initializeApp` + `initializeAuth(getReactNativePersistence(AsyncStorage))` + `getFirestore`
+- `initializeApp` + `initializeAuth` with AsyncStorage React-Native persistence + `getFirestore`
+- `auth` is explicitly typed `Auth` and `getReactNativePersistence` is imported with a `@ts-ignore` (it exists in the firebase RN runtime but is missing from this version's web typings) — the project type-checks cleanly with `npm run typecheck`
 - Exports: `auth`, `db`, `default app`
-- **If auth fails to initialize** at runtime, change the import line to: `import { initializeAuth, getReactNativePersistence } from 'firebase/auth/react-native'`
 
 ### `firestore.ts`
 
@@ -413,47 +371,45 @@ Exported functions:
 | `addXP(uid, amount)` | Increment xp + update lastActive |
 | `completeJourney(uid, xpEarned)` | Increment xp, update lastActive, increment streak if new day |
 | `saveUserGoal(uid, goal, options)` | Write goal/level/timePerDay to Firestore. For 'complete' goal: also sets `quranProgress: { surahNumber: 1, ayahNumber: 1 }` |
-| `incrementCurrentDay(uid)` | `currentDay: increment(1)` — called after each learn session (days 1–10) |
+| `incrementCurrentDay(uid)` | advances `currentDay` after each completed learn session, so the next session serves the next lesson (curriculum wraps after 20) |
 | `updateQuranProgress(uid, surahNumber, ayahNumber)` | Write new Quran reading position |
 | `checkDailyStreak(uid)` | Called on app open — increments streak once per calendar day using `lastActive` comparison |
 
-### `lessons-data.ts` ← NEW
-30 carefully crafted lessons (10 per level). Each lesson:
-```ts
-interface Lesson {
-  day: number;
-  title: string;
-  subtitle: string;
-  focus: string;
-  learnContent: LessonContent;  // matches Ayah type — has arabic, transliteration, translation, explanation, audioUrl, reference
-  mcq: MCQData;
-  actionText: string;
-}
-```
+### Lesson curriculum (server-side, no hardcoded Quran)
+The mobile app no longer bundles any Quran text. The curriculum lives
+server-side in `deenquest/src/lib/server/lessons-bank.ts` and holds **only
+pedagogy** — verse `reference`, teaching `explanation`, `audioUrl`, `mcq`,
+`actionText`. The Arabic / transliteration / translation are fetched live by
+verse key from the Quran Foundation Content API inside `/api/lessons`.
 
-**Beginner (10 days):** Arabic letters (Alif → dotted letters → Jim/Ha/Kha → curved letters → Sin/Shin + vowels) → first Quranic words → Bismillah mastery → Al-Fatiha 1:2, 1:5, 1:6
-
-**Intermediate (10 days):** Al-Ikhlas → Al-Kawthar → Al-Asr → An-Nasr → Al-Fil → Quraysh → Al-Ma'un → Al-Masad → An-Nas → Al-Falaq
-
-**Fluent (10 days):** Al-Fatiha (tajweed focus) → Ayatul Kursi (2:255) → Al-Baqarah 285 → Al-Baqarah 286 → Al-Imran 18 → Ya-Sin 36:1 → Al-Mulk 67:1 → Al-Rahman 55:1 → Al-Hashr 59:22 → Al-Waqiah 56:77
-
-`getLesson(level: 'beginner' | 'intermediate' | 'fluent', day: number): Lesson | null` — returns `null` for day > 10 (triggers free practice mode in JourneyScreen)
-
-**Level key mapping in JourneyScreen:** `newbie → beginner`, `intermediate → intermediate`, `fluent → fluent`
+- **20 lessons per level (60 total)**, wrapping into a review cycle once
+  exhausted (`getLesson` never returns null for a valid day ≥ 1)
+- Beginner: Arabic letters → Bismillah → Al-Fatiha → first short surahs
+- Intermediate: the short surahs (Al-Ikhlas … Al-'Alaq)
+- Fluent: powerful verses (Ayatul Kursi, Al-Baqarah 285-286, Ar-Rahman, …)
+- The mobile screen fetches the lesson via `fetchLesson(level, day)` in
+  `services/api.ts`; `mcq.correctIndex` is `-1` client-side and validated
+  server-side by `/api/lessons/check`
+- **Level key mapping in JourneyScreen:** `newbie → beginner`,
+  `intermediate → intermediate`, `fluent → fluent`
+- The legacy `deenQuestApplication/src/lib/lessons-data.ts` is retained but is
+  no longer in the lesson render path
 
 ### `tasks-data.ts`
 - 12 `DAILY_TASKS`, `getTasksForDate(date)`, `getTodaysTasks()`
-- Algorithm: `dayOfYear % 12` selects 3 tasks
-- **Must stay in sync with web app's `src/lib/tasks-data.ts`**
+- Algorithm: a seeded (epoch-day) Fisher–Yates shuffle picks 3 distinct tasks
+  that change every calendar day
+- **Must stay in sync with web app's `src/lib/tasks-data.ts`** (identical algorithm)
 
 ---
 
 ## 7. Services (`src/services/api.ts`)
 
 - `API_BASE = 'https://quran-hackathon-omega.vercel.app'` — live Vercel deployment of web app
-- `getAyahByMood(mood)` — returns `{ ayah, question }` from `AYAH_BANK`
-- `AYAH_BANK` — 17 ayahs covering all 7 moods, **each with `transliteration` field**
-- `checkSpeech(audioUri, expectedText)` — POST to `/api/speech-check`. **Fallback on error is `{ spoken: '', score: 0, correct: false, words: [] }` (NOT `correct: true` — this was a bug that has been fixed)**
+- `getAyahByMood(mood)` — GETs `/api/mood-ayah`; returns `{ ayah, question } | null`. The verse text is fetched live from the Quran Foundation API server-side; on failure it returns `null` and the UI shows a retry (no hardcoded Quran fallback)
+- `fetchLesson(level, day)` — GETs `/api/lessons`; returns the lesson with live QF verse text, or `null`
+- `checkLessonAnswer(level, day, i)` — POSTs `/api/lessons/check` for server-side MCQ validation
+- `checkSpeech(audioUri, expectedText)` — POST to `/api/speech-check`. **Fallback on error is `{ spoken: '', score: 0, correct: false, words: [] }` (NOT `correct: true`)**
 
 ---
 
@@ -600,9 +556,9 @@ All pages, API routes, and features are implemented and deployed.
 - [x] `App.tsx` — full flow: onboarding → auth → goal setup → main app
 - [x] 5-tab `AppNavigator`
 - [x] `HomeScreen` — stats, lesson CTA, today's tasks, Firebase sync
-- [x] `JourneyScreen` — Duolingo header, lesson-based flow (days 1–10), free practice (days 11+), Complete Quran path, goal-aware routing
+- [x] `JourneyScreen` — Duolingo header, API-driven lesson flow (live QF verse text), Complete Quran path, goal-aware routing
 - [x] `LessonIntroStep` — day intro with mascot, progress bar, lesson card, 3D begin button
-- [x] `lessons-data.ts` — 30 lessons across beginner/intermediate/fluent
+- [x] Server lesson bank — 60 lessons (20/level), pedagogy + verse reference only, Quran text fetched live from QF (no hardcoded Quran)
 - [x] All Journey step components (MoodSelection, AyahDisplay, ListenStep, SpeakStep, MCQQuestion, ActionSelection, CompletionStep)
 - [x] `AyahDisplay` — shows transliteration
 - [x] `SpeakStep` — play button, word chips, level-based threshold, transliteration option
@@ -612,14 +568,18 @@ All pages, API routes, and features are implemented and deployed.
 - [x] `ProfileScreen` — levels, badges, stats, sign out
 - [x] Speech check fallback bug fixed (`correct: false` not `correct: true`)
 - [x] `checkDailyStreak` called on app open
-- [x] `incrementCurrentDay` called after each learn session (days 1–10)
+- [x] `incrementCurrentDay` called after each completed learn session (advances to the next lesson)
+- [x] No hardcoded Quran text anywhere — all ayah/lesson text fetched live from the Quran Foundation API (fetch-or-fail)
+- [x] AI reflection grounded in verified tafsir via the Quran MCP server
+- [x] Hadith sourced from hadithapi.com (Sahih) / curated bank — the LLM only refines the search keyword, never authors citations
+- [x] 60-lesson curriculum (20 per level), wrapping into a review cycle
+- [x] Both codebases type-check cleanly (`npm run typecheck` in the app; `tsc --noEmit` + `next build` for web)
 
 #### Pending / Known Issues
 
-- [ ] **`getReactNativePersistence` import** — if auth fails at runtime, change `firebase.ts` line to: `import { initializeAuth, getReactNativePersistence } from 'firebase/auth/react-native'`
 - [ ] **`ListenScreen.tsx`** — `src/screens/ListenScreen.tsx` is a placeholder stub. It is NOT in the tab navigator. Can be safely deleted.
-- [ ] **Post-10-day learn curriculum** — after day 10, free practice (mood-based) kicks in automatically. A full day 11+ curriculum is planned for production but not built yet.
-- [ ] **OpenAI API key on Vercel** — must be added in the Vercel dashboard for `/api/chatbot` and `/api/speech-check` to work in production.
+- [ ] **OpenAI API key on Vercel** — must be set in the Vercel dashboard for `/api/speech-check` (Whisper) to work in production.
+- [ ] **Re-record the demo video** against the current deployed build so it reflects the live-fetch lessons and fixes.
 
 ---
 

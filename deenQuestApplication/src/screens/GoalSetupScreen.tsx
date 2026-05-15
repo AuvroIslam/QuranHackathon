@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BookOpen, ChevronRight, GraduationCap } from 'lucide-react-native';
+import { BookOpen, Check, ChevronRight, GraduationCap } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View,

@@ -4,6 +4,7 @@ import { X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Pressable,
   StyleSheet,
@@ -31,10 +32,9 @@ import {
   updateQuranProgress,
 } from '../lib/firestore';
 import { getStreakStatus } from '../lib/streakUtils';
-import { getLesson } from '../lib/lessons-data';
-import { getAyahByMood } from '../services/api';
+import { getAyahByMood, checkLessonAnswer, fetchLesson, ApiLesson } from '../services/api';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
-import { Ayah, Mood, TimePerDay, UserGoal, UserLevel } from '../types';
+import { Mood, TimePerDay, UserGoal, UserLevel } from '../types';
 
 const SESSION_KEY_PREFIX = '@deenquest_daily_sessions';
 const MAX_SESSIONS = 3;
@@ -65,6 +65,9 @@ export default function JourneyScreen() {
   const [lastSessionDate, setLastSessionDate] = useState<string | null>(null);
   const [recoveryTasksDoneToday, setRecoveryTasksDoneToday] = useState(0);
   const [moodLoading, setMoodLoading] = useState(false);
+  const [mcqVerdict, setMcqVerdict] = useState<{ correctIndex: number } | null>(null);
+  const [apiLesson, setApiLesson] = useState<ApiLesson | null>(null);
+  const [lessonLoading, setLessonLoading] = useState(false);
 
   useEffect(() => {
     if (!uid) return;
@@ -104,6 +107,19 @@ export default function JourneyScreen() {
       .finally(() => setProfileLoaded(true));
   }, [uid]);
 
+  // Fetch the lesson (with LIVE Quran text from the backend QF integration)
+  // whenever the learner / day changes. No Quran text is bundled in the app.
+  useEffect(() => {
+    if (!profileLoaded || userGoal !== 'learn') { setApiLesson(null); return; }
+    const lk = levelToLessonKey(userLevel);
+    let cancelled = false;
+    setLessonLoading(true);
+    fetchLesson(lk, currentDay)
+      .then((l) => { if (!cancelled) setApiLesson(l); })
+      .finally(() => { if (!cancelled) setLessonLoading(false); });
+    return () => { cancelled = true; };
+  }, [profileLoaded, userGoal, userLevel, currentDay]);
+
   const {
     state,
     stepIndex,
@@ -142,8 +158,12 @@ export default function JourneyScreen() {
     if (moodLoading) return;
     setMoodLoading(true);
     try {
-      const { ayah, question } = await getAyahByMood(mood);
-      animateTo(1, () => selectMood(mood, ayah, question, customText));
+      const res = await getAyahByMood(mood);
+      if (!res) {
+        Alert.alert('Connection issue', "Couldn't load the verse. Please check your connection and try again.");
+        return;
+      }
+      animateTo(1, () => selectMood(mood, res.ayah, res.question, customText));
     } finally {
       setMoodLoading(false);
     }
@@ -155,18 +175,23 @@ export default function JourneyScreen() {
     if (moodLoading) return;
     setMoodLoading(true);
     try {
-      const { ayah, question } = await getAyahByMood('justHere');
-      animateTo(1, () => skipMood('justHere', ayah, question));
+      const res = await getAyahByMood('justHere');
+      if (!res) {
+        Alert.alert('Connection issue', "Couldn't load the verse. Please check your connection and try again.");
+        return;
+      }
+      animateTo(1, () => skipMood('justHere', res.ayah, res.question));
     } finally {
       setMoodLoading(false);
     }
   };
 
   const handleLessonBegin = () => {
-    const lessonKey = levelToLessonKey(userLevel);
-    const lesson = getLesson(lessonKey, currentDay);
-    if (!lesson) { handleMoodSelect('justHere'); return; }
-    animateTo(1, () => selectMood('justHere', lesson.learnContent as Ayah, lesson.mcq));
+    // Lesson content (Quran text) comes from the backend, fetched live from
+    // the Quran Foundation API. If it isn't available (e.g. offline), fall
+    // back to the mood-ayah flow rather than any bundled Quran text.
+    if (!apiLesson) { handleMoodSelect('justHere'); return; }
+    animateTo(1, () => selectMood('justHere', apiLesson.learnContent, apiLesson.mcq));
   };
 
   const handleNext = () => animateTo(1, nextStep);
@@ -201,7 +226,9 @@ export default function JourneyScreen() {
         .then(({ newStreak }) => setFirestoreStreak(newStreak))
         .catch(() => {});
 
-      if (userGoal === 'learn' && currentDay <= 10 && isNewDay) {
+      // Advance to the NEXT lesson on every completed learn session (not once
+      // per calendar day) so "Keep Going" never repeats the same lesson.
+      if (userGoal === 'learn') {
         incrementCurrentDay(uid).catch(() => {});
         setCurrentDay((d) => d + 1);
       }
@@ -219,7 +246,32 @@ export default function JourneyScreen() {
   };
 
   const handleSpeakSkip = () => animateTo(1, nextStep);
-  const handleAnswer = (index: number) => setAnswer(index);
+
+  const handleAnswer = async (index: number) => {
+    const localCorrectIndex = state.question?.correctIndex;
+    if (typeof localCorrectIndex === 'number' && localCorrectIndex >= 0) {
+      // Mood quiz — answer key already returned by /api/mood-ayah (legacy path)
+      const correct = index === localCorrectIndex;
+      setMcqVerdict({ correctIndex: localCorrectIndex });
+      setAnswer(index, correct);
+      return;
+    }
+    // Lesson quiz — answer is server-validated via /api/lessons/check
+    setAnswer(index, false); // optimistic: no XP yet; will be updated below if correct
+    const result = await checkLessonAnswer(lessonKey, currentDay, index);
+    if (result) {
+      setMcqVerdict({ correctIndex: result.correctIndex });
+      // If correct, award the 5 XP that SET_ANSWER didn't add. We just dispatch
+      // SET_ANSWER again with the same index but correct=true — the reducer adds 5.
+      // (Idempotent on selectedAnswer; only side effect is XP.)
+      if (result.correct) setAnswer(index, true);
+    }
+  };
+
+  // Reset verdict whenever we move into / out of MCQ step or restart
+  useEffect(() => {
+    if (state.step !== 'mcq') setMcqVerdict(null);
+  }, [state.step]);
 
   const handleReadingComplete = (nextSurah: number, nextAyah: number) => {
     if (uid) updateQuranProgress(uid, nextSurah, nextAyah).catch(() => {});
@@ -231,10 +283,11 @@ export default function JourneyScreen() {
   const showTransliteration = userLevel !== 'fluent';
   const ayahCount = userTimePerDay === 10 ? 20 : userTimePerDay === 5 ? 12 : 8;
 
-  // For learn users on days 1-10, 'mood' step shows lesson intro instead
-  const isLessonDay = userGoal === 'learn' && currentDay <= 10;
+  // Learn users always get a guided lesson; its Quran text is fetched live
+  // from the backend (Quran Foundation API) — see the fetchLesson effect.
+  const isLessonDay = userGoal === 'learn';
   const lessonKey = levelToLessonKey(userLevel);
-  const todayLesson = isLessonDay ? getLesson(lessonKey, currentDay) : null;
+  const todayLesson = isLessonDay ? apiLesson : null;
 
   const showContinue = (): { show: boolean; label: string } => {
     switch (state.step) {
@@ -276,11 +329,18 @@ export default function JourneyScreen() {
     }
     switch (state.step) {
       case 'mood':
-        if (isLessonDay && todayLesson && !ayahOnly) {
+        if (isLessonDay && !ayahOnly) {
+          if (lessonLoading || !todayLesson) {
+            return (
+              <View style={styles.loadingCenter}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+              </View>
+            );
+          }
           return (
             <LessonIntroStep
               lesson={todayLesson}
-              currentDay={currentDay}
+              currentDay={todayLesson.day}
               totalDays={10}
               onBegin={handleLessonBegin}
             />
@@ -294,7 +354,14 @@ export default function JourneyScreen() {
           />
         );
 
-      case 'ayah': return state.ayah ? <AyahDisplay ayah={state.ayah} uid={uid ?? undefined} /> : null;
+      case 'ayah': return state.ayah ? (
+        <AyahDisplay
+          ayah={state.ayah}
+          uid={uid ?? undefined}
+          mood={state.mood ?? null}
+          customMoodText={state.customMoodText ?? null}
+        />
+      ) : null;
       case 'listen': return state.ayah ? <ListenStep ayah={state.ayah} /> : null;
       case 'speak': return state.ayah ? (
         <SpeakStep
@@ -307,7 +374,13 @@ export default function JourneyScreen() {
         />
       ) : null;
       case 'mcq': return state.question ? (
-        <MCQQuestion question={state.question} selectedAnswer={state.selectedAnswer} onAnswer={handleAnswer} />
+        <MCQQuestion
+          key={`mcq-${currentDay}-${state.question.question}`}
+          question={state.question}
+          selectedAnswer={state.selectedAnswer}
+          verdict={mcqVerdict}
+          onAnswer={handleAnswer}
+        />
       ) : null;
       case 'reading': return (
         <QuranReadingSession
@@ -350,7 +423,7 @@ export default function JourneyScreen() {
               <Animated.View style={[styles.progressFill, { width: `${progressPct}%` }]} />
             </View>
 
-            {state.step === 'mood' && !(isLessonDay && todayLesson && !ayahOnly) ? (
+            {state.step === 'mood' && !(isLessonDay && !ayahOnly) ? (
               <Pressable
                 onPress={handleSkip}
                 disabled={ayahOnly}

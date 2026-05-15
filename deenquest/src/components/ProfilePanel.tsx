@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import {
-  X, Edit2, Check, Wifi, WifiOff, Bookmark, Flame, Zap, ClipboardCheck, Medal,
+  X, Edit2, Check, Bookmark, Flame, Zap, ClipboardCheck, Medal,
   GraduationCap, TrendingUp, Trophy, BadgeCheck, Shield, Crown, Star, LogOut,
+  BookOpen, Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "./AuthProvider";
-import { updateUserName, getBookmarks, getTasksCompletedCount } from "@/lib/firestore";
-import type { Bookmark as BookmarkType } from "@/lib/types";
+import { updateUserName, getBookmarks, getTasksCompletedCount, updateUserGoal } from "@/lib/firestore";
+import type { Bookmark as BookmarkType, UserGoal } from "@/lib/types";
 import { getQFAccessToken, isQFConnected, initiateQFOAuth, clearQFSession } from "@/lib/qf-user-auth";
 import toast from "react-hot-toast";
 
@@ -30,6 +31,9 @@ const BADGES = [
   { id: "xp_500",      label: "500 XP",         icon: Crown,         color: "#6D28D9", xpRequired: 500 },
 ] as const;
 
+const SESSION_IN_PROGRESS_KEY = "deenquest_session_in_progress";
+const SESSION_STATE_KEY = "deenquest_session_state";
+
 interface ProfilePanelProps {
   open: boolean;
   onClose: () => void;
@@ -50,6 +54,7 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
   const [loadingBookmarks, setLoadingBookmarks] = useState(false);
   const [expandedBm, setExpandedBm] = useState<string | null>(null);
   const [qfConnected, setQFConnected] = useState(false);
+  const [savingGoal, setSavingGoal] = useState<UserGoal | null>(null);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -107,6 +112,24 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
     setQFConnected(false);
     setQFBookmarks([]);
     toast.success("Disconnected from Quran.com");
+  }
+
+  async function handleSwitchMode(next: UserGoal) {
+    if (!user || savingGoal || profile?.goal === next) return;
+    setSavingGoal(next);
+    try {
+      await updateUserGoal(user.uid, next);
+      // Drop any in-progress session so the next /session run starts fresh
+      // in the new mode (streak / XP / bookmarks are preserved).
+      sessionStorage.removeItem(SESSION_IN_PROGRESS_KEY);
+      sessionStorage.removeItem(SESSION_STATE_KEY);
+      await refreshProfile();
+      toast.success(next === "learn" ? "Switched to Learning mode" : "Switched to Reading mode");
+    } catch {
+      toast.error("Could not change mode. Try again.");
+    } finally {
+      setSavingGoal(null);
+    }
   }
 
   async function handleSignOut() {
@@ -221,6 +244,34 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
             )}
           </div>
 
+          {/* Daily mode */}
+          <div>
+            <p className="text-xs text-white/40 uppercase tracking-wider mb-3 px-0.5">Daily mode</p>
+            <div className="space-y-2">
+              <ModeCard
+                icon={<BookOpen size={18} className="text-secondary" />}
+                title="Reading mode"
+                subtitle="Read through the Quran from where you left off"
+                selected={profile?.goal === "complete"}
+                saving={savingGoal === "complete"}
+                disabled={savingGoal !== null}
+                onClick={() => handleSwitchMode("complete")}
+              />
+              <ModeCard
+                icon={<GraduationCap size={18} className="text-secondary" />}
+                title="Learning mode"
+                subtitle="Guided lessons — letters, words, short surahs"
+                selected={profile?.goal === "learn"}
+                saving={savingGoal === "learn"}
+                disabled={savingGoal !== null}
+                onClick={() => handleSwitchMode("learn")}
+              />
+              <p className="text-[10px] text-white/35 leading-relaxed pt-0.5">
+                Streak, XP and bookmarks are kept when you switch. Only an in-progress session resets.
+              </p>
+            </div>
+          </div>
+
           {/* Badges */}
           <div>
             <p className="text-xs text-white/40 uppercase tracking-wider mb-3 px-0.5">Your Badges</p>
@@ -310,5 +361,44 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+function ModeCard({
+  icon, title, subtitle, selected, saving, disabled, onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  selected: boolean;
+  saving: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`w-full text-left p-3 rounded-xl border transition-all flex items-center gap-3 disabled:cursor-not-allowed ${
+        selected
+          ? "border-secondary/60 bg-secondary/15"
+          : "border-white/15 glass hover:border-secondary/40 hover:bg-secondary/5"
+      }`}
+    >
+      <div className="w-10 h-10 rounded-lg bg-secondary/15 flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-white">{title}</p>
+        <p className="text-[11px] text-white/55 mt-0.5">{subtitle}</p>
+      </div>
+      {saving ? (
+        <Loader2 size={16} className="text-secondary animate-spin shrink-0" />
+      ) : selected ? (
+        <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center shrink-0">
+          <Check size={13} className="text-white" strokeWidth={3} />
+        </div>
+      ) : null}
+    </button>
   );
 }

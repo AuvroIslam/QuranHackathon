@@ -1,4 +1,4 @@
-import { BadgeCheck, Bookmark, BookmarkCheck, BookOpen, ClipboardCheck, Crown, Flame, GraduationCap, LogOut, Medal, Shield, Star, Target, Trophy, TrendingUp, Zap } from 'lucide-react-native';
+import { BadgeCheck, Bookmark, BookmarkCheck, BookOpen, Check, ClipboardCheck, Crown, Flame, GraduationCap, LogOut, Medal, Shield, Star, Target, Trophy, TrendingUp, Zap } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   ActivityIndicator, Alert, Image, ImageBackground, Linking, Pressable, ScrollView,
@@ -7,9 +7,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { auth } from '../lib/firebase';
-import { getUserProfile, getBookmarks, updateUserPlan, getQFTokens } from '../lib/firestore';
+import { getUserProfile, getBookmarks, updateUserPlan, updateUserGoal, getQFTokens } from '../lib/firestore';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
 import { Bookmark as BookmarkType, TimePerDay, UserGoal, UserLevel } from '../types';
 import { signOut } from 'firebase/auth';
@@ -96,6 +97,21 @@ export default function ProfileScreen() {
       await updateUserPlan(uid, newTime);
     } catch {
       setProfile((p) => p ? { ...p, timePerDay: profile?.timePerDay } : p);
+    }
+  };
+
+  const handleGoalSwitch = async (newGoal: UserGoal) => {
+    if (!uid || newGoal === profile?.goal) return;
+    const prevGoal = profile?.goal;
+    setProfile((p) => p ? { ...p, goal: newGoal } : p);
+    try {
+      await updateUserGoal(uid, newGoal);
+      await AsyncStorage.removeItem('@deenquest_journey').catch(() => {});
+      const keys = await AsyncStorage.getAllKeys();
+      const journeyKeys = keys.filter((k) => k.startsWith('@deenquest_journey'));
+      if (journeyKeys.length > 0) await AsyncStorage.multiRemove(journeyKeys);
+    } catch {
+      setProfile((p) => p ? { ...p, goal: prevGoal ?? null } : p);
     }
   };
 
@@ -202,6 +218,32 @@ export default function ProfileScreen() {
               </ImageBackground>
             </View>
 
+            {/* ── Mode toggle ── */}
+            <View style={styles.sectionWrap}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Mode</Text>
+              </View>
+              <View style={styles.modeRow}>
+                <ModeOption
+                  icon={<BookOpen size={20} color={profile?.goal === 'complete' ? COLORS.primary : COLORS.textMuted} />}
+                  title="Reading"
+                  subtitle="Read through the Quran"
+                  active={profile?.goal === 'complete'}
+                  onPress={() => handleGoalSwitch('complete')}
+                />
+                <ModeOption
+                  icon={<GraduationCap size={20} color={profile?.goal === 'learn' ? COLORS.primary : COLORS.textMuted} />}
+                  title="Learning"
+                  subtitle="Guided lessons"
+                  active={profile?.goal === 'learn'}
+                  onPress={() => handleGoalSwitch('learn')}
+                />
+              </View>
+              <Text style={styles.modeHint}>
+                Streak, XP, and bookmarks stay when you switch.
+              </Text>
+            </View>
+
             {/* ── Badges ── */}
             <View style={styles.sectionWrap}>
               <View style={styles.sectionHeader}>
@@ -299,6 +341,23 @@ export default function ProfileScreen() {
   );
 }
 
+function ModeOption({ icon, title, subtitle, active, onPress }: {
+  icon: React.ReactNode; title: string; subtitle: string; active: boolean; onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={[styles.modeOption, active && styles.modeOptionActive]}>
+      <View style={[styles.modeIconWrap, active && styles.modeIconWrapActive]}>{icon}</View>
+      <Text style={[styles.modeTitle, active && styles.modeTitleActive]}>{title}</Text>
+      <Text style={styles.modeSub} numberOfLines={1}>{subtitle}</Text>
+      {active && (
+        <View style={styles.modeCheck}>
+          <Check size={12} color={COLORS.white} strokeWidth={3} />
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
 function StatChip({ value, label, accent, icon }: { value: number; label: string; accent: string; icon: React.ReactNode }) {
   return (
     <View style={styles.statChip}>
@@ -362,6 +421,43 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row', gap: 8,
     paddingHorizontal: 16, marginBottom: 16,
+  },
+  modeRow: {
+    flexDirection: 'row', gap: 12, paddingHorizontal: 16,
+  },
+  modeOption: {
+    flex: 1, alignItems: 'center', gap: 4,
+    backgroundColor: COLORS.white,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
+    paddingVertical: 16, paddingHorizontal: 10,
+    position: 'relative',
+  },
+  modeOptionActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryBg,
+  },
+  modeIconWrap: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: COLORS.surfaceDark,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 4,
+  },
+  modeIconWrapActive: {
+    backgroundColor: COLORS.white,
+  },
+  modeTitle: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
+  modeTitleActive: { color: COLORS.primary },
+  modeSub: { color: COLORS.textMuted, fontSize: 11 },
+  modeCheck: {
+    position: 'absolute', top: 8, right: 8,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  modeHint: {
+    color: COLORS.textMuted, fontSize: 11,
+    paddingHorizontal: 16, marginTop: 8,
   },
   statChip: {
     flex: 1, alignItems: 'center', gap: 4,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getQFContentToken, getQFHeaders } from "@/lib/qf-auth";
+import { fetchVerseContent } from "@/lib/server/qf-verse";
 
 // ── Reference bank: only stores verse keys, explanations, and audio URLs.
 // Arabic text and translations are fetched from the QF API — never hardcoded.
@@ -59,33 +59,11 @@ const MCQ_BANK: Record<string, { question: string; options: string[]; correctInd
   "65:3":  { question: "Who is sufficient for the one who relies on Allah?", options: ["His community", "His family", "Allah alone"], correctIndex: 2 },
 };
 
-const QF_CONTENT_API = "https://apis.quran.foundation/content/api/v4";
-const PUBLIC_QURAN_API = "https://api.quran.com/api/v4";
-
-async function fetchVerseFromQF(chapter: number, verse: number, token: string | null) {
-  const path = `verses/by_key/${chapter}:${verse}`;
-  // Translation ID 20 = Saheeh International (confirmed from /resources/translations)
-  const params = "?words=true&translations=20&fields=text_uthmani&word_fields=text_uthmani,transliteration_en";
-
-  if (token) {
-    try {
-      const res = await fetch(`${QF_CONTENT_API}/${path}${params}`, {
-        headers: getQFHeaders(token),
-        signal: AbortSignal.timeout(6000),
-      });
-      if (res.ok) return await res.json();
-    } catch {
-      // fall through
-    }
-  }
-
-  const res = await fetch(`${PUBLIC_QURAN_API}/${path}${params}`, {
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(6000),
-  });
-  if (!res.ok) throw new Error(`QF API error ${res.status}`);
-  return await res.json();
-}
+const DEFAULT_QUESTION = {
+  question: "What is the main message of this ayah?",
+  options: ["Patience", "Trust in Allah", "Gratitude"],
+  correctIndex: 1,
+};
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -93,44 +71,27 @@ export async function GET(req: NextRequest) {
 
   const pool = REFERENCE_BANK[mood] ?? REFERENCE_BANK.justHere;
   const entry = pool[Math.floor(Math.random() * pool.length)];
-  const [chapterStr, verseStr] = entry.ref.split(":");
-  const chapter = parseInt(chapterStr, 10);
-  const verse = parseInt(verseStr, 10);
 
   try {
-    const token = await getQFContentToken();
-    const data = await fetchVerseFromQF(chapter, verse, token);
-    const v = data.verse;
-
-    // Build transliteration from word-level data
-    const transliteration = (v.words ?? [])
-      .filter((w: { char_type_name?: string }) => w.char_type_name !== "end")
-      .map((w: { transliteration?: { text?: string } }) => w.transliteration?.text ?? "")
-      .join(" ");
-
-    const arabic: string = v.text_uthmani ?? "";
-    // Strip HTML tags (QF returns <sup foot_note=...> footnote markers)
-    const rawTranslation: string = v.translations?.[0]?.text ?? "";
-    const translation: string = rawTranslation.replace(/<[^>]*>/g, "").trim();
-
-    const question = MCQ_BANK[entry.ref] ?? {
-      question: "What is the main message of this ayah?",
-      options: ["Patience", "Trust in Allah", "Gratitude"],
-      correctIndex: 1,
-    };
-
+    // Verified Quran text from the QF Content API (public API fallback, cached).
+    const v = await fetchVerseContent(entry.ref);
     return NextResponse.json({
       ayah: {
         reference: entry.ref,
-        arabic,
-        transliteration,
-        translation,
+        arabic: v.arabic,
+        transliteration: v.transliteration,
+        translation: v.translation,
         explanation: entry.explanation,
         audioUrl: entry.audioUrl,
       },
-      question,
+      question: MCQ_BANK[entry.ref] ?? DEFAULT_QUESTION,
     });
   } catch {
-    return NextResponse.json({ error: "Failed to fetch verse" }, { status: 502 });
+    // Verified Quran text could not be fetched. We FAIL rather than serve any
+    // hardcoded Quran text — the client shows a retry state.
+    return NextResponse.json(
+      { error: "Verse text temporarily unavailable" },
+      { status: 503 }
+    );
   }
 }

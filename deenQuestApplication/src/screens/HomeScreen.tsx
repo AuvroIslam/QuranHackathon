@@ -435,7 +435,7 @@ function TaskCard({ task, done, completing, onComplete }: {
           {completing
             ? <ActivityIndicator size="small" color={COLORS.primary} />
             : done
-              ? <View style={styles.checkboxDone}><Check size={14} color="#fff" strokeWidth={3} /></View>
+              ? <View style={styles.checkboxDone}><Check size={14} color={COLORS.primary} strokeWidth={3} /></View>
               : <View style={styles.checkboxEmpty} />}
         </Pressable>
 
@@ -527,7 +527,8 @@ const styles = StyleSheet.create({
   taskCheck: { padding: 2 },
   checkboxDone: {
     width: 26, height: 26, borderRadius: 13,
-    backgroundColor: '#059669',
+    backgroundColor: COLORS.primaryBg,
+    borderWidth: 2, borderColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center',
   },
   checkboxEmpty: {

@@ -105,6 +105,7 @@ export async function saveUserGoal(
   if (goal === 'learn') {
     updates.level = options.level ?? null;
     updates.timePerDay = options.timePerDay ?? null;
+    updates.currentDay = 1;
   } else {
     updates.timePerDay = options.timePerDay ?? null;
     updates.quranProgress = { surahNumber: 1, ayahNumber: 1 };
@@ -112,15 +113,20 @@ export async function saveUserGoal(
   await updateDoc(doc(db, 'users', uid), updates);
 }
 
+/**
+ * Advance the learner to the NEXT lesson. Called once per completed learn
+ * session — so every "Keep Going" / new session serves the next lesson
+ * instead of repeating the current one. Lesson progress is intentionally
+ * decoupled from the calendar-day streak (tracked via lastSessionDate).
+ */
 export async function incrementCurrentDay(uid: string) {
   const ref = doc(db, 'users', uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
-  const today = new Date().toISOString().split('T')[0];
-  if (snap.data().lastCurrentDayDate === today) return;
+  const current = Number(snap.data().currentDay ?? 1);
   await updateDoc(ref, {
-    currentDay: increment(1),
-    lastCurrentDayDate: today,
+    currentDay: (Number.isFinite(current) ? current : 1) + 1,
+    lastCurrentDayDate: new Date().toISOString().split('T')[0],
   });
 }
 
@@ -133,6 +139,16 @@ export async function updateUserPlan(
   const updates: Record<string, any> = { timePerDay };
   if (level !== undefined) updates.level = level;
   await updateDoc(doc(db, 'users', uid), updates);
+}
+
+/** Change the user's goal between 'complete' and 'learn' WITHOUT resetting
+ * streak / xp / bookmarks / quranProgress / currentDay. Used by Settings. */
+export async function updateUserGoal(uid: string, goal: UserGoal) {
+  await updateDoc(doc(db, 'users', uid), {
+    goal,
+    goalSet: true,
+    lastActive: new Date().toISOString(),
+  });
 }
 
 export async function updateQuranProgress(uid: string, surahNumber: number, ayahNumber: number) {

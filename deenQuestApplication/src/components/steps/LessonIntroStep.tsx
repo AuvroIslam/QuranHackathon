@@ -1,10 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
-import type { Lesson } from '../../lib/lessons-data';
+// Only the display fields are needed here; the lesson (incl. its live Quran
+// text) is fetched from the backend, never bundled in the app.
+interface LessonIntro {
+  title: string;
+  subtitle: string;
+}
 
 interface Props {
-  lesson: Lesson;
+  lesson: LessonIntro;
   currentDay: number;
   totalDays: number;
   onBegin: () => void;

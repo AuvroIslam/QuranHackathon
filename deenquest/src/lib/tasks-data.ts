@@ -123,16 +123,38 @@ export const DAILY_TASKS: Task[] = [
   },
 ];
 
-export function getTasksForDate(date: Date): Task[] {
-  const dayOfYear = Math.floor(
-    (date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000
+/** Days since the Unix epoch in the local timezone — a stable per-calendar-day seed. */
+function epochDay(date: Date): number {
+  return Math.floor(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000
   );
-  const startIndex = dayOfYear % DAILY_TASKS.length;
-  const tasks: Task[] = [];
-  for (let i = 0; i < 3; i++) {
-    tasks.push(DAILY_TASKS[(startIndex + i) % DAILY_TASKS.length]);
+}
+
+/** Deterministic seeded PRNG (mulberry32) — same seed → same sequence. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Picks 3 distinct tasks that change every calendar day. Each day's task pool
+ * is a fresh seeded Fisher–Yates shuffle of the full bank, so consecutive days
+ * get genuinely different deeds (not a fixed window sliding by one).
+ */
+export function getTasksForDate(date: Date): Task[] {
+  const rng = mulberry32(epochDay(date) * 2654435761);
+  const idx = DAILY_TASKS.map((_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [idx[i], idx[j]] = [idx[j], idx[i]];
   }
-  return tasks;
+  return idx.slice(0, 3).map((i) => DAILY_TASKS[i]);
 }
 
 export function getTodaysTasks(): Task[] {

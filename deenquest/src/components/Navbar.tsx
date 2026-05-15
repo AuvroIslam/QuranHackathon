@@ -161,7 +161,7 @@ export default function Navbar() {
                 </Link>
               ))}
             </nav>
-            <div className="mt-6 pt-4 border-t border-white/10">
+            <div className="mt-6 pt-4 border-t border-white/10 space-y-2">
               <button
                 onClick={() => { signOut(); setMenuOpen(false); }}
                 className="flex items-center gap-2 text-sm text-slate-400 hover:text-red-400 px-4"

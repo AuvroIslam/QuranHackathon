@@ -128,9 +128,29 @@ export default function DawahTab() {
   const [scriptures, setScriptures] = useState<ScriptureEntry[]>([]);
   const [ummahReasoning, setUmmahReasoning] = useState('');
 
+  interface DawahCacheEntry {
+    ayahs: any[];
+    quranView: string;
+    scriptures: ScriptureEntry[];
+    ummahReasoning: string;
+  }
+  const cacheRef = useRef<Map<string, DawahCacheEntry>>(new Map());
+
   const handleTopicSelect = async (topic: string) => {
     setSelectedTopic(topic);
     setCustomTopic('');
+
+    const cacheKey = topic.trim().toLowerCase();
+    const cached = cacheRef.current.get(cacheKey);
+    if (cached) {
+      setAyahs(cached.ayahs);
+      setQuranView(cached.quranView);
+      setScriptures(cached.scriptures);
+      setUmmahReasoning(cached.ummahReasoning);
+      setSearching(false);
+      return;
+    }
+
     setSearching(true);
     setAyahs([]);
     setQuranView('');
@@ -138,30 +158,14 @@ export default function DawahTab() {
     setUmmahReasoning('');
 
     try {
-      // 1. Search for related ayahs
+      // Fire both requests in parallel. The DeepSeek request grounds via its own
+      // groundingQuery, so it doesn't need to wait for /api/quran search results.
       const searchParams = new URLSearchParams({ path: 'search', q: topic, size: '5', language: 'en' });
-      const res = await fetch(`${API_BASE}/api/quran?${searchParams.toString()}`);
-      const data = res.ok ? await res.json() : {};
-      const results: any[] = data?.search?.results ?? [];
+      const searchPromise = fetch(`${API_BASE}/api/quran?${searchParams.toString()}`)
+        .then((r) => (r.ok ? r.json() : {}))
+        .catch(() => ({}));
 
-      const mapped = results.map((r: any) => ({
-        verseKey: r.verse_key,
-        arabic: (r.text ?? '') as string,
-        translation: stripHtml(r.translations?.[0]?.text ?? ''),
-      }));
-      setAyahs(mapped);
-
-      const verseSummary = mapped
-        .slice(0, 3)
-        .map((r: any) => `${r.verseKey}: "${r.translation}"`)
-        .join('\n');
-
-      const verseContext = verseSummary
-        ? `Use these relevant Quran verses as primary grounding:\n${verseSummary}`
-        : 'No direct verse search results were found; use well-known Quranic principles and accurate references.';
-
-      // 2. Generate dawah insights
-      const aiRes = await fetch(`${API_BASE}/api/deepseek`, {
+      const aiPromise = fetch(`${API_BASE}/api/deepseek`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -170,19 +174,38 @@ export default function DawahTab() {
           messages: [
             {
               role: 'user',
-              content: `Topic: "${topic}"\n\n${verseContext}\n\nRespond with ONLY a raw JSON object. No markdown fences, no explanation outside the JSON.\n\nLimits per field:\n- quranView: 2-3 sentences, max 500 chars, include 1-2 ayah refs\n- Each scripture quote: max 150 chars. If translation is uncertain, end with " (translation may vary)" — do NOT wrap the quote in single quotes\n- Each scripture explanation: 2-3 sentences, max 220 chars\n- ummahReasoning: 3-4 sentences, max 500 chars\n- Exactly 3 scriptures: Bible, Bhagavad Gita, Torah\n\nShape:\n{"quranView":"...","scriptures":[{"scriptureName":"...","quote":"...","reference":"...","explanation":"..."}],"ummahReasoning":"..."}\n\nCritical: every string must be a complete sentence. Never cut off mid-word or mid-sentence.`,
+              content: `Topic: "${topic}"\n\nRespond with ONLY a raw JSON object. No markdown fences, no explanation outside the JSON.\n\nLimits per field:\n- quranView: 2-3 sentences, max 500 chars, include 1-2 ayah refs\n- Each scripture quote: max 150 chars. If translation is uncertain, end with " (translation may vary)" — do NOT wrap the quote in single quotes\n- Each scripture explanation: 2-3 sentences, max 220 chars\n- ummahReasoning: 3-4 sentences, max 500 chars\n- Exactly 3 scriptures: Bible, Bhagavad Gita, Torah\n\nShape:\n{"quranView":"...","scriptures":[{"scriptureName":"...","quote":"...","reference":"...","explanation":"..."}],"ummahReasoning":"..."}\n\nCritical: every string must be a complete sentence. Never cut off mid-word or mid-sentence.`,
             },
           ],
           systemPrompt:
             'You are a respectful Islamic dawah educator. Always return only raw valid JSON — no markdown, no prose outside the JSON. Compare scriptures fairly, keep tone non-inflammatory, cite Quranic references accurately, and never use derogatory language about any faith.',
         }),
-      });
+      })
+        .then((r) => r.json())
+        .catch(() => ({}));
 
-      const aiData = await aiRes.json();
-      const sections = parseDawahSections(aiData.content ?? '');
+      const [data, aiData] = await Promise.all([searchPromise, aiPromise]);
+
+      const results: any[] = (data as { search?: { results?: any[] } })?.search?.results ?? [];
+      const mapped = results.map((r: any) => ({
+        verseKey: r.verse_key,
+        arabic: (r.text ?? '') as string,
+        translation: stripHtml(r.translations?.[0]?.text ?? ''),
+      }));
+
+      const sections = parseDawahSections(aiData?.content ?? '');
+
+      setAyahs(mapped);
       setQuranView(sections.quranView);
       setScriptures(sections.scriptures);
       setUmmahReasoning(sections.ummahReasoning);
+
+      cacheRef.current.set(cacheKey, {
+        ayahs: mapped,
+        quranView: sections.quranView,
+        scriptures: sections.scriptures,
+        ummahReasoning: sections.ummahReasoning,
+      });
     } catch {
       setQuranView('Unable to generate a Quranic summary right now. Please try again.');
       setScriptures([]);

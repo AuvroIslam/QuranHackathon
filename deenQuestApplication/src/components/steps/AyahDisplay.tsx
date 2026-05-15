@@ -1,24 +1,73 @@
-import { BookOpen, Lightbulb, Bookmark, BookmarkCheck } from 'lucide-react-native';
+import { BookOpen, Lightbulb, Bookmark, BookmarkCheck, ScrollText } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { COLORS, RADIUS, SHADOW } from '../../theme';
 import { toggleBookmark, isBookmarked } from '../../lib/firestore';
-import { Ayah } from '../../types';
+import { fetchHadithForMood, fetchLessonReflection, HadithEntry } from '../../services/api';
+import { Ayah, Mood } from '../../types';
 
 interface Props {
   ayah: Ayah;
   uid?: string;
   surahName?: string;
+  mood?: Mood | null;
+  customMoodText?: string | null;
 }
 
-export default function AyahDisplay({ ayah, uid, surahName }: Props) {
+function truncateForLabel(text: string, max = 40): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max).trimEnd()}…`;
+}
+
+const MOOD_LABEL: Record<string, string> = {
+  stressed: 'stressed',
+  sad: 'sad',
+  grateful: 'grateful',
+  lost: 'lost',
+  indecisive: 'indecisive',
+  justHere: 'just here',
+  overthinking: 'overthinking',
+};
+
+export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText }: Props) {
   const [bookmarked, setBookmarked] = useState(false);
   const [bmLoading, setBmLoading] = useState(false);
+  const [reflection, setReflection] = useState<string | null>(null);
+  const [reflectionLoading, setReflectionLoading] = useState(false);
+  const [hadith, setHadith] = useState<HadithEntry | null>(null);
+  const [hadithLoading, setHadithLoading] = useState(false);
 
   useEffect(() => {
     if (!uid) return;
     isBookmarked(uid, ayah.reference).then(setBookmarked).catch(() => {});
   }, [uid, ayah.reference]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setReflectionLoading(true);
+    setReflection(null);
+    fetchLessonReflection({
+      verseKey: ayah.reference,
+      arabic: ayah.arabic,
+      translation: ayah.translation,
+      mood: mood ?? undefined,
+      customText: customMoodText ?? undefined,
+    })
+      .then((r) => { if (!cancelled) setReflection(r); })
+      .finally(() => { if (!cancelled) setReflectionLoading(false); });
+    return () => { cancelled = true; };
+  }, [ayah.reference, ayah.arabic, ayah.translation, mood, customMoodText]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setHadithLoading(true);
+    setHadith(null);
+    fetchHadithForMood(mood ?? 'justHere', customMoodText ?? undefined)
+      .then((h) => { if (!cancelled) setHadith(h); })
+      .finally(() => { if (!cancelled) setHadithLoading(false); });
+    return () => { cancelled = true; };
+  }, [mood, customMoodText]);
 
   async function handleBookmark() {
     if (!uid || bmLoading) return;
@@ -36,6 +85,12 @@ export default function AyahDisplay({ ayah, uid, surahName }: Props) {
     }
   }
 
+  const subtitleText = customMoodText
+    ? `For when you're feeling ${truncateForLabel(customMoodText)}`
+    : mood && MOOD_LABEL[mood]
+      ? `For when you're feeling ${MOOD_LABEL[mood]}`
+      : "Allah's guidance for you today";
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -46,6 +101,7 @@ export default function AyahDisplay({ ayah, uid, surahName }: Props) {
             <BookOpen size={12} color={COLORS.primary} />
             <Text style={styles.stepLabel}>Today's Ayah</Text>
           </View>
+          <Text style={styles.subtitle}>{subtitleText}</Text>
           <Text style={styles.ref}>Quran {ayah.reference}</Text>
         </View>
         <Image source={require('../../../elementsApp/reading-removebg-preview.png')} style={styles.character} />
@@ -77,14 +133,47 @@ export default function AyahDisplay({ ayah, uid, surahName }: Props) {
         <Text style={styles.translation}>"{ayah.translation}"</Text>
       </View>
 
-      {/* Reflection */}
+      {/* Reflection (AI-generated) */}
       <View style={styles.reflectionCard}>
         <View style={styles.reflectionHeader}>
           <Lightbulb size={15} color={COLORS.accentDark} />
           <Text style={styles.reflectionTitle}>Reflection</Text>
         </View>
-        <Text style={styles.reflection}>{ayah.explanation}</Text>
+        {reflectionLoading ? (
+          <View style={styles.skeletonGroup}>
+            <View style={[styles.skeletonLine, { width: '100%' }]} />
+            <View style={[styles.skeletonLine, { width: '90%' }]} />
+            <View style={[styles.skeletonLine, { width: '65%' }]} />
+          </View>
+        ) : (
+          <Text style={styles.reflection}>{reflection ?? ayah.explanation}</Text>
+        )}
       </View>
+
+      {/* Hadith */}
+      {(hadithLoading || hadith) && (
+        <View style={styles.hadithCard}>
+          <View style={styles.hadithHeader}>
+            <ScrollText size={15} color={COLORS.primary} />
+            <Text style={styles.hadithTitle}>Hadith</Text>
+          </View>
+          {hadithLoading ? (
+            <View style={styles.skeletonGroup}>
+              <View style={[styles.skeletonLine, { width: '100%' }]} />
+              <View style={[styles.skeletonLine, { width: '85%' }]} />
+              <View style={[styles.skeletonLine, { width: '55%' }]} />
+            </View>
+          ) : hadith ? (
+            <>
+              <Text style={styles.hadithText}>&ldquo;{hadith.english}&rdquo;</Text>
+              <Text style={styles.hadithRef}>
+                {hadith.narrator ? `${hadith.narrator} · ` : ''}
+                {hadith.reference ?? `${hadith.collection} ${hadith.hadithNumber}`}
+              </Text>
+            </>
+          ) : null}
+        </View>
+      )}
       </ScrollView>
     </View>
   );
@@ -94,7 +183,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 16, gap: 14, paddingBottom: 8 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  labelBlock: { gap: 6 },
+  labelBlock: { gap: 6, flex: 1 },
   bmBtn: {
     alignSelf: 'flex-start',
     padding: 6,
@@ -111,8 +200,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
   },
   stepLabel: { color: COLORS.primary, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
-  ref: { color: COLORS.text, fontSize: 20, fontWeight: '800' },
-  character: { width: 90, height: 90, resizeMode: 'contain' },
+  subtitle: { color: COLORS.textSub, fontSize: 13, lineHeight: 18 },
+  ref: { color: COLORS.text, fontSize: 18, fontWeight: '800' },
+  character: { width: 84, height: 84, resizeMode: 'contain' },
   arabicCard: {
     backgroundColor: COLORS.card,
     borderRadius: RADIUS.xl,
@@ -162,4 +252,27 @@ const styles = StyleSheet.create({
     fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8,
   },
   reflection: { color: COLORS.textSub, fontSize: 14, lineHeight: 22 },
+  hadithCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+    borderColor: COLORS.cardBorder,
+    padding: 16, gap: 8, ...SHADOW.card,
+  },
+  hadithHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  hadithTitle: {
+    color: COLORS.primary, fontSize: 12,
+    fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8,
+  },
+  hadithText: { color: COLORS.text, fontSize: 14, lineHeight: 22, fontStyle: 'italic' },
+  hadithRef: { color: COLORS.textMuted, fontSize: 11 },
+  skeletonGroup: { gap: 8 },
+  skeletonLine: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.surfaceDark,
+    opacity: 0.7,
+  },
 });

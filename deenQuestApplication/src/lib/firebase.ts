@@ -1,6 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
+import { getAuth, initializeAuth, type Auth } from 'firebase/auth';
+// `getReactNativePersistence` ships in the Firebase React-Native runtime but
+// is omitted from this version's published web TS types, so a normal typed
+// import fails to compile. Import it untyped (runtime behaviour unchanged) and
+// keep real AsyncStorage-backed session persistence.
+// @ts-ignore -- missing from firebase@^10 web typings, present at RN runtime
+import { getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -16,7 +22,7 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 // initializeAuth with AsyncStorage persistence for React Native.
 // Falls back to getAuth if called a second time (e.g. fast refresh).
-let auth;
+let auth: Auth;
 try {
   auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage),

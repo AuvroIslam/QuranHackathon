@@ -7,10 +7,14 @@ import { MCQData } from '../../types';
 interface Props {
   question: MCQData;
   selectedAnswer?: number;
+  /** Server-validated verdict. When provided (correctIndex >= 0), takes precedence
+   * over `question.correctIndex`. Used by lesson MCQ where the answer key is
+   * stripped from the client bundle. */
+  verdict?: { correctIndex: number } | null;
   onAnswer: (index: number) => void;
 }
 
-export default function MCQQuestion({ question, selectedAnswer, onAnswer }: Props) {
+export default function MCQQuestion({ question, selectedAnswer, verdict, onAnswer }: Props) {
   const [answered, setAnswered] = useState(selectedAnswer !== undefined);
   const feedbackAnim = useRef(new Animated.Value(0)).current;
 
@@ -21,7 +25,17 @@ export default function MCQQuestion({ question, selectedAnswer, onAnswer }: Prop
     Animated.spring(feedbackAnim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 8 }).start();
   };
 
-  const isCorrect = selectedAnswer === question.correctIndex;
+  // Effective correct index: prefer server verdict if present, else fall back
+  // to the local question.correctIndex (mood flow). If both are unavailable
+  // (e.g. verdict still loading for a lesson), use -1 so no option is marked.
+  const effectiveCorrectIndex =
+    verdict?.correctIndex !== undefined && verdict.correctIndex >= 0
+      ? verdict.correctIndex
+      : question.correctIndex >= 0
+        ? question.correctIndex
+        : -1;
+  const verdictReady = effectiveCorrectIndex >= 0;
+  const isCorrect = verdictReady && selectedAnswer === effectiveCorrectIndex;
 
   return (
     <View style={styles.container}>
@@ -42,15 +56,19 @@ export default function MCQQuestion({ question, selectedAnswer, onAnswer }: Prop
             key={i}
             text={opt}
             index={i}
-            answered={answered}
-            isCorrect={i === question.correctIndex}
+            answered={answered && verdictReady}
+            isCorrect={verdictReady && i === effectiveCorrectIndex}
             isSelected={i === selectedAnswer}
             onPress={() => handleAnswer(i)}
           />
         ))}
       </View>
 
-      {answered && (
+      {answered && !verdictReady && (
+        <Text style={styles.checking}>Checking your answer…</Text>
+      )}
+
+      {answered && verdictReady && (
         <Animated.View
           style={[
             styles.feedback,
@@ -59,7 +77,7 @@ export default function MCQQuestion({ question, selectedAnswer, onAnswer }: Prop
           ]}
         >
           <Text style={styles.feedbackText}>
-            {isCorrect ? 'Correct! Well done.' : `Right answer: "${question.options[question.correctIndex]}"`}
+            {isCorrect ? 'Correct! Well done.' : `Right answer: "${question.options[effectiveCorrectIndex]}"`}
           </Text>
         </Animated.View>
       )}
@@ -164,4 +182,5 @@ const styles = StyleSheet.create({
   feedbackCorrect: { backgroundColor: COLORS.primaryBg, borderColor: COLORS.primary + '55' },
   feedbackWrong: { backgroundColor: COLORS.primaryBg, borderColor: COLORS.cardBorder },
   feedbackText: { color: COLORS.textSub, fontSize: 14, lineHeight: 20 },
+  checking: { color: COLORS.textMuted, fontSize: 13, fontStyle: 'italic', textAlign: 'center', marginTop: 4 },
 });

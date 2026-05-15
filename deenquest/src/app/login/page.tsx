@@ -1,12 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { Mail, Lock, User } from "lucide-react";
 import Image from "next/image";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") ?? undefined;
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,9 +31,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (isSignUp) {
-        await signUpWithEmail(email, password, name);
+        await signUpWithEmail(email, password, name, next);
       } else {
-        await signInWithEmail(email, password);
+        await signInWithEmail(email, password, next);
       }
     } catch (err: any) {
       setError(err.message || "Authentication failed");
@@ -33,7 +44,7 @@ export default function LoginPage() {
   async function handleGoogle() {
     setError("");
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(next);
     } catch (err: any) {
       setError(err.message || "Google sign-in failed");
     }

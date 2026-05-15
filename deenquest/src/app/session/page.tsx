@@ -12,7 +12,6 @@ import {
   getDailySessionCount,
   toggleBookmark,
 } from "@/lib/firestore";
-import { getLesson } from "@/lib/lessons-data";
 import { getStreakStatus } from "@/lib/streakUtils";
 import { getAyahsForMood, searchAyahs } from "@/lib/quran";
 import { getQFAccessToken } from "@/lib/qf-user-auth";
@@ -32,8 +31,9 @@ function syncQFBookmark(verseKey: string, nowBookmarked: boolean) {
   }).catch(() => {});
 }
 import {
-  CheckCircle2, Loader2, Volume2, X, Flame, Moon,
+  CheckCircle2, Loader2, X, Flame, Moon,
   Play, Pause, BookOpen, Lightbulb, Zap, BookmarkPlus, BookmarkCheck,
+  Mic, Square,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -59,6 +59,25 @@ interface MoodAyah {
   surahName: string;
 }
 
+// Client-facing lesson shape — mcq.correctIndex is NEVER included.
+// The server resolves correctness via POST /api/lessons/check.
+interface ClientLesson {
+  day: number;
+  title: string;
+  subtitle: string;
+  focus: string;
+  learnContent: {
+    reference: string;
+    arabic: string;
+    transliteration: string;
+    translation: string;
+    explanation: string;
+    audioUrl: string;
+  };
+  actionText: string;
+  mcq: { question: string; options: string[] };
+}
+
 const MOODS = [
   { key: "stressed",     label: "Stressed",     image: "/mood/stressed.png" },
   { key: "sad",          label: "Sad",          image: "/mood/sad.png" },
@@ -69,6 +88,10 @@ const MOODS = [
   { key: "justHere",    label: "Just Here",    image: "/mood/justHere.png" },
 ];
 
+
+// No hardcoded Quran text: mood ayahs are fetched live from the Quran
+// Foundation API. If the fetch fails the UI shows a retry, never a bundled
+// copy of the verse.
 
 function pad3(n: number) { return String(n).padStart(3, "0"); }
 function stripHtml(html: string) {
@@ -103,6 +126,7 @@ function SessionPageInner() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [journeyStep, setJourneyStep] = useState<JourneyStep>("mood");
   const [ayahs, setAyahs] = useState<AyahData[]>([]);
+  const [readIndices, setReadIndices] = useState<number[]>([]);
   const [mcqAnswer, setMcqAnswer] = useState<number | null>(null);
   const [completing, setCompleting] = useState(false);
   const [newStreak, setNewStreak] = useState(0);
@@ -110,27 +134,54 @@ function SessionPageInner() {
   const [isFirstSession, setIsFirstSession] = useState(false);
   const [sessionsToday, setSessionsToday] = useState(0);
   const [moodAyah, setMoodAyah] = useState<MoodAyah | null>(null);
+  const [moodAyahError, setMoodAyahError] = useState(false);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [customMoodText, setCustomMoodText] = useState<string | null>(null);
   const [fetchingAyah, setFetchingAyah] = useState(false);
   const [loadingRead, setLoadingRead] = useState(false);
   const [ayahBookmarked, setAyahBookmarked] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [lesson, setLesson] = useState<ClientLesson | null>(null);
+  const [loadingLesson, setLoadingLesson] = useState(false);
   const hasInitialized = useRef(false);
 
   const isLearn = profile?.goal === "learn";
   const timePerDay = profile?.timePerDay ?? 5;
   const ayahCount = timePerDay === 10 ? 15 : timePerDay === 5 ? 8 : 5;
-  const lesson = isLearn
-    ? getLesson(levelToKey(profile?.level), profile?.currentDay ?? 1)
-    : null;
+
+  useEffect(() => {
+    if (!isLearn || !profile) return;
+    const level = levelToKey(profile?.level);
+    const day = profile?.currentDay ?? 1;
+    // New lesson loading → clear any prior answer so the MCQ never appears
+    // pre-answered / auto-completed when the lesson changes.
+    setMcqAnswer(null);
+    setLesson(null);
+    setLoadingLesson(true);
+    fetch(`/api/lessons?level=${level}&day=${day}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setLesson(data?.lesson ?? null))
+      .catch(() => setLesson(null))
+      .finally(() => setLoadingLesson(false));
+    // Deliberately keyed only on the lesson identity (level + day), NOT the
+    // whole `profile` object — refreshProfile() changes the object reference
+    // and would otherwise refetch + wipe a valid answer mid-lesson.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLearn, profile?.level, profile?.currentDay]);
 
   useEffect(() => {
     if (!profile || !user || hasInitialized.current) return;
     hasInitialized.current = true;
     // Guard: redirect if daily session cap reached
     getDailySessionCount(user.uid).then((count) => {
-      if (count >= 3) {
+      // The daily cap blocks new sessions — but "Get an Ayah" (ayahOnly) is a
+      // bonus that must still work once the 3 sessions are used up.
+      if (count >= 3 && !ayahOnly) {
         router.replace("/");
+        return;
+      }
+      if (ayahOnly) {
+        // Bonus ayah — not a real session, don't mark one in-progress.
+        setPhase("session");
         return;
       }
       const alreadyInProgress = sessionStorage.getItem(SESSION_IN_PROGRESS_KEY) === "true";
@@ -138,11 +189,13 @@ function SessionPageInner() {
         const saved = sessionStorage.getItem(SESSION_STATE_KEY);
         if (saved) {
           try {
-            const { step, moodAyah: savedMoodAyah, selectedMood: savedMood, ayahs: savedAyahs } = JSON.parse(saved);
+            const { step, moodAyah: savedMoodAyah, selectedMood: savedMood, customMoodText: savedCustom, ayahs: savedAyahs, readIndices: savedRead } = JSON.parse(saved);
             if (step) setJourneyStep(step);
             if (savedMoodAyah) setMoodAyah(savedMoodAyah);
             if (savedMood) setSelectedMood(savedMood);
+            if (savedCustom) setCustomMoodText(savedCustom);
             if (savedAyahs?.length) setAyahs(savedAyahs);
+            if (Array.isArray(savedRead)) setReadIndices(savedRead);
           } catch {}
         }
       } else {
@@ -156,9 +209,9 @@ function SessionPageInner() {
     if (phase !== "session") return;
     sessionStorage.setItem(
       SESSION_STATE_KEY,
-      JSON.stringify({ step: journeyStep, moodAyah, selectedMood, ayahs })
+      JSON.stringify({ step: journeyStep, moodAyah, selectedMood, customMoodText, ayahs, readIndices })
     );
-  }, [phase, journeyStep, moodAyah, selectedMood, ayahs]);
+  }, [phase, journeyStep, moodAyah, selectedMood, customMoodText, ayahs, readIndices]);
 
   async function loadAyahs(startSurah: number, startAyah: number, count: number) {
     setLoadingRead(true);
@@ -200,51 +253,68 @@ function SessionPageInner() {
       const results = customText
         ? await searchAyahs(customText)
         : await getAyahsForMood(mood);
-      if (results.length > 0) {
-        const r = results[0];
+      // Pick a RANDOM valid match, not always the first. The search term per
+      // mood is constant, so QF returns the same ordered list every time —
+      // taking [0] meant the same ayah (and the same "Skip" ayah) forever.
+      const valid = (results as Array<{ text?: string; translation?: string; verseKey: string; surah: { englishName: string } }>)
+        .filter((x) => x?.text && x?.translation);
+      const r = valid.length ? valid[Math.floor(Math.random() * valid.length)] : undefined;
+      if (r) {
         setMoodAyah({
           verseKey: r.verseKey,
-          arabic: r.text,
-          translation: r.translation,
+          arabic: r.text!,
+          translation: r.translation!,
           surahName: r.surah.englishName,
         });
+        setMoodAyahError(false);
+      } else {
+        // No verified verse returned — fail rather than show hardcoded text.
+        setMoodAyah(null);
+        setMoodAyahError(true);
       }
     } catch {
-      // continue without mood ayah
+      setMoodAyah(null);
+      setMoodAyahError(true);
     } finally {
       setFetchingAyah(false);
     }
   }
 
+  // Remember the last mood/customText so a failed fetch can be retried.
+  const lastMoodFetch = useRef<{ mood: string; customText?: string }>({ mood: "justHere" });
+
   async function handleMoodSelect(mood: string) {
     setSelectedMood(mood);
+    setCustomMoodText(null);
+    lastMoodFetch.current = { mood };
     await fetchMoodAyah(mood);
     setJourneyStep("ayah");
   }
 
   async function handleCustomMoodText(text: string) {
     setSelectedMood("justHere");
+    setCustomMoodText(text);
+    lastMoodFetch.current = { mood: "justHere", customText: text };
     await fetchMoodAyah("justHere", text);
     setJourneyStep("ayah");
   }
 
   async function handleSkipMood() {
+    setCustomMoodText(null);
+    lastMoodFetch.current = { mood: "hopeful" };
     await fetchMoodAyah("hopeful");
     setJourneyStep("ayah");
+  }
+
+  function retryMoodAyah() {
+    const { mood, customText } = lastMoodFetch.current;
+    fetchMoodAyah(mood, customText);
   }
 
   function handleGoToReading() {
     const start = profile?.quranProgress ?? { surahNumber: 1, ayahNumber: 1 };
     loadAyahs(start.surahNumber, start.ayahNumber, ayahCount);
     setJourneyStep("reading");
-  }
-
-  function playLearnAudio(url: string) {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = url;
-      audioRef.current.play().catch(() => {});
-    }
   }
 
   async function handleComplete() {
@@ -280,7 +350,10 @@ function SessionPageInner() {
           body: JSON.stringify({ ranges, seconds, date: new Date().toISOString().split("T")[0] }),
         }).catch(() => {});
       }
-      refreshProfile().catch(() => undefined);
+      // Await so profile.currentDay (and quranProgress) are fresh BEFORE the
+      // next session — the lesson-load effect keys off profile.currentDay, so
+      // this is what makes "Keep Going" serve the NEXT lesson, not a repeat.
+      await refreshProfile().catch(() => undefined);
       setCompleting(false);
       setPhase(result.sessionsToday === 1 ? "streak" : "complete");
     } catch {
@@ -291,6 +364,27 @@ function SessionPageInner() {
 
   function handleExit() {
     router.push("/");
+  }
+
+  /**
+   * Start the next session in place. router.push("/session") from /session is
+   * a no-op for component state (same route → no remount), so the next lesson
+   * never loaded. Instead we reset session state here; profile.currentDay was
+   * already refreshed in handleComplete, so the lesson-load effect has the
+   * next lesson ready.
+   */
+  function startAnother() {
+    setMcqAnswer(null);
+    setMoodAyah(null);
+    setSelectedMood(null);
+    setCustomMoodText(null);
+    setAyahs([]);
+    setReadIndices([]);
+    setNewStreak(0);
+    setJourneyStep("mood");
+    sessionStorage.removeItem(SESSION_STATE_KEY);
+    if (!ayahOnly) sessionStorage.setItem(SESSION_IN_PROGRESS_KEY, "true");
+    setPhase("session");
   }
 
   // ── Progress for journey steps ──
@@ -479,7 +573,7 @@ function SessionPageInner() {
           ) : (
             <div className="space-y-3">
               <button
-                onClick={() => router.push("/session")}
+                onClick={startAnother}
                 className="w-full py-3.5 rounded-2xl font-bold text-sm text-white"
                 style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
               >
@@ -499,26 +593,33 @@ function SessionPageInner() {
   }
 
   // ── Learn mode: simple lesson view ──
-  if (isLearn) {
+  // (ayahOnly bypasses the lesson so "Get an Ayah" shows the mood→ayah flow
+  //  even for Learning-mode users.)
+  if (isLearn && !ayahOnly) {
     return (
       <div className="min-h-screen flex flex-col">
-        <audio ref={audioRef} />
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
           <button onClick={handleExit} className="w-9 h-9 rounded-full bg-white/8 flex items-center justify-center text-white/50 hover:text-white">
             <X size={18} />
           </button>
-          <p className="text-sm font-semibold text-white/70">Day {profile.currentDay ?? 1} Lesson</p>
+          <p className="text-sm font-semibold text-white/70">Lesson {lesson?.day ?? profile.currentDay ?? 1}</p>
           <div className="w-9" />
         </div>
         <div className="flex-1 overflow-y-auto">
           <div className="p-4 md:p-6 max-w-2xl mx-auto w-full">
-            {lesson ? (
+            {loadingLesson ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 size={32} className="text-accent animate-spin" />
+              </div>
+            ) : lesson ? (
               <>
                 <LearnSession
+                  key={`${levelToKey(profile?.level)}-${profile?.currentDay ?? 1}`}
                   lesson={lesson}
+                  level={levelToKey(profile?.level)}
+                  day={profile?.currentDay ?? 1}
                   mcqAnswer={mcqAnswer}
                   onMcqAnswer={setMcqAnswer}
-                  onPlayAudio={playLearnAudio}
                 />
                 <div className="mt-6 pb-6">
                   <button
@@ -593,7 +694,10 @@ function SessionPageInner() {
           <AyahStep
             ayah={moodAyah}
             mood={selectedMood}
+            customText={customMoodText}
             ayahOnly={ayahOnly}
+            error={moodAyahError}
+            onRetry={retryMoodAyah}
             bookmarked={ayahBookmarked}
             onBookmark={async () => {
               if (!user || !moodAyah) return;
@@ -621,6 +725,8 @@ function SessionPageInner() {
             <ReadSession
               ayahs={ayahs}
               completing={completing}
+              initialReadIndices={readIndices}
+              onReadChange={setReadIndices}
               onComplete={handleComplete}
             />
           )
@@ -721,22 +827,87 @@ function MoodStep({
 
 // ─── Ayah Step ────────────────────────────────────────────────────────────────
 
+interface HadithEntry {
+  english: string;
+  narrator?: string;
+  collection: string;
+  hadithNumber: string;
+  reference?: string;
+}
+
+function truncateForLabel(text: string, max = 40): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max).trimEnd()}…`;
+}
+
 function AyahStep({
   ayah,
   mood,
+  customText,
   ayahOnly,
+  error,
+  onRetry,
   bookmarked,
   onBookmark,
   onContinue,
 }: {
   ayah: MoodAyah | null;
   mood: string | null;
+  customText?: string | null;
   ayahOnly?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
   bookmarked?: boolean;
   onBookmark?: () => void;
   onContinue: () => void;
 }) {
   const moodLabel = MOODS.find((m) => m.key === mood)?.label ?? "";
+  const customLabel = customText ? truncateForLabel(customText) : "";
+
+  const [reflection, setReflection] = useState<string | null>(null);
+  const [reflectionLoading, setReflectionLoading] = useState(false);
+  const [hadith, setHadith] = useState<HadithEntry | null>(null);
+  const [hadithLoading, setHadithLoading] = useState(false);
+
+  useEffect(() => {
+    if (!ayah) return;
+    let cancelled = false;
+    setReflectionLoading(true);
+    setReflection(null);
+    fetch("/api/reflection", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        verseKey: ayah.verseKey,
+        arabic: ayah.arabic,
+        translation: ayah.translation,
+        mood: mood ?? undefined,
+        customText: customText ?? undefined,
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (!cancelled) setReflection(data?.reflection ?? null); })
+      .catch(() => { if (!cancelled) setReflection(null); })
+      .finally(() => { if (!cancelled) setReflectionLoading(false); });
+    return () => { cancelled = true; };
+  }, [ayah, mood, customText]);
+
+  useEffect(() => {
+    if (!ayah) return;
+    let cancelled = false;
+    setHadithLoading(true);
+    setHadith(null);
+    const moodKey = mood ?? "justHere";
+    const qs = new URLSearchParams({ mood: moodKey });
+    if (customText) qs.set("situation", customText);
+    fetch(`/api/hadith?${qs.toString()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (!cancelled) setHadith(data?.hadith ?? null); })
+      .catch(() => { if (!cancelled) setHadith(null); })
+      .finally(() => { if (!cancelled) setHadithLoading(false); });
+    return () => { cancelled = true; };
+  }, [ayah, mood, customText]);
 
   return (
     <div className="p-5 md:p-6 max-w-lg mx-auto w-full space-y-5 pt-6">
@@ -748,9 +919,11 @@ function AyahStep({
             <span className="text-[10px] font-bold text-accent uppercase tracking-wider">Today&apos;s Ayah</span>
           </div>
           <p className="text-sm text-white/55">
-            {moodLabel
-              ? `For when you're feeling ${moodLabel.toLowerCase()}`
-              : "Allah's guidance for you today"}
+            {customLabel
+              ? `For when you're feeling ${customLabel}`
+              : moodLabel
+                ? `For when you're feeling ${moodLabel.toLowerCase()}`
+                : "Allah's guidance for you today"}
           </p>
         </div>
         <Image
@@ -803,21 +976,67 @@ function AyahStep({
           )}
         </>
       ) : (
-        <div className="glass-card rounded-2xl p-8 text-center">
-          <p className="text-white/40 text-sm">No ayah found — continue with today&apos;s reading</p>
+        <div className="glass-card rounded-2xl p-8 text-center space-y-4">
+          <p className="text-white/50 text-sm">
+            {error
+              ? "Couldn't load the verse — please check your connection."
+              : "No ayah found — continue with today's reading"}
+          </p>
+          {error && onRetry && (
+            <button
+              onClick={onRetry}
+              className="px-5 py-2.5 rounded-2xl font-bold text-sm text-white"
+              style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
+            >
+              Try again
+            </button>
+          )}
         </div>
       )}
 
-      {/* Reflection */}
+      {/* Reflection (AI-generated) */}
       <div className="rounded-2xl border border-yellow-400/25 p-4" style={{ background: "rgba(20,10,40,0.75)" }}>
         <div className="flex items-center gap-2 mb-2">
           <Lightbulb size={13} className="text-yellow-400" />
           <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Reflection</p>
         </div>
-        <p className="text-sm text-white leading-relaxed">
-          Take a moment to sit with this ayah. Let it settle in your heart before you begin reading.
-        </p>
+        {reflectionLoading ? (
+          <div className="space-y-2 animate-pulse">
+            <div className="h-3 rounded bg-white/12 w-full" />
+            <div className="h-3 rounded bg-white/12 w-11/12" />
+            <div className="h-3 rounded bg-white/12 w-3/4" />
+          </div>
+        ) : (
+          <p className="text-sm text-white leading-relaxed">
+            {reflection ?? "Take a moment to sit with this ayah. Let it settle in your heart before you begin reading."}
+          </p>
+        )}
       </div>
+
+      {/* Hadith */}
+      {(hadithLoading || hadith) && (
+        <div className="rounded-2xl border border-emerald-400/25 p-4" style={{ background: "rgba(20,10,40,0.75)" }}>
+          <div className="flex items-center gap-2 mb-2">
+            <BookOpen size={13} className="text-emerald-400" />
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Hadith</p>
+          </div>
+          {hadithLoading ? (
+            <div className="space-y-2 animate-pulse">
+              <div className="h-3 rounded bg-white/12 w-full" />
+              <div className="h-3 rounded bg-white/12 w-10/12" />
+              <div className="h-3 rounded bg-white/12 w-2/3" />
+            </div>
+          ) : hadith ? (
+            <>
+              <p className="text-sm text-white leading-relaxed italic">&ldquo;{hadith.english}&rdquo;</p>
+              <p className="text-[11px] text-white/45 mt-2">
+                {hadith.narrator ? `${hadith.narrator} · ` : ""}
+                {hadith.reference ?? `${hadith.collection} ${hadith.hadithNumber}`}
+              </p>
+            </>
+          ) : null}
+        </div>
+      )}
 
       <button
         onClick={onContinue}
@@ -835,13 +1054,24 @@ function AyahStep({
 function ReadSession({
   ayahs,
   completing,
+  initialReadIndices,
+  onReadChange,
   onComplete,
 }: {
   ayahs: AyahData[];
   completing: boolean;
+  initialReadIndices?: number[];
+  onReadChange?: (indices: number[]) => void;
   onComplete: () => void;
 }) {
-  const [readSet, setReadSet] = useState<Set<number>>(new Set());
+  const [readSet, setReadSet] = useState<Set<number>>(
+    () => new Set(initialReadIndices ?? [])
+  );
+
+  // Mirror read progress up so it survives a mid-session leave/resume.
+  useEffect(() => {
+    onReadChange?.([...readSet]);
+  }, [readSet, onReadChange]);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -1069,31 +1299,81 @@ function ReadSession({
 
 function LearnSession({
   lesson,
+  level,
+  day,
   mcqAnswer,
   onMcqAnswer,
-  onPlayAudio,
 }: {
-  lesson: ReturnType<typeof getLesson>;
+  lesson: ClientLesson;
+  level: "beginner" | "intermediate" | "fluent";
+  day: number;
   mcqAnswer: number | null;
   onMcqAnswer: (i: number) => void;
-  onPlayAudio: (url: string) => void;
 }) {
-  const [audioPlaying, setAudioPlaying] = useState(false);
-
-  if (!lesson) return null;
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [verdict, setVerdict] = useState<{ correctIndex: number; correct: boolean } | null>(null);
+  const [grading, setGrading] = useState(false);
 
   const { learnContent, mcq } = lesson;
-  const answered = mcqAnswer !== null;
-  const correct = mcqAnswer === mcq.correctIndex;
+  const answered = mcqAnswer !== null && verdict !== null;
+  const correct = verdict?.correct ?? false;
 
-  function handlePlay() {
-    onPlayAudio(learnContent.audioUrl);
-    setAudioPlaying(true);
-    setTimeout(() => setAudioPlaying(false), 3000);
+  async function handleSelect(i: number) {
+    if (mcqAnswer !== null) return;
+    onMcqAnswer(i);
+    setGrading(true);
+    try {
+      const res = await fetch("/api/lessons/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ level, day, selectedIndex: i }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVerdict({ correctIndex: data.correctIndex, correct: data.correct });
+      }
+    } catch {
+      // network error — leave verdict null so UI stays in submitted-but-unverified state
+    } finally {
+      setGrading(false);
+    }
+  }
+
+  // Reflect real <audio> state so the button is a true play/pause toggle, and
+  // hard-stop playback when the lesson unmounts (Complete / Keep Going / exit /
+  // next lesson) — audio must never keep playing after you leave the screen.
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onEnded = () => setIsPlaying(false);
+    a.addEventListener("play", onPlay);
+    a.addEventListener("pause", onPause);
+    a.addEventListener("ended", onEnded);
+    return () => {
+      a.removeEventListener("play", onPlay);
+      a.removeEventListener("pause", onPause);
+      a.removeEventListener("ended", onEnded);
+      a.pause();
+    };
+  }, []);
+
+  function togglePlay() {
+    const a = audioRef.current;
+    if (!a) return;
+    if (a.paused) {
+      if (!a.src) a.src = learnContent.audioUrl;
+      a.play().catch(() => {});
+    } else {
+      a.pause();
+    }
   }
 
   return (
     <div className="space-y-6">
+      <audio ref={audioRef} src={learnContent.audioUrl} preload="none" />
       <div>
         <p className="text-xs font-bold text-accent uppercase tracking-wider mb-1">{lesson.focus}</p>
         <h2 className="text-xl font-extrabold text-white">{lesson.title}</h2>
@@ -1105,13 +1385,14 @@ function LearnSession({
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs text-accent font-semibold">{learnContent.reference}</span>
           <button
-            onClick={handlePlay}
+            onClick={togglePlay}
+            aria-label={isPlaying ? "Pause recitation" : "Play recitation"}
             className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${
-              audioPlaying ? "bg-accent border-accent" : "border-white/20 text-white/50 hover:border-accent/50 hover:text-accent"
+              isPlaying ? "bg-accent border-accent" : "border-white/20 text-white/50 hover:border-accent/50 hover:text-accent"
             }`}
           >
-            {audioPlaying
-              ? <Volume2 size={14} className="text-white" />
+            {isPlaying
+              ? <Pause size={14} className="text-white" fill="currentColor" />
               : <Play size={14} className="text-accent" fill="currentColor" />}
           </button>
         </div>
@@ -1138,24 +1419,26 @@ function LearnSession({
         <p className="text-sm font-semibold text-white">{mcq.question}</p>
         <div className="space-y-2">
           {mcq.options.map((opt, i) => {
+            const correctIndex = verdict?.correctIndex;
             let cls = "glass border-white/15 hover:border-accent/40 cursor-pointer";
-            if (answered) {
-              if (i === mcq.correctIndex) cls = "bg-green-500/20 border-green-500/50 cursor-default";
-              else if (i === mcqAnswer) cls = "bg-red-500/20 border-red-500/50 cursor-default";
+            if (mcqAnswer !== null) {
+              if (verdict && i === correctIndex) cls = "bg-green-500/20 border-green-500/50 cursor-default";
+              else if (i === mcqAnswer && verdict && !verdict.correct) cls = "bg-red-500/20 border-red-500/50 cursor-default";
+              else if (i === mcqAnswer && !verdict) cls = "bg-white/15 border-accent/40 cursor-default";
               else cls = "glass border-white/10 opacity-40 cursor-default";
             }
             return (
               <button
                 key={i}
-                onClick={() => !answered && onMcqAnswer(i)}
-                disabled={answered}
+                onClick={() => handleSelect(i)}
+                disabled={mcqAnswer !== null}
                 className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-all ${cls}`}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <span className={answered && i === mcq.correctIndex ? "text-green-300 font-semibold" : "text-white/80"}>
+                  <span className={verdict && i === correctIndex ? "text-green-300 font-semibold" : "text-white/80"}>
                     {opt}
                   </span>
-                  {answered && i === mcq.correctIndex && (
+                  {verdict && i === correctIndex && (
                     <CheckCircle2 size={16} className="text-green-400 shrink-0" />
                   )}
                 </div>
@@ -1163,31 +1446,170 @@ function LearnSession({
             );
           })}
         </div>
-        {answered && (
+        {grading && (
+          <p className="text-sm text-white/50 mt-1 flex items-center gap-2">
+            <Loader2 size={14} className="animate-spin" /> Checking…
+          </p>
+        )}
+        {answered && verdict && (
           <p className={`text-sm font-semibold mt-1 ${correct ? "text-green-400" : "text-red-400"}`}>
-            {correct ? "Correct! Well done." : `Not quite — the answer is: ${mcq.options[mcq.correctIndex]}`}
+            {correct ? "Correct! Well done." : `Not quite — the answer is: ${mcq.options[verdict.correctIndex]}`}
           </p>
         )}
       </div>
 
-      {/* Final recall — shown after answering */}
+      {/* Speak practice — interactive recitation step, shown after answering */}
       {answered && (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-base">🔁</span>
-            <p className="text-xs font-bold text-white/50 uppercase tracking-widest">Final Recall</p>
+        <SpeakPractice
+          arabic={learnContent.arabic}
+          transliteration={learnContent.transliteration}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Speak Practice ───────────────────────────────────────────────────────────
+// Mirrors the mobile app's Speak step: record your recitation, transcribe &
+// score it via /api/speech-check. Optional — it never blocks completion.
+
+type SpeakStatus = "idle" | "recording" | "checking" | "done" | "error";
+
+function SpeakPractice({
+  arabic,
+  transliteration,
+}: {
+  arabic: string;
+  transliteration?: string;
+}) {
+  const [status, setStatus] = useState<SpeakStatus>("idle");
+  const [errorMsg, setErrorMsg] = useState<string>("");
+  const [result, setResult] = useState<{ score: number; words: { word: string; correct: boolean }[] } | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Always release the mic if the lesson unmounts mid-recording.
+  useEffect(() => {
+    return () => {
+      try {
+        if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+      } catch {}
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+
+  async function sendForCheck(blob: Blob) {
+    setStatus("checking");
+    try {
+      const fd = new FormData();
+      fd.append("audio", new File([blob], "recitation.webm", { type: blob.type || "audio/webm" }));
+      fd.append("ayah", arabic);
+      const res = await fetch("/api/speech-check", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("check failed");
+      const data = await res.json();
+      setResult({ score: data.score ?? 0, words: Array.isArray(data.words) ? data.words : [] });
+      setStatus("done");
+    } catch {
+      setErrorMsg("Couldn't score your recitation. You can try again or just continue.");
+      setStatus("error");
+    }
+  }
+
+  async function startRecording() {
+    setErrorMsg("");
+    setResult(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      chunksRef.current = [];
+      const rec = new MediaRecorder(stream);
+      recorderRef.current = rec;
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      rec.onstop = () => {
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
+        if (blob.size > 0) sendForCheck(blob);
+        else { setErrorMsg("No audio captured. Try again."); setStatus("error"); }
+      };
+      rec.start();
+      setStatus("recording");
+    } catch {
+      setErrorMsg("Microphone unavailable or permission denied. You can skip this and continue.");
+      setStatus("error");
+    }
+  }
+
+  function stopRecording() {
+    try { recorderRef.current?.stop(); } catch {}
+  }
+
+  const pct = result ? Math.round(result.score * 100) : 0;
+  const passed = pct >= 60;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <Mic size={14} className="text-accent" />
+        <p className="text-xs font-bold text-white/50 uppercase tracking-widest">Now you say it</p>
+      </div>
+
+      <p className="text-right text-2xl leading-loose text-white font-arabic" dir="rtl">{arabic}</p>
+      {transliteration && (
+        <p className="text-xs text-white/40 italic text-center">{transliteration}</p>
+      )}
+
+      {/* Word-level feedback */}
+      {status === "done" && result && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-1.5 justify-end" dir="rtl">
+            {result.words.map((w, i) => (
+              <span
+                key={i}
+                className={`text-lg font-arabic px-1 rounded ${w.correct ? "text-green-400" : "text-red-400"}`}
+              >
+                {w.word}
+              </span>
+            ))}
           </div>
-          <p className="text-right text-2xl leading-loose text-white font-arabic" dir="rtl">
-            {learnContent.arabic}
-          </p>
-          {learnContent.transliteration && (
-            <p className="text-xs text-white/40 italic text-center">{learnContent.transliteration}</p>
-          )}
-          <p className="text-xs font-semibold text-accent">
-            Say it aloud one more time before completing.
+          <p className={`text-sm font-semibold ${passed ? "text-green-400" : "text-amber-400"}`}>
+            {passed ? `MashaAllah — ${pct}% match!` : `${pct}% match — keep practising, you've got this.`}
           </p>
         </div>
       )}
+
+      {(status === "error" || (status === "idle" && errorMsg)) && (
+        <p className="text-xs text-amber-400">{errorMsg}</p>
+      )}
+
+      <div className="flex items-center gap-2">
+        {status === "recording" ? (
+          <button
+            onClick={stopRecording}
+            className="flex-1 py-3 rounded-2xl font-bold text-sm text-white bg-red-500/80 flex items-center justify-center gap-2"
+          >
+            <Square size={14} fill="currentColor" /> Stop &amp; check
+          </button>
+        ) : status === "checking" ? (
+          <button
+            disabled
+            className="flex-1 py-3 rounded-2xl font-bold text-sm text-white/70 bg-white/10 flex items-center justify-center gap-2"
+          >
+            <Loader2 size={14} className="animate-spin" /> Checking…
+          </button>
+        ) : (
+          <button
+            onClick={startRecording}
+            className="flex-1 py-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2"
+            style={{ background: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)" }}
+          >
+            <Mic size={14} /> {status === "done" || status === "error" ? "Try again" : "Record"}
+          </button>
+        )}
+      </div>
+      <p className="text-[11px] text-white/35 text-center">
+        Optional — recite aloud for feedback, or just continue to complete the lesson.
+      </p>
     </div>
   );
 }

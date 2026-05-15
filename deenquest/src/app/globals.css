@@ -179,6 +179,18 @@ h3 {
   pointer-events: none;
 }
 
+/* Every native button gets a pointer cursor by default; disabled buttons get
+   the not-allowed cursor. Anchor-like elements with role="button" too. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 .primary-btn,
 .glass-btn {
   background: #982598;
@@ -188,17 +200,68 @@ h3 {
   font-weight: 600;
   border: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow: 0 6px 20px rgba(228, 145, 201, 0.4);
-  transition: all 0.3s ease;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease, background 0.18s ease;
+  will-change: transform;
 }
 
-.primary-btn:hover,
-.glass-btn:hover {
-  transform: scale(1.05);
+.primary-btn:hover:not(:disabled),
+.glass-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.03);
+  filter: brightness(1.08);
+  box-shadow: 0 10px 28px rgba(228, 145, 201, 0.55);
+}
+
+.primary-btn:active:not(:disabled),
+.glass-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  filter: brightness(0.95);
+  box-shadow: 0 4px 12px rgba(228, 145, 201, 0.35);
+  transition-duration: 0.08s;
+}
+
+.primary-btn:focus-visible,
+.glass-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.55), 0 6px 20px rgba(228, 145, 201, 0.4);
+}
+
+.primary-btn:disabled,
+.glass-btn:disabled {
+  opacity: 0.55;
+  filter: grayscale(0.3);
 }
 
 .login-btn,
 .login-btn:hover {
   box-shadow: none;
+}
+
+.login-btn:hover:not(:disabled) {
+  box-shadow: 0 8px 24px rgba(152, 37, 152, 0.45);
+}
+
+/* Generic "lift on hover" utility for buttons that style themselves with
+   inline gradients (e.g. the homepage hero CTAs). Composes cleanly with
+   Tailwind utilities — pair with `transition-transform` if needed. */
+.btn-lift {
+  transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
+  will-change: transform;
+}
+
+.btn-lift:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.1) saturate(1.05);
+}
+
+.btn-lift:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  filter: brightness(0.95);
+  transition-duration: 0.08s;
+}
+
+.btn-lift:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.55);
 }
 
 .stat-card {

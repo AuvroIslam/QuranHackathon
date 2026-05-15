@@ -1,7 +1,8 @@
 import { BookOpen, Lightbulb, Bookmark, BookmarkCheck, ScrollText } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { RADIUS, SHADOW } from '../../theme';
 import { toggleBookmark, isBookmarked } from '../../lib/firestore';
 import { fetchHadithForMood, fetchLessonReflection, HadithEntry } from '../../services/api';
 import { Ayah, Mood } from '../../types';
@@ -31,6 +32,7 @@ const MOOD_LABEL: Record<string, string> = {
 };
 
 export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText }: Props) {
+  const { colors } = useTheme();
   const [bookmarked, setBookmarked] = useState(false);
   const [bmLoading, setBmLoading] = useState(false);
   const [reflection, setReflection] = useState<string | null>(null);
@@ -91,6 +93,104 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
       ? `For when you're feeling ${MOOD_LABEL[mood]}`
       : "Allah's guidance for you today";
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1 },
+    scrollContent: { padding: 16, gap: 14, paddingBottom: 8 },
+    topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    labelBlock: { gap: 6, flex: 1 },
+    bmBtn: {
+      alignSelf: 'flex-start',
+      padding: 6,
+    },
+    bmBtnActive: {},
+    refBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      alignSelf: 'flex-start',
+      backgroundColor: colors.primaryBg,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: RADIUS.full,
+    },
+    stepLabel: { color: colors.primary, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
+    subtitle: { color: colors.textSub, fontSize: 13, lineHeight: 18 },
+    ref: { color: colors.text, fontSize: 18, fontWeight: '800' },
+    character: { width: 84, height: 84, resizeMode: 'contain' },
+    arabicCard: {
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.xl,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      overflow: 'hidden',
+      ...SHADOW.card,
+    },
+    cardBar: { height: 5, backgroundColor: colors.primary },
+    arabicRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingTop: 16,
+      paddingBottom: 4,
+      gap: 8,
+    },
+    arabic: {
+      flex: 1,
+      color: colors.text, fontSize: 22, textAlign: 'right',
+      lineHeight: 40, writingDirection: 'rtl',
+    },
+    transliteration: {
+      color: colors.textMuted, fontSize: 12, textAlign: 'center',
+      fontStyle: 'italic', paddingHorizontal: 16, paddingBottom: 14,
+    },
+    translationCard: {
+      backgroundColor: colors.primaryBg,
+      borderRadius: RADIUS.lg,
+      padding: 16, gap: 6,
+      borderWidth: 1, borderColor: colors.cardBorder,
+    },
+    translationLabel: { color: colors.primary, fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
+    translation: { color: colors.text, fontSize: 15, lineHeight: 24, fontStyle: 'italic' },
+    reflectionCard: {
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.accent,
+      borderColor: colors.cardBorder,
+      padding: 16, gap: 8, ...SHADOW.card,
+    },
+    reflectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    reflectionTitle: {
+      color: colors.accentDark, fontSize: 12,
+      fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8,
+    },
+    reflection: { color: colors.textSub, fontSize: 14, lineHeight: 22 },
+    hadithCard: {
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.primary,
+      borderColor: colors.cardBorder,
+      padding: 16, gap: 8, ...SHADOW.card,
+    },
+    hadithHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    hadithTitle: {
+      color: colors.primary, fontSize: 12,
+      fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8,
+    },
+    hadithText: { color: colors.text, fontSize: 14, lineHeight: 22, fontStyle: 'italic' },
+    hadithRef: { color: colors.textMuted, fontSize: 11 },
+    skeletonGroup: { gap: 8 },
+    skeletonLine: {
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: colors.surfaceDark,
+      opacity: 0.7,
+    },
+  }), [colors]);
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -98,7 +198,7 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
       <View style={styles.topRow}>
         <View style={styles.labelBlock}>
           <View style={styles.refBadge}>
-            <BookOpen size={12} color={COLORS.primary} />
+            <BookOpen size={12} color={colors.primary} />
             <Text style={styles.stepLabel}>Today's Ayah</Text>
           </View>
           <Text style={styles.subtitle}>{subtitleText}</Text>
@@ -114,10 +214,10 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
           {uid && (
             <Pressable onPress={handleBookmark} style={[styles.bmBtn, bookmarked && styles.bmBtnActive]} disabled={bmLoading}>
               {bmLoading
-                ? <ActivityIndicator size={14} color={COLORS.primary} />
+                ? <ActivityIndicator size={14} color={colors.primary} />
                 : bookmarked
-                  ? <BookmarkCheck size={16} color={COLORS.primary} />
-                  : <Bookmark size={16} color={COLORS.textMuted} />}
+                  ? <BookmarkCheck size={16} color={colors.primary} />
+                  : <Bookmark size={16} color={colors.textMuted} />}
             </Pressable>
           )}
           <Text style={styles.arabic}>{ayah.arabic}</Text>
@@ -136,7 +236,7 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
       {/* Reflection (AI-generated) */}
       <View style={styles.reflectionCard}>
         <View style={styles.reflectionHeader}>
-          <Lightbulb size={15} color={COLORS.accentDark} />
+          <Lightbulb size={15} color={colors.accentDark} />
           <Text style={styles.reflectionTitle}>Reflection</Text>
         </View>
         {reflectionLoading ? (
@@ -154,7 +254,7 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
       {(hadithLoading || hadith) && (
         <View style={styles.hadithCard}>
           <View style={styles.hadithHeader}>
-            <ScrollText size={15} color={COLORS.primary} />
+            <ScrollText size={15} color={colors.primary} />
             <Text style={styles.hadithTitle}>Hadith</Text>
           </View>
           {hadithLoading ? (
@@ -178,101 +278,3 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { padding: 16, gap: 14, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  labelBlock: { gap: 6, flex: 1 },
-  bmBtn: {
-    alignSelf: 'flex-start',
-    padding: 6,
-  },
-  bmBtnActive: {},
-  refBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.primaryBg,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.full,
-  },
-  stepLabel: { color: COLORS.primary, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
-  subtitle: { color: COLORS.textSub, fontSize: 13, lineHeight: 18 },
-  ref: { color: COLORS.text, fontSize: 18, fontWeight: '800' },
-  character: { width: 84, height: 84, resizeMode: 'contain' },
-  arabicCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    overflow: 'hidden',
-    ...SHADOW.card,
-  },
-  cardBar: { height: 5, backgroundColor: COLORS.primary },
-  arabicRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingTop: 16,
-    paddingBottom: 4,
-    gap: 8,
-  },
-  arabic: {
-    flex: 1,
-    color: COLORS.text, fontSize: 22, textAlign: 'right',
-    lineHeight: 40, writingDirection: 'rtl',
-  },
-  transliteration: {
-    color: COLORS.textMuted, fontSize: 12, textAlign: 'center',
-    fontStyle: 'italic', paddingHorizontal: 16, paddingBottom: 14,
-  },
-  translationCard: {
-    backgroundColor: COLORS.primaryBg,
-    borderRadius: RADIUS.lg,
-    padding: 16, gap: 6,
-    borderWidth: 1, borderColor: COLORS.cardBorder,
-  },
-  translationLabel: { color: COLORS.primary, fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
-  translation: { color: COLORS.text, fontSize: 15, lineHeight: 24, fontStyle: 'italic' },
-  reflectionCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.accent,
-    borderColor: COLORS.cardBorder,
-    padding: 16, gap: 8, ...SHADOW.card,
-  },
-  reflectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  reflectionTitle: {
-    color: COLORS.accentDark, fontSize: 12,
-    fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8,
-  },
-  reflection: { color: COLORS.textSub, fontSize: 14, lineHeight: 22 },
-  hadithCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
-    borderColor: COLORS.cardBorder,
-    padding: 16, gap: 8, ...SHADOW.card,
-  },
-  hadithHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  hadithTitle: {
-    color: COLORS.primary, fontSize: 12,
-    fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8,
-  },
-  hadithText: { color: COLORS.text, fontSize: 14, lineHeight: 22, fontStyle: 'italic' },
-  hadithRef: { color: COLORS.textMuted, fontSize: 11 },
-  skeletonGroup: { gap: 8 },
-  skeletonLine: {
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.surfaceDark,
-    opacity: 0.7,
-  },
-});

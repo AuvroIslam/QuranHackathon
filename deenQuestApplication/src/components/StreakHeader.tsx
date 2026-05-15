@@ -1,7 +1,8 @@
 import { Flame, Star, Zap } from 'lucide-react-native';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { COLORS, RADIUS } from '../theme';
+import { useTheme } from '../context/ThemeContext';
+import { RADIUS } from '../theme';
 
 interface Props {
   streak: number;
@@ -10,11 +11,13 @@ interface Props {
 }
 
 export default function StreakHeader({ streak, xp, stars }: Props) {
+  const { colors } = useTheme();
+
   return (
     <View style={styles.row}>
       <StatPill icon={<Flame size={16} color="#FF6B35" fill="#FF6B35" />} value={streak} color="#FF6B35" bg="#FFF0EB" />
-      <StatPill icon={<Star size={16} color={COLORS.accent} fill={COLORS.accent} />} value={stars} color={COLORS.accentDark} bg="#FFFBEB" />
-      <StatPill icon={<Zap size={16} color={COLORS.primary} fill={COLORS.primary} />} value={xp} color={COLORS.primaryDark} bg={COLORS.primaryBg} />
+      <StatPill icon={<Star size={16} color={colors.accent} fill={colors.accent} />} value={stars} color={colors.accentDark} bg="#FFFBEB" />
+      <StatPill icon={<Zap size={16} color={colors.primary} fill={colors.primary} />} value={xp} color={colors.primaryDark} bg={colors.primaryBg} />
     </View>
   );
 }

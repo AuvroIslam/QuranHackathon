@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { X } from 'lucide-react-native';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +20,7 @@ import MoodSelection from '../components/steps/MoodSelection';
 import SpeakStep from '../components/steps/SpeakStep';
 import QuranReadingSession from '../components/QuranReadingSession';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useJourney } from '../hooks/useJourney';
 import {
   completeJourney,
@@ -32,7 +33,7 @@ import {
 } from '../lib/firestore';
 import { getStreakStatus } from '../lib/streakUtils';
 import { getAyahByMood, checkLessonAnswer, fetchLesson, ApiLesson } from '../services/api';
-import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
+import { DEPTH, RADIUS, SHADOW } from '../theme';
 import { Mood, TimePerDay, UserGoal, UserLevel } from '../types';
 
 const SESSION_KEY_PREFIX = '@deenquest_daily_sessions';
@@ -46,6 +47,7 @@ function levelToLessonKey(level: UserLevel | null): 'beginner' | 'intermediate' 
 
 export default function JourneyScreen() {
   const { uid } = useAuth();
+  const { colors } = useTheme();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const ayahOnly = route.params?.ayahOnly === true;
@@ -356,11 +358,106 @@ export default function JourneyScreen() {
   // Progress bar width: stepIndex out of (totalSteps - 1)
   const progressPct = totalSteps > 1 ? Math.min((stepIndex / (totalSteps - 1)) * 100, 100) : 0;
 
+  const styles = useMemo(() => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    container: { flex: 1, backgroundColor: colors.bg },
+
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      gap: 12,
+    },
+    closeBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.surfaceDark,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    progressTrack: {
+      flex: 1,
+      height: 12,
+      backgroundColor: colors.surfaceDark,
+      borderRadius: 6,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: 6,
+    },
+    xpBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.accentLight,
+      borderRadius: RADIUS.full,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      minWidth: 52,
+      justifyContent: 'center',
+    },
+    xpText: {
+      color: colors.accentDark,
+      fontSize: 13,
+      fontWeight: '800',
+    },
+
+    skipHeaderBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: RADIUS.full,
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.5)',
+      borderBottomWidth: 4,
+      borderBottomColor: `${colors.primary}55`,
+    },
+    skipHeaderBtnDisabled: { opacity: 0.35 },
+    skipHeaderBtnText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+    skipHeaderBtnTextDisabled: { color: colors.textMuted },
+
+    stepArea: { flex: 1 },
+    loadingCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+    footer: {
+      paddingHorizontal: 16,
+      paddingBottom: 8,
+      paddingTop: 0,
+    },
+    continueBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.xl,
+      paddingVertical: 17,
+      alignItems: 'center',
+      ...SHADOW.glow(colors.primary),
+    },
+    continueBtnDisabled: {
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.xl,
+      paddingVertical: 17,
+      alignItems: 'center',
+      opacity: 0.38,
+    },
+    continueBtnText: {
+      color: colors.white,
+      fontSize: 17,
+      fontWeight: '700',
+      letterSpacing: 0.3,
+    },
+    continueBtnTextDisabled: {
+      color: colors.white,
+    },
+  }), [colors]);
+
   const renderStep = () => {
     if (!profileLoaded) {
       return (
         <View style={styles.loadingCenter}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       );
     }
@@ -369,7 +466,7 @@ export default function JourneyScreen() {
         if (isLessonDay && !ayahOnly && (lessonLoading || (!apiLesson && profileLoaded))) {
           return (
             <View style={styles.loadingCenter}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
           );
         }
@@ -445,7 +542,7 @@ export default function JourneyScreen() {
               hitSlop={12}
               style={styles.closeBtn}
             >
-              <X size={22} color={COLORS.textMuted} />
+              <X size={22} color={colors.textMuted} />
             </Pressable>
 
             <View style={styles.progressTrack}>
@@ -477,7 +574,7 @@ export default function JourneyScreen() {
         {/* Continue button */}
         {showBtn && (
           <View style={styles.footer}>
-            <ContinueButton label={btnLabel} onPress={handleContinuePress} disabled={isContinueDisabled()} />
+            <ContinueButton label={btnLabel} onPress={handleContinuePress} disabled={isContinueDisabled()} styles={styles} />
           </View>
         )}
       </View>
@@ -485,7 +582,7 @@ export default function JourneyScreen() {
   );
 }
 
-function ContinueButton({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
+function ContinueButton({ label, onPress, disabled = false, styles }: { label: string; onPress: () => void; disabled?: boolean; styles: any }) {
   const [pressed, setPressed] = useState(false);
   return (
     <Pressable
@@ -501,98 +598,3 @@ function ContinueButton({ label, onPress, disabled = false }: { label: string; o
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  container: { flex: 1, backgroundColor: COLORS.bg },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.surfaceDark,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressTrack: {
-    flex: 1,
-    height: 12,
-    backgroundColor: COLORS.surfaceDark,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: 6,
-  },
-  xpBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.accentLight,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    minWidth: 52,
-    justifyContent: 'center',
-  },
-  xpText: {
-    color: COLORS.accentDark,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
-  skipHeaderBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: RADIUS.full,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
-    borderBottomWidth: 4,
-    borderBottomColor: `${COLORS.primary}55`,
-  },
-  skipHeaderBtnDisabled: { opacity: 0.35 },
-  skipHeaderBtnText: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
-  skipHeaderBtnTextDisabled: { color: COLORS.textMuted },
-
-  stepArea: { flex: 1 },
-  loadingCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-  footer: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    paddingTop: 0,
-  },
-  continueBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 17,
-    alignItems: 'center',
-    ...SHADOW.glow(COLORS.primary),
-  },
-  continueBtnDisabled: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 17,
-    alignItems: 'center',
-    opacity: 0.38,
-  },
-  continueBtnText: {
-    color: COLORS.white,
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  continueBtnTextDisabled: {
-    color: COLORS.white,
-  },
-});

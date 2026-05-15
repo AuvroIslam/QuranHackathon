@@ -1,17 +1,19 @@
-import { BadgeCheck, Bookmark, BookmarkCheck, BookOpen, Check, ClipboardCheck, Crown, Flame, GraduationCap, LogOut, Medal, Shield, Star, Target, Trophy, TrendingUp, Zap } from 'lucide-react-native';
+import { BadgeCheck, Bookmark, BookmarkCheck, BookOpen, Check, ChevronRight, ClipboardCheck, Crown, Flame, Globe, GraduationCap, LogOut, Medal, Moon, Shield, Star, Sun, Trophy, TrendingUp, Zap } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  ActivityIndicator, Image, ImageBackground, Linking, Modal, Pressable, ScrollView,
-  StyleSheet, Text, View,
+  ActivityIndicator, FlatList, Image, ImageBackground, Linking, Modal, Pressable, ScrollView,
+  StyleSheet, Switch, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { auth } from '../lib/firebase';
 import { getUserProfile, getBookmarks, updateUserPlan, updateUserGoal, getQFTokens } from '../lib/firestore';
-import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
+import { TRANSLATION_OPTIONS } from '../lib/translations';
+import { DEPTH, RADIUS, SHADOW } from '../theme';
 import { Bookmark as BookmarkType, TimePerDay, UserGoal, UserLevel } from '../types';
 import { signOut } from 'firebase/auth';
 
@@ -46,6 +48,7 @@ const BADGES = [
 
 export default function ProfileScreen() {
   const { uid, user } = useAuth();
+  const { isDark, colors, toggleTheme, translationId, setTranslationId } = useTheme();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [bookmarks, setBookmarks] = useState<BookmarkType[]>([]);
@@ -53,6 +56,340 @@ export default function ProfileScreen() {
   const [showAllBookmarks, setShowAllBookmarks] = useState(false);
   const [qfConnected, setQfConnected] = useState(false);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
+  const [showTranslationPicker, setShowTranslationPicker] = useState(false);
+
+  const currentTranslation = TRANSLATION_OPTIONS.find(t => t.id === translationId) ?? TRANSLATION_OPTIONS[0];
+
+  const styles = React.useMemo(() => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: 'transparent' },
+    scroll: { paddingBottom: 100, backgroundColor: 'transparent' },
+
+    header: {
+      flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
+      paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16,
+    },
+    title: { color: colors.text, fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+    subtitle: { color: colors.textSub, fontSize: 13, marginTop: 2 },
+    settingsBtn: {
+      width: 40, height: 40, borderRadius: 20,
+      backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center',
+      ...SHADOW.card,
+    },
+
+    /* Profile card */
+    profileCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 14,
+      marginHorizontal: 16, marginBottom: 16,
+      backgroundColor: colors.card, borderRadius: RADIUS.xl,
+      padding: 16,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08, shadowRadius: 16, elevation: 6,
+    },
+    avatar: { width: 80, height: 80, resizeMode: 'contain' },
+    profileInfo: { flex: 1, gap: 5 },
+    displayName: { color: colors.text, fontSize: 18, fontWeight: '800' },
+    levelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    levelBadge: {
+      flexDirection: 'row', alignItems: 'center', gap: 4,
+      backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4,
+      borderRadius: RADIUS.full,
+    },
+    levelBadgeText: { color: colors.white, fontSize: 11, fontWeight: '700' },
+    levelTitle: { color: colors.textSub, fontSize: 13, fontWeight: '600' },
+    xpBarBg: { height: 8, backgroundColor: colors.primaryBg, borderRadius: RADIUS.full, overflow: 'hidden', marginTop: 2 },
+    xpBarFill: { height: '100%', backgroundColor: colors.primary, borderRadius: RADIUS.full },
+    xpLabel: { color: colors.primary, fontSize: 11, fontWeight: '600' },
+    starBadge: {
+      width: 52, height: 52, borderRadius: 26,
+      backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center',
+      borderWidth: 2, borderColor: colors.cardBorder,
+    },
+
+    /* Stats row */
+    statsRow: {
+      flexDirection: 'row', gap: 8,
+      paddingHorizontal: 16, marginBottom: 16,
+    },
+    modeRow: {
+      flexDirection: 'row', gap: 12, paddingHorizontal: 16,
+    },
+    modeOption: {
+      flex: 1, alignItems: 'center', gap: 4,
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      paddingVertical: 16, paddingHorizontal: 10,
+      position: 'relative',
+    },
+    modeOptionActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryBg,
+    },
+    modeIconWrap: {
+      width: 36, height: 36, borderRadius: 18,
+      backgroundColor: colors.surfaceDark,
+      alignItems: 'center', justifyContent: 'center',
+      marginBottom: 4,
+    },
+    modeIconWrapActive: {
+      backgroundColor: colors.surface,
+    },
+    modeTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+    modeTitleActive: { color: colors.primary },
+    modeSub: { color: colors.textMuted, fontSize: 11 },
+    modeCheck: {
+      position: 'absolute', top: 8, right: 8,
+      width: 18, height: 18, borderRadius: 9,
+      backgroundColor: colors.primary,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    modeHint: {
+      color: colors.textMuted, fontSize: 11,
+      paddingHorizontal: 16, marginTop: 8,
+    },
+    statChip: {
+      flex: 1, alignItems: 'center', gap: 4,
+      borderRadius: RADIUS.lg, paddingVertical: 14,
+      backgroundColor: colors.card,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      overflow: 'hidden',
+      shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+    },
+    statAccentBar: {
+      position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+    },
+    statIconWrap: {
+      width: 34, height: 34, borderRadius: 17,
+      alignItems: 'center', justifyContent: 'center',
+      marginTop: 6,
+    },
+    statValue: { color: colors.text, fontSize: 18, fontWeight: '800' },
+    statLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '600', textAlign: 'center', letterSpacing: 0.8 },
+
+    /* Daily plan */
+    planSection: { paddingHorizontal: 16, marginBottom: 24 },
+    planCard: { borderRadius: RADIUS.xl, overflow: 'hidden', minHeight: 180 },
+    planCardImage: { borderRadius: RADIUS.xl, opacity: 0.70 },
+    planOverlay: {
+      flex: 1, backgroundColor: 'rgba(80,30,140,0.72)',
+      borderRadius: RADIUS.xl, padding: 18, gap: 16,
+    },
+    planHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+    planTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    planIconCircle: {
+      width: 36, height: 36, borderRadius: 18,
+      backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center',
+    },
+    planTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+    planSub: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 1 },
+    editPlanLink: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
+    planGoals: { flexDirection: 'row', justifyContent: 'space-between' },
+    planGoalItem: {
+      flex: 1, alignItems: 'center', gap: 4,
+      paddingVertical: 10, borderRadius: RADIUS.lg,
+      borderWidth: 1, borderColor: 'transparent',
+    },
+    planGoalActive: {
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      borderColor: 'rgba(255,255,255,0.3)',
+    },
+    planGoalNumber: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', textAlign: 'center' },
+    planGoalLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '700', textAlign: 'center' },
+    planGoalSub: { color: 'rgba(255,255,255,0.65)', fontSize: 10, textAlign: 'center' },
+
+    /* Sections */
+    sectionWrap: { paddingHorizontal: 16, marginBottom: 24, gap: 12 },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    sectionTitle: { color: colors.text, fontSize: 17, fontWeight: '800' },
+    viewAll: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+
+    /* Badges grid */
+    badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    badgeCell: { width: '30%', flexGrow: 1 },
+    badgeCard: {
+      alignItems: 'center', gap: 8,
+      backgroundColor: colors.card, borderRadius: RADIUS.xl,
+      paddingVertical: 14, paddingHorizontal: 8,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
+    },
+    badgeCardLocked: {
+      backgroundColor: colors.surface,
+      borderColor: colors.cardBorder,
+      borderStyle: 'dashed',
+    },
+    badgeIconWrap: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    badgeLabel: { color: colors.text, fontSize: 10, fontWeight: '700', textAlign: 'center' },
+    badgeLabelLocked: { color: colors.textMuted },
+
+    /* Bookmarks */
+    bmEmpty: { color: colors.textMuted, fontSize: 13, fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 },
+    bmRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: colors.card, borderRadius: RADIUS.lg,
+      padding: 14, marginBottom: 8,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+    },
+    bmIconWrap: {
+      width: 40, height: 40, borderRadius: 20,
+      backgroundColor: colors.primaryBg, alignItems: 'center', justifyContent: 'center',
+    },
+    bmTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+    bmSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+    bmTranslation: { color: '#4C4693', fontSize: 12, fontStyle: 'italic', marginTop: 6, lineHeight: 18 },
+
+    /* QF */
+    qfConnectBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+      backgroundColor: colors.primary, borderRadius: RADIUS.xl, paddingVertical: 16,
+      borderWidth: 1.5, borderColor: `${colors.primaryLight}66`,
+      ...SHADOW.glow(colors.primary), ...DEPTH.button,
+    },
+    qfConnectText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+    qfConnectedBadge: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      backgroundColor: colors.primaryBg, borderRadius: RADIUS.xl, paddingVertical: 14,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+    },
+    qfConnectedText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
+    qfLogo: { width: 22, height: 22, resizeMode: 'contain' },
+
+    /* Sign out */
+    signOutBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      borderRadius: RADIUS.xl, paddingVertical: 16,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      backgroundColor: colors.primaryBg,
+      ...DEPTH.button,
+    },
+    signOutBtnPressed: {
+      ...DEPTH.buttonPressed,
+    },
+    signOutText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
+
+    /* Sign-out confirmation modal */
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(30,27,75,0.45)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 24,
+    },
+    modalCard: {
+      width: '100%',
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.xxl,
+      padding: 28,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      ...DEPTH.card,
+    },
+    modalIconWrap: {
+      width: 60,
+      height: 60,
+      borderRadius: RADIUS.full,
+      backgroundColor: colors.primaryBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    modalBody: {
+      fontSize: 14,
+      color: colors.textSub,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: 24,
+    },
+    modalConfirmBtn: {
+      width: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.xl,
+      paddingVertical: 15,
+      alignItems: 'center',
+      marginBottom: 10,
+      ...DEPTH.button,
+    },
+    modalConfirmBtnPressed: { ...DEPTH.buttonPressed },
+    modalConfirmText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+    modalCancelBtn: {
+      width: '100%',
+      backgroundColor: colors.primaryBg,
+      borderRadius: RADIUS.xl,
+      paddingVertical: 15,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      ...DEPTH.button,
+    },
+    modalCancelBtnPressed: { ...DEPTH.buttonPressed },
+    modalCancelText: { color: colors.primary, fontSize: 16, fontWeight: '700' },
+
+    /* Settings cards (Dark Mode + Translation) */
+    settingCard: {
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      marginBottom: 10,
+      overflow: 'hidden',
+    },
+    settingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+    settingRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    settingLabel: { fontSize: 15, fontWeight: '600', color: colors.text },
+    settingValue: { fontSize: 13, color: colors.textMuted, maxWidth: 160 },
+
+    /* Translation picker modal */
+    translationModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalSheet: {
+      backgroundColor: colors.card,
+      borderTopLeftRadius: RADIUS.xl,
+      borderTopRightRadius: RADIUS.xl,
+      paddingTop: 20,
+      paddingBottom: 40,
+      maxHeight: '70%',
+    },
+    modalSheetTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+      marginBottom: 12,
+      paddingHorizontal: 20,
+    },
+    translationOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderBottomWidth: 0.5,
+      borderBottomColor: colors.cardBorder,
+    },
+    translationOptionActive: { backgroundColor: colors.primaryBg },
+    translationOptionText: { fontSize: 15, color: colors.text },
+    translationOptionTextActive: { color: colors.primary, fontWeight: '600' },
+  }), [colors]);
 
   // Re-fetch profile, bookmarks + QF status every time this tab comes into focus.
   // ProfileScreen is a tab — it never remounts, so streak/XP stay stale without this.
@@ -109,16 +446,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLevelSwitch = async (newLevel: UserLevel) => {
-    if (!uid || newLevel === profile?.level) return;
-    setProfile((p) => p ? { ...p, level: newLevel } : p);
-    try {
-      await updateUserPlan(uid, profile?.timePerDay ?? 5, newLevel);
-    } catch {
-      setProfile((p) => p ? { ...p, level: profile?.level } : p);
-    }
-  };
-
   const streak = profile?.streak ?? 0;
   const xp = profile?.xp ?? 0;
   const tasksCompleted = profile?.tasksCompleted ?? 0;
@@ -140,13 +467,13 @@ export default function ProfileScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Profile</Text>
-            <Text style={styles.subtitle}>Keep learning, keep growing ✨</Text>
+            <Text style={styles.subtitle}>Keep learning, keep growing</Text>
           </View>
 
         </View>
 
         {loading ? (
-          <ActivityIndicator color={COLORS.primary} style={{ marginTop: 60 }} />
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 60 }} />
         ) : (
           <>
             {/* ── Profile card ── */}
@@ -159,7 +486,7 @@ export default function ProfileScreen() {
                 <Text style={styles.displayName}>{user?.displayName ?? user?.email?.split('@')[0] ?? 'My Account'}</Text>
                 <View style={styles.levelRow}>
                   <View style={styles.levelBadge}>
-                    <Star size={11} color={COLORS.white} fill={COLORS.white} />
+                    <Star size={11} color={colors.white} fill={colors.white} />
                     <Text style={styles.levelBadgeText}>Level {level}</Text>
                   </View>
                   <Text style={styles.levelTitle}>{title}</Text>
@@ -173,10 +500,10 @@ export default function ProfileScreen() {
 
             {/* ── 4-stat row ── */}
             <View style={styles.statsRow}>
-              <StatChip value={streak} label="Streak" accent="#FF6B35" icon={<Flame size={18} color="#FF6B35" fill="#FF6B35" />} />
-              <StatChip value={xp} label="XP" accent={COLORS.primary} icon={<Zap size={18} color={COLORS.primary} fill={COLORS.primary} />} />
-              <StatChip value={tasksCompleted} label="Tasks" accent="#10B981" icon={<ClipboardCheck size={18} color="#10B981" />} />
-              <StatChip value={earnedBadges.length} label="Badges" accent="#6366F1" icon={<Medal size={18} color="#6366F1" />} />
+              <StatChip value={streak} label="Streak" accent="#FF6B35" icon={<Flame size={18} color="#FF6B35" fill="#FF6B35" />} styles={styles} />
+              <StatChip value={xp} label="XP" accent={colors.primary} icon={<Zap size={18} color={colors.primary} fill={colors.primary} />} styles={styles} />
+              <StatChip value={tasksCompleted} label="Tasks" accent="#10B981" icon={<ClipboardCheck size={18} color="#10B981" />} styles={styles} />
+              <StatChip value={earnedBadges.length} label="Badges" accent="#6366F1" icon={<Medal size={18} color="#6366F1" />} styles={styles} />
             </View>
 
             {/* ── Daily Plan card ── */}
@@ -219,24 +546,87 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.modeRow}>
                 <ModeOption
-                  icon={<BookOpen size={20} color={profile?.goal === 'complete' ? COLORS.primary : COLORS.textMuted} />}
+                  icon={<BookOpen size={20} color={profile?.goal === 'complete' ? colors.primary : colors.textMuted} />}
                   title="Reading"
                   subtitle="Read through the Quran"
                   active={profile?.goal === 'complete'}
                   onPress={() => handleGoalSwitch('complete')}
+                  styles={styles}
+                  colors={colors}
                 />
                 <ModeOption
-                  icon={<GraduationCap size={20} color={profile?.goal === 'learn' ? COLORS.primary : COLORS.textMuted} />}
+                  icon={<GraduationCap size={20} color={profile?.goal === 'learn' ? colors.primary : colors.textMuted} />}
                   title="Learning"
                   subtitle="Guided lessons"
                   active={profile?.goal === 'learn'}
                   onPress={() => handleGoalSwitch('learn')}
+                  styles={styles}
+                  colors={colors}
                 />
               </View>
               <Text style={styles.modeHint}>
                 Streak, XP, and bookmarks stay when you switch.
               </Text>
             </View>
+
+            {/* ── Theme ── */}
+            <View style={[styles.sectionWrap, { gap: 0 }]}>
+              <View style={[styles.sectionHeader, { marginBottom: 10 }]}>
+                <Text style={styles.sectionTitle}>Settings</Text>
+              </View>
+              <View style={styles.settingCard}>
+                <View style={styles.settingRow}>
+                  <View style={styles.settingLeft}>
+                    {isDark ? <Moon size={18} color={colors.primary} /> : <Sun size={18} color={colors.primary} />}
+                    <Text style={styles.settingLabel}>Dark Mode</Text>
+                  </View>
+                  <Switch
+                    value={isDark}
+                    onValueChange={toggleTheme}
+                    trackColor={{ false: colors.cardBorder, true: colors.primaryLight }}
+                    thumbColor={isDark ? colors.primary : colors.white}
+                  />
+                </View>
+              </View>
+
+              {/* ── Translation ── */}
+              <View style={styles.settingCard}>
+                <Pressable style={styles.settingRow} onPress={() => setShowTranslationPicker(true)}>
+                  <View style={styles.settingLeft}>
+                    <Globe size={18} color={colors.primary} />
+                    <Text style={styles.settingLabel}>Translation</Text>
+                  </View>
+                  <View style={styles.settingRight}>
+                    <Text style={styles.settingValue} numberOfLines={1}>{currentTranslation.name}</Text>
+                    <ChevronRight size={16} color={colors.textMuted} />
+                  </View>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Translation Picker Modal */}
+            <Modal visible={showTranslationPicker} transparent animationType="slide" onRequestClose={() => setShowTranslationPicker(false)}>
+              <Pressable style={styles.translationModalOverlay} onPress={() => setShowTranslationPicker(false)}>
+                <View style={styles.modalSheet}>
+                  <Text style={styles.modalSheetTitle}>Translation Language</Text>
+                  <FlatList
+                    data={TRANSLATION_OPTIONS}
+                    keyExtractor={(item) => String(item.id)}
+                    renderItem={({ item }) => (
+                      <Pressable
+                        style={[styles.translationOption, item.id === translationId && styles.translationOptionActive]}
+                        onPress={() => { setTranslationId(item.id); setShowTranslationPicker(false); }}
+                      >
+                        <Text style={[styles.translationOptionText, item.id === translationId && styles.translationOptionTextActive]}>
+                          {item.name}
+                        </Text>
+                        {item.id === translationId && <Check size={16} color={colors.primary} />}
+                      </Pressable>
+                    )}
+                  />
+                </View>
+              </Pressable>
+            </Modal>
 
             {/* ── Badges ── */}
             <View style={styles.sectionWrap}>
@@ -250,8 +640,8 @@ export default function ProfileScreen() {
                   return (
                     <View key={b.id} style={styles.badgeCell}>
                       <View style={[styles.badgeCard, !earned && styles.badgeCardLocked]}>
-                        <View style={[styles.badgeIconWrap, { backgroundColor: earned ? `${b.color}20` : '#F3F0FF' }]}>
-                          <Icon size={24} color={earned ? b.color : COLORS.textMuted} />
+                        <View style={[styles.badgeIconWrap, { backgroundColor: earned ? `${b.color}20` : colors.surfaceDark }]}>
+                          <Icon size={24} color={earned ? b.color : colors.textMuted} strokeWidth={1.5} />
                         </View>
                         <Text style={[styles.badgeLabel, !earned && styles.badgeLabelLocked]}>{b.label}</Text>
                       </View>
@@ -279,7 +669,7 @@ export default function ProfileScreen() {
                   return (
                     <Pressable key={bm.id} onPress={() => setExpandedBm(open ? null : bm.id)} style={styles.bmRow}>
                       <View style={styles.bmIconWrap}>
-                        <Bookmark size={18} color={COLORS.primary} fill={`${COLORS.primary}20`} />
+                        <Bookmark size={18} color={colors.primary} fill={`${colors.primary}20`} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.bmTitle}>{bm.surahName || bm.verseKey}</Text>
@@ -287,8 +677,8 @@ export default function ProfileScreen() {
                         {open && <Text style={styles.bmTranslation} numberOfLines={3}>"{bm.translation}"</Text>}
                       </View>
                       {open
-                        ? <BookmarkCheck size={16} color={COLORS.primary} />
-                        : <Bookmark size={16} color={COLORS.textMuted} />}
+                        ? <BookmarkCheck size={16} color={colors.primary} />
+                        : <Bookmark size={16} color={colors.textMuted} />}
                     </Pressable>
                   );
                 })
@@ -323,7 +713,7 @@ export default function ProfileScreen() {
                 onPress={handleSignOut}
                 style={({ pressed }) => [styles.signOutBtn, pressed && styles.signOutBtnPressed]}
               >
-                <LogOut size={18} color={COLORS.primary} />
+                <LogOut size={18} color={colors.primary} />
                 <Text style={styles.signOutText}>Sign Out</Text>
               </Pressable>
             </View>
@@ -338,7 +728,7 @@ export default function ProfileScreen() {
               <Pressable style={styles.modalOverlay} onPress={() => setShowSignOutModal(false)}>
                 <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
                   <View style={styles.modalIconWrap}>
-                    <LogOut size={28} color={COLORS.primary} />
+                    <LogOut size={28} color={colors.primary} />
                   </View>
                   <Text style={styles.modalTitle}>Sign Out?</Text>
                   <Text style={styles.modalBody}>You'll need to sign in again to access your progress and streak.</Text>
@@ -365,8 +755,9 @@ export default function ProfileScreen() {
   );
 }
 
-function ModeOption({ icon, title, subtitle, active, onPress }: {
+function ModeOption({ icon, title, subtitle, active, onPress, styles, colors }: {
   icon: React.ReactNode; title: string; subtitle: string; active: boolean; onPress: () => void;
+  styles: ReturnType<typeof StyleSheet.create>; colors: any;
 }) {
   return (
     <Pressable onPress={onPress} style={[styles.modeOption, active && styles.modeOptionActive]}>
@@ -375,14 +766,14 @@ function ModeOption({ icon, title, subtitle, active, onPress }: {
       <Text style={styles.modeSub} numberOfLines={1}>{subtitle}</Text>
       {active && (
         <View style={styles.modeCheck}>
-          <Check size={12} color={COLORS.white} strokeWidth={3} />
+          <Check size={12} color={colors.white} strokeWidth={3} />
         </View>
       )}
     </Pressable>
   );
 }
 
-function StatChip({ value, label, accent, icon }: { value: number; label: string; accent: string; icon: React.ReactNode }) {
+function StatChip({ value, label, accent, icon, styles }: { value: number; label: string; accent: string; icon: React.ReactNode; styles: ReturnType<typeof StyleSheet.create> }) {
   return (
     <View style={styles.statChip}>
       <View style={[styles.statAccentBar, { backgroundColor: accent }]} />
@@ -394,278 +785,3 @@ function StatChip({ value, label, accent, icon }: { value: number; label: string
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: 'transparent' },
-  scroll: { paddingBottom: 100, backgroundColor: 'transparent' },
-
-  header: {
-    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16,
-  },
-  title: { color: '#1E1B4B', fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  subtitle: { color: '#7C6AAB', fontSize: 13, marginTop: 2 },
-  settingsBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: COLORS.white, alignItems: 'center', justifyContent: 'center',
-    ...SHADOW.card,
-  },
-
-  /* Profile card */
-  profileCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    marginHorizontal: 16, marginBottom: 16,
-    backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
-    padding: 16,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08, shadowRadius: 16, elevation: 6,
-  },
-  avatar: { width: 80, height: 80, resizeMode: 'contain' },
-  profileInfo: { flex: 1, gap: 5 },
-  displayName: { color: '#1E1B4B', fontSize: 18, fontWeight: '800' },
-  levelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  levelBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: COLORS.primary, paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: RADIUS.full,
-  },
-  levelBadgeText: { color: COLORS.white, fontSize: 11, fontWeight: '700' },
-  levelTitle: { color: '#7C6AAB', fontSize: 13, fontWeight: '600' },
-  xpBarBg: { height: 8, backgroundColor: '#EDE9FE', borderRadius: RADIUS.full, overflow: 'hidden', marginTop: 2 },
-  xpBarFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: RADIUS.full },
-  xpLabel: { color: COLORS.primary, fontSize: 11, fontWeight: '600' },
-  starBadge: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: '#F5F0FF', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: '#E8DCFF',
-  },
-
-  /* Stats row */
-  statsRow: {
-    flexDirection: 'row', gap: 8,
-    paddingHorizontal: 16, marginBottom: 16,
-  },
-  modeRow: {
-    flexDirection: 'row', gap: 12, paddingHorizontal: 16,
-  },
-  modeOption: {
-    flex: 1, alignItems: 'center', gap: 4,
-    backgroundColor: COLORS.white,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    paddingVertical: 16, paddingHorizontal: 10,
-    position: 'relative',
-  },
-  modeOptionActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryBg,
-  },
-  modeIconWrap: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: COLORS.surfaceDark,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 4,
-  },
-  modeIconWrapActive: {
-    backgroundColor: COLORS.white,
-  },
-  modeTitle: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
-  modeTitleActive: { color: COLORS.primary },
-  modeSub: { color: COLORS.textMuted, fontSize: 11 },
-  modeCheck: {
-    position: 'absolute', top: 8, right: 8,
-    width: 18, height: 18, borderRadius: 9,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  modeHint: {
-    color: COLORS.textMuted, fontSize: 11,
-    paddingHorizontal: 16, marginTop: 8,
-  },
-  statChip: {
-    flex: 1, alignItems: 'center', gap: 4,
-    borderRadius: RADIUS.lg, paddingVertical: 14,
-    backgroundColor: COLORS.white,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    overflow: 'hidden',
-    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
-  },
-  statAccentBar: {
-    position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-  },
-  statIconWrap: {
-    width: 34, height: 34, borderRadius: 17,
-    alignItems: 'center', justifyContent: 'center',
-    marginTop: 6,
-  },
-  statValue: { color: '#1E1B4B', fontSize: 18, fontWeight: '800' },
-  statLabel: { color: '#9D99CC', fontSize: 10, fontWeight: '600', textAlign: 'center', letterSpacing: 0.8 },
-
-  /* Daily plan */
-  planSection: { paddingHorizontal: 16, marginBottom: 24 },
-  planCard: { borderRadius: RADIUS.xl, overflow: 'hidden', minHeight: 180 },
-  planCardImage: { borderRadius: RADIUS.xl, opacity: 0.70 },
-  planOverlay: {
-    flex: 1, backgroundColor: 'rgba(80,30,140,0.72)',
-    borderRadius: RADIUS.xl, padding: 18, gap: 16,
-  },
-  planHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  planTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  planIconCircle: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center',
-  },
-  planTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
-  planSub: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 1 },
-  editPlanLink: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
-  planGoals: { flexDirection: 'row', justifyContent: 'space-between' },
-  planGoalItem: {
-    flex: 1, alignItems: 'center', gap: 4,
-    paddingVertical: 10, borderRadius: RADIUS.lg,
-    borderWidth: 1, borderColor: 'transparent',
-  },
-  planGoalActive: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  planGoalNumber: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', textAlign: 'center' },
-  planGoalLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  planGoalSub: { color: 'rgba(255,255,255,0.65)', fontSize: 10, textAlign: 'center' },
-
-  /* Sections */
-  sectionWrap: { paddingHorizontal: 16, marginBottom: 24, gap: 12 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: '#1E1B4B', fontSize: 17, fontWeight: '800' },
-  viewAll: { color: COLORS.primary, fontSize: 13, fontWeight: '700' },
-
-  /* Badges grid */
-  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  badgeCell: { width: '30%', flexGrow: 1 },
-  badgeCard: {
-    alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.white, borderRadius: RADIUS.xl,
-    paddingVertical: 14, paddingHorizontal: 8,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
-  },
-  badgeCardLocked: { opacity: 0.45 },
-  badgeIconWrap: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  badgeLabel: { color: '#1E1B4B', fontSize: 10, fontWeight: '700', textAlign: 'center' },
-  badgeLabelLocked: { color: COLORS.textMuted },
-
-  /* Bookmarks */
-  bmEmpty: { color: COLORS.textMuted, fontSize: 13, fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 },
-  bmRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: COLORS.white, borderRadius: RADIUS.lg,
-    padding: 14, marginBottom: 8,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-  },
-  bmIconWrap: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: COLORS.primaryBg, alignItems: 'center', justifyContent: 'center',
-  },
-  bmTitle: { color: '#1E1B4B', fontSize: 14, fontWeight: '700' },
-  bmSub: { color: '#9D99CC', fontSize: 12, marginTop: 1 },
-  bmTranslation: { color: '#4C4693', fontSize: 12, fontStyle: 'italic', marginTop: 6, lineHeight: 18 },
-
-  /* QF */
-  qfConnectBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: COLORS.primary, borderRadius: RADIUS.xl, paddingVertical: 16,
-    borderWidth: 1.5, borderColor: `${COLORS.primaryLight}66`,
-    ...SHADOW.glow(COLORS.primary), ...DEPTH.button,
-  },
-  qfConnectText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  qfConnectedBadge: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: COLORS.primaryBg, borderRadius: RADIUS.xl, paddingVertical: 14,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-  },
-  qfConnectedText: { color: COLORS.primary, fontSize: 15, fontWeight: '700' },
-  qfLogo: { width: 22, height: 22, resizeMode: 'contain' },
-
-  /* Sign out */
-  signOutBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: RADIUS.xl, paddingVertical: 16,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    backgroundColor: COLORS.primaryBg,
-    ...DEPTH.button,
-  },
-  signOutBtnPressed: {
-    ...DEPTH.buttonPressed,
-  },
-  signOutText: { color: COLORS.primary, fontSize: 16, fontWeight: '700' },
-
-  /* Sign-out confirmation modal */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(30,27,75,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  modalCard: {
-    width: '100%',
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xxl,
-    padding: 28,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    ...DEPTH.card,
-  },
-  modalIconWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.primaryBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  modalBody: {
-    fontSize: 14,
-    color: COLORS.textSub,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  modalConfirmBtn: {
-    width: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginBottom: 10,
-    ...DEPTH.button,
-  },
-  modalConfirmBtnPressed: { ...DEPTH.buttonPressed },
-  modalConfirmText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  modalCancelBtn: {
-    width: '100%',
-    backgroundColor: COLORS.primaryBg,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 15,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    ...DEPTH.button,
-  },
-  modalCancelBtnPressed: { ...DEPTH.buttonPressed },
-  modalCancelText: { color: COLORS.primary, fontSize: 16, fontWeight: '700' },
-});

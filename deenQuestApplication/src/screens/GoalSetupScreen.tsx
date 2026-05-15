@@ -1,13 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BookOpen, Check, ChevronRight, GraduationCap } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { saveQFTokens, saveUserGoal } from '../lib/firestore';
-import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
+import { DEPTH, RADIUS, SHADOW } from '../theme';
 import { TimePerDay, UserGoal, UserLevel } from '../types';
 
 export const GOAL_SET_KEY = '@deenquest_goal_set';
@@ -41,6 +42,7 @@ const MASCOT_SPEECH: Record<WizardStep, string> = {
 
 export default function GoalSetupScreen({ uid, onDone }: Props) {
   const { uid: ctxUid } = useAuth();
+  const { colors } = useTheme();
   const effectiveUid = uid || ctxUid;
   const [wizardStep, setWizardStep] = useState<WizardStep>('goal');
   const [goal, setGoal] = useState<UserGoal | null>(null);
@@ -131,6 +133,151 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
   const stepNum = wizardStep === 'goal' ? 1 : wizardStep === 'level' ? 2 : wizardStep === 'time' ? (goal === 'learn' ? 3 : 2) : -1;
   const totalSteps = goal === 'learn' ? 3 : 2;
 
+  const styles = useMemo(() => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    scroll: { padding: 24, gap: 20, flexGrow: 1 },
+
+    dotsRow: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
+    dot: { height: 7, flex: 1, borderRadius: 4, backgroundColor: colors.surfaceDark },
+    dotActive: { backgroundColor: colors.primary },
+
+    mascotRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+    mascot: { width: 100, height: 110, resizeMode: 'contain', marginBottom: -18 },
+    bubble: {
+      flex: 1, backgroundColor: colors.card,
+      borderRadius: RADIUS.lg, padding: 14,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      position: 'relative', ...SHADOW.card,
+      marginBottom: 12,
+    },
+    bubbleTail: {
+      position: 'absolute', left: -10, bottom: 20,
+      width: 0, height: 0,
+      borderTopWidth: 8, borderTopColor: 'transparent',
+      borderBottomWidth: 8, borderBottomColor: 'transparent',
+      borderRightWidth: 11, borderRightColor: colors.card,
+    },
+    bubbleText: { color: colors.text, fontSize: 14, fontWeight: '600', lineHeight: 20 },
+
+    header: { gap: 4 },
+    stepLabel: { color: colors.primary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
+    title: { color: colors.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
+
+    card: {
+      backgroundColor: colors.card, borderRadius: RADIUS.xl,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      borderLeftWidth: 5, borderLeftColor: colors.primary,
+      padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14,
+      ...SHADOW.card,
+    },
+    cardIcon: {
+      width: 60, height: 60,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    cardText: { flex: 1, gap: 2 },
+    cardTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+    cardDesc: { color: colors.textSub, fontSize: 12, lineHeight: 17 },
+    cardDetail: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+
+    levelIcon: { width: 58, height: 58, resizeMode: 'cover', borderRadius: 16, overflow: 'hidden' },
+    emoji: { fontSize: 24 },
+
+    timeCircle: {
+      width: 60, height: 60, borderRadius: 16,
+      backgroundColor: colors.primaryBg,
+      borderWidth: 0,
+      alignItems: 'center', justifyContent: 'center',
+      gap: 0,
+    },
+    timeNum: { color: colors.primary, fontSize: 22, fontWeight: '900', lineHeight: 26 },
+    timeUnit: { color: colors.primary, fontSize: 11, fontWeight: '600', opacity: 0.7 },
+  }), [colors]);
+
+  const qfStyles = useMemo(() => StyleSheet.create({
+    page: {
+      flexGrow: 1,
+      padding: 28,
+      paddingTop: 40,
+      gap: 28,
+      alignItems: 'center',
+    },
+
+    logo: { width: 300, height: 90 },
+
+    headingBlock: { width: '100%', gap: 10, alignItems: 'center' },
+    eyebrow: {
+      color: colors.primary,
+      fontSize: 13,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+    },
+    title: {
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: '800',
+      textAlign: 'center',
+      lineHeight: 36,
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      color: colors.textSub,
+      fontSize: 15,
+      textAlign: 'center',
+      lineHeight: 23,
+    },
+
+    benefitList: {
+      width: '100%',
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.xl,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      overflow: 'hidden',
+      ...SHADOW.card,
+    },
+    benefitRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+    },
+    benefitText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600' },
+
+    actions: { width: '100%', gap: 14, alignItems: 'center' },
+    connectBtn: {
+      width: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.xl,
+      paddingVertical: 18,
+      alignItems: 'center',
+      ...SHADOW.glow(colors.primary),
+      ...DEPTH.button,
+    },
+    connectText: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.2 },
+    skipLink: { paddingVertical: 10 },
+    skipText: { color: colors.textMuted, fontSize: 15, fontWeight: '600' },
+
+    waitingBlock: { width: '100%', alignItems: 'center', gap: 14 },
+    waitingText: { color: colors.text, fontSize: 17, fontWeight: '700' },
+    waitingSub: { color: colors.textSub, fontSize: 14, textAlign: 'center', lineHeight: 21 },
+
+    successBlock: { width: '100%', alignItems: 'center', gap: 14 },
+    successCircle: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.successLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    successTitle: { color: colors.text, fontSize: 22, fontWeight: '800' },
+    successSub: { color: colors.textSub, fontSize: 14, textAlign: 'center', lineHeight: 21 },
+  }), [colors]);
+
   // QF Connect — full page, no wizard chrome
   if (wizardStep === 'qfConnect') {
     return (
@@ -170,14 +317,14 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
           {qfSuccess ? (
             <View style={qfStyles.successBlock}>
               <View style={qfStyles.successCircle}>
-                <Check size={32} color={COLORS.success} />
+                <Check size={32} color={colors.success} />
               </View>
               <Text style={qfStyles.successTitle}>Connected!</Text>
               <Text style={qfStyles.successSub}>Your Quran.com account is linked. Opening DeenQuest…</Text>
             </View>
           ) : waitingForQF ? (
             <View style={qfStyles.waitingBlock}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
+              <ActivityIndicator size="large" color={colors.primary} />
               <Text style={qfStyles.waitingText}>Waiting for Quran.com…</Text>
               <Text style={qfStyles.waitingSub}>Complete sign-in in the browser, then return here.</Text>
               <Pressable onPress={onDone} style={qfStyles.skipLink}>
@@ -236,33 +383,35 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
           {wizardStep === 'goal' && (
             <>
               <GoalCard
-                icon={<BookOpen size={28} color={COLORS.primary} />}
+                icon={<BookOpen size={28} color={colors.primary} />}
                 title="Complete the Quran"
                 description="Read and listen through all 114 surahs at your own pace"
                 onPress={() => handleGoalSelect('complete')}
+                styles={styles}
               />
               <GoalCard
-                icon={<GraduationCap size={28} color={COLORS.primary} />}
+                icon={<GraduationCap size={28} color={colors.primary} />}
                 title="Learn to Read Quran"
                 description="Build your Arabic reading skill from letters to full verses"
                 onPress={() => handleGoalSelect('learn')}
+                styles={styles}
               />
             </>
           )}
 
           {wizardStep === 'level' && (
             <>
-              <LevelCard image={LEVEL_ICONS.newbie} title="Newbie" desc="I don't know Arabic letters yet" detail="Letters → Al-Fatiha in 10 days" onPress={() => handleLevelSelect('newbie')} />
-              <LevelCard image={LEVEL_ICONS.intermediate} title="Intermediate" desc="I know the letters and basics" detail="Short surahs with transliteration support" onPress={() => handleLevelSelect('intermediate')} />
-              <LevelCard image={LEVEL_ICONS.fluent} title="Fluent" desc="I can read, just need practice" detail="Powerful verses — no transliteration" onPress={() => handleLevelSelect('fluent')} />
+              <LevelCard image={LEVEL_ICONS.newbie} title="Newbie" desc="I don't know Arabic letters yet" detail="Letters → Al-Fatiha in 10 days" onPress={() => handleLevelSelect('newbie')} styles={styles} />
+              <LevelCard image={LEVEL_ICONS.intermediate} title="Intermediate" desc="I know the letters and basics" detail="Short surahs with transliteration support" onPress={() => handleLevelSelect('intermediate')} styles={styles} />
+              <LevelCard image={LEVEL_ICONS.fluent} title="Fluent" desc="I can read, just need practice" detail="Powerful verses — no transliteration" onPress={() => handleLevelSelect('fluent')} styles={styles} />
             </>
           )}
 
           {wizardStep === 'time' && (
             <>
-              <TimeCard minutes={3} estimate={goal === 'complete' ? '~3 years to complete Quran' : '~3 exercises per session'} onPress={() => handleTimeSelect(3)} loading={saving} />
-              <TimeCard minutes={5} estimate={goal === 'complete' ? '~1.5 years to complete Quran' : '~5 exercises per session'} onPress={() => handleTimeSelect(5)} loading={saving} />
-              <TimeCard minutes={10} estimate={goal === 'complete' ? '~10 months to complete Quran' : '~10 exercises per session'} onPress={() => handleTimeSelect(10)} loading={saving} />
+              <TimeCard minutes={3} estimate={goal === 'complete' ? '~3 years to complete Quran' : '~3 exercises per session'} onPress={() => handleTimeSelect(3)} loading={saving} colors={colors} styles={styles} />
+              <TimeCard minutes={5} estimate={goal === 'complete' ? '~1.5 years to complete Quran' : '~5 exercises per session'} onPress={() => handleTimeSelect(5)} loading={saving} colors={colors} styles={styles} />
+              <TimeCard minutes={10} estimate={goal === 'complete' ? '~10 months to complete Quran' : '~10 exercises per session'} onPress={() => handleTimeSelect(10)} loading={saving} colors={colors} styles={styles} />
             </>
           )}
 
@@ -272,7 +421,7 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
   );
 }
 
-function GoalCard({ icon, title, description, onPress }: { icon: React.ReactNode; title: string; description: string; onPress: () => void }) {
+function GoalCard({ icon, title, description, onPress, styles }: { icon: React.ReactNode; title: string; description: string; onPress: () => void; styles: any }) {
   const [pressed, setPressed] = useState(false);
   return (
     <Pressable
@@ -290,7 +439,7 @@ function GoalCard({ icon, title, description, onPress }: { icon: React.ReactNode
   );
 }
 
-function LevelCard({ image, title, desc, detail, onPress }: { image: any; title: string; desc: string; detail: string; onPress: () => void }) {
+function LevelCard({ image, title, desc, detail, onPress, styles }: { image: any; title: string; desc: string; detail: string; onPress: () => void; styles: any }) {
   const [pressed, setPressed] = useState(false);
   return (
     <Pressable
@@ -311,7 +460,7 @@ function LevelCard({ image, title, desc, detail, onPress }: { image: any; title:
   );
 }
 
-function TimeCard({ minutes, estimate, onPress, loading }: { minutes: number; estimate: string; onPress: () => void; loading: boolean }) {
+function TimeCard({ minutes, estimate, onPress, loading, colors, styles }: { minutes: number; estimate: string; onPress: () => void; loading: boolean; colors: any; styles: any }) {
   const [pressed, setPressed] = useState(false);
   return (
     <Pressable
@@ -330,153 +479,8 @@ function TimeCard({ minutes, estimate, onPress, loading }: { minutes: number; es
         <Text style={styles.cardDesc}>{estimate}</Text>
       </View>
       {loading
-        ? <ActivityIndicator color={COLORS.primary} size="small" />
-        : <ChevronRight size={20} color={COLORS.textMuted} />}
+        ? <ActivityIndicator color={colors.primary} size="small" />
+        : <ChevronRight size={20} color={colors.textMuted} />}
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { padding: 24, gap: 20, flexGrow: 1 },
-
-  dotsRow: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
-  dot: { height: 7, flex: 1, borderRadius: 4, backgroundColor: COLORS.surfaceDark },
-  dotActive: { backgroundColor: COLORS.primary },
-
-  mascotRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
-  mascot: { width: 100, height: 110, resizeMode: 'contain', marginBottom: -18 },
-  bubble: {
-    flex: 1, backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg, padding: 14,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    position: 'relative', ...SHADOW.card,
-    marginBottom: 12,
-  },
-  bubbleTail: {
-    position: 'absolute', left: -10, bottom: 20,
-    width: 0, height: 0,
-    borderTopWidth: 8, borderTopColor: 'transparent',
-    borderBottomWidth: 8, borderBottomColor: 'transparent',
-    borderRightWidth: 11, borderRightColor: COLORS.card,
-  },
-  bubbleText: { color: COLORS.text, fontSize: 14, fontWeight: '600', lineHeight: 20 },
-
-  header: { gap: 4 },
-  stepLabel: { color: COLORS.primary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
-  title: { color: COLORS.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
-
-  card: {
-    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    borderLeftWidth: 5, borderLeftColor: COLORS.primary,
-    padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14,
-    ...SHADOW.card,
-  },
-  cardIcon: {
-    width: 60, height: 60,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  cardText: { flex: 1, gap: 2 },
-  cardTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
-  cardDesc: { color: COLORS.textSub, fontSize: 12, lineHeight: 17 },
-  cardDetail: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },
-
-  levelIcon: { width: 58, height: 58, resizeMode: 'cover', borderRadius: 16, overflow: 'hidden' },
-  emoji: { fontSize: 24 },
-
-  timeCircle: {
-    width: 60, height: 60, borderRadius: 16,
-    backgroundColor: COLORS.primaryBg,
-    borderWidth: 0,
-    alignItems: 'center', justifyContent: 'center',
-    gap: 0,
-  },
-  timeNum: { color: COLORS.primary, fontSize: 22, fontWeight: '900', lineHeight: 26 },
-  timeUnit: { color: COLORS.primary, fontSize: 11, fontWeight: '600', opacity: 0.7 },
-});
-
-const qfStyles = StyleSheet.create({
-  page: {
-    flexGrow: 1,
-    padding: 28,
-    paddingTop: 40,
-    gap: 28,
-    alignItems: 'center',
-  },
-
-  logo: { width: 300, height: 90 },
-
-  headingBlock: { width: '100%', gap: 10, alignItems: 'center' },
-  eyebrow: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  title: {
-    color: COLORS.text,
-    fontSize: 28,
-    fontWeight: '800',
-    textAlign: 'center',
-    lineHeight: 36,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    color: COLORS.textSub,
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 23,
-  },
-
-  benefitList: {
-    width: '100%',
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    overflow: 'hidden',
-    ...SHADOW.card,
-  },
-  benefitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.cardBorder,
-  },
-  benefitText: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: '600' },
-
-  actions: { width: '100%', gap: 14, alignItems: 'center' },
-  connectBtn: {
-    width: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 18,
-    alignItems: 'center',
-    ...SHADOW.glow(COLORS.primary),
-    ...DEPTH.button,
-  },
-  connectText: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.2 },
-  skipLink: { paddingVertical: 10 },
-  skipText: { color: COLORS.textMuted, fontSize: 15, fontWeight: '600' },
-
-  waitingBlock: { width: '100%', alignItems: 'center', gap: 14 },
-  waitingText: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
-  waitingSub: { color: COLORS.textSub, fontSize: 14, textAlign: 'center', lineHeight: 21 },
-
-  successBlock: { width: '100%', alignItems: 'center', gap: 14 },
-  successCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: COLORS.successLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  successTitle: { color: COLORS.text, fontSize: 22, fontWeight: '800' },
-  successSub: { color: COLORS.textSub, fontSize: 14, textAlign: 'center', lineHeight: 21 },
-});

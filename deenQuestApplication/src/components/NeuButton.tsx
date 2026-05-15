@@ -1,9 +1,7 @@
 import React, { useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { COLORS, RADIUS } from '../theme';
-
-// Background must match screen bg for neumorphism to work
-const NEU_BG = COLORS.bg; // #F0EBFF
+import { useTheme } from '../context/ThemeContext';
+import { RADIUS } from '../theme';
 
 interface NeuButtonProps {
   onPress: () => void;
@@ -19,6 +17,7 @@ interface NeuButtonProps {
 export default function NeuButton({
   onPress, label, children, disabled, pill, size = 'md', style, primary,
 }: NeuButtonProps) {
+  const { colors } = useTheme();
   const pressAnim = useRef(new Animated.Value(0)).current;
 
   const handlePressIn = () => {
@@ -47,9 +46,14 @@ export default function NeuButton({
   });
   const scale = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.97] });
 
-  const bg = primary ? COLORS.primary : NEU_BG;
+  // Background must match screen bg for neumorphism to work
+  const NEU_BG = colors.bg;
+  const bg = primary ? colors.primary : NEU_BG;
   const lightShadow = primary ? 'rgba(180,140,255,0.5)' : 'rgba(255,255,255,0.9)';
   const darkShadow = primary ? 'rgba(60,20,120,0.45)' : 'rgba(162,140,220,0.45)';
+
+  const labelStyle = { color: colors.text, fontSize: 15, fontWeight: '700' as const, letterSpacing: 0.2 };
+  const labelPrimaryStyle = { color: colors.white, fontSize: 16 };
 
   return (
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
@@ -94,7 +98,7 @@ export default function NeuButton({
             style={[styles.inner, sizeStyle, { borderRadius: radius, opacity: disabled ? 0.45 : 1 }]}
           >
             {label ? (
-              <Text style={[styles.label, primary && styles.labelPrimary]}>{label}</Text>
+              <Text style={[labelStyle, primary && labelPrimaryStyle]}>{label}</Text>
             ) : (
               children
             )}
@@ -113,6 +117,7 @@ export function NeuIconButton({
   size?: number;
   disabled?: boolean;
 }) {
+  const { colors } = useTheme();
   const pressAnim = useRef(new Animated.Value(0)).current;
 
   const handlePressIn = () => {
@@ -128,6 +133,7 @@ export function NeuIconButton({
   const opacity = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 0.35] });
   const scale = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.95] });
   const radius = size / 2;
+  const NEU_BG = colors.bg;
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
@@ -185,14 +191,4 @@ const styles = StyleSheet.create({
   sm: { paddingVertical: 10, paddingHorizontal: 18 },
   md: { paddingVertical: 14, paddingHorizontal: 24 },
   lg: { paddingVertical: 17, paddingHorizontal: 0, width: '100%' },
-  label: {
-    color: COLORS.text,
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
-  labelPrimary: {
-    color: COLORS.white,
-    fontSize: 16,
-  },
 });

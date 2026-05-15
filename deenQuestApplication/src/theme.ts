@@ -1,40 +1,57 @@
-export const COLORS = {
-  // Backgrounds
+export const LIGHT_COLORS = {
   bg: 'transparent',
   bgDeep: '#E4DBFF',
-
-  // Cards & surfaces
   card: '#FFFFFF',
   cardBorder: '#E4D9FF',
   surface: '#F8F4FF',
   surfaceDark: '#E4DBFF',
-
-  // Primary — rich purple (matches character outfit)
   primary: '#7C3AED',
   primaryLight: '#A78BFA',
   primaryDark: '#5B21B6',
   primaryBg: '#EDE9FE',
-
-  // Accent — golden star
   accent: '#F59E0B',
   accentLight: '#FDE68A',
   accentDark: '#B45309',
-
-  // Feedback
   error: '#DC2626',
   errorLight: '#FCA5A5',
   success: '#059669',
   successLight: '#6EE7B7',
-
-  // Text
   text: '#1E1B4B',
   textSub: '#4C4693',
   textMuted: '#9D99CC',
-
-  // Misc
   white: '#FFFFFF',
   gold: '#F59E0B',
 };
+
+export const DARK_COLORS = {
+  bg: 'transparent',
+  bgDeep: '#0F0A1E',
+  card: '#1A1240',
+  cardBorder: '#2D1F6E',
+  surface: '#150E35',
+  surfaceDark: '#0F0A1E',
+  primary: '#7C3AED',
+  primaryLight: '#A78BFA',
+  primaryDark: '#5B21B6',
+  primaryBg: '#1E1060',
+  accent: '#F59E0B',
+  accentLight: '#FDE68A',
+  accentDark: '#B45309',
+  error: '#DC2626',
+  errorLight: '#FCA5A5',
+  success: '#059669',
+  successLight: '#6EE7B7',
+  text: '#F0EEFF',
+  textSub: '#B8B0F0',
+  textMuted: '#6B64A8',
+  white: '#FFFFFF',
+  gold: '#F59E0B',
+};
+
+export type AppColors = typeof LIGHT_COLORS;
+
+// Kept for backward compat during migration — screens will switch to useTheme()
+export const COLORS = LIGHT_COLORS;
 
 export const RADIUS = {
   sm: 8,

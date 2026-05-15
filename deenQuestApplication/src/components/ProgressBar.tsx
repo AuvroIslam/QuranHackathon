@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
-import { COLORS, RADIUS } from '../theme';
+import { useTheme } from '../context/ThemeContext';
+import { RADIUS } from '../theme';
 
 interface Props {
   current: number;
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function ProgressBar({ current, total }: Props) {
+  const { colors } = useTheme();
   const pct = Math.max(0, Math.min(1, current / total));
   const widthAnim = useRef(new Animated.Value(0)).current;
 
@@ -19,6 +21,23 @@ export default function ProgressBar({ current, total }: Props) {
       friction: 10,
     }).start();
   }, [pct]);
+
+  const styles = useMemo(() => StyleSheet.create({
+    track: {
+      height: 10,
+      backgroundColor: colors.surfaceDark,
+      borderRadius: RADIUS.full,
+      overflow: 'hidden',
+    },
+    fill: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      height: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.full,
+    },
+  }), [colors]);
 
   return (
     <View style={styles.track}>
@@ -36,20 +55,3 @@ export default function ProgressBar({ current, total }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  track: {
-    height: 10,
-    backgroundColor: COLORS.surfaceDark,
-    borderRadius: RADIUS.full,
-    overflow: 'hidden',
-  },
-  fill: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.full,
-  },
-});

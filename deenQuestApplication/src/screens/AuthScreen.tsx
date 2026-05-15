@@ -8,16 +8,18 @@ import {
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator, Image, ImageBackground, KeyboardAvoidingView,
   Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, db } from '../lib/firebase';
-import { COLORS, RADIUS, SHADOW } from '../theme';
+import { useTheme } from '../context/ThemeContext';
+import { RADIUS, SHADOW } from '../theme';
 
 export default function AuthScreen() {
+  const { colors } = useTheme();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -126,6 +128,87 @@ export default function AuthScreen() {
     setName(''); setEmail(''); setPassword('');
   };
 
+  const styles = useMemo(() => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    bg: { flex: 1 },
+    flex: { flex: 1 },
+    scroll: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 24 },
+
+    header: { alignItems: 'center', gap: 8 },
+    char: { width: 130, height: 130, resizeMode: 'contain' },
+    appName: { color: colors.primaryDark, fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+    tagline: { color: colors.textSub, fontSize: 16 },
+
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.xl,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      padding: 20,
+      gap: 14,
+      ...SHADOW.strong,
+    },
+    field: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: colors.bg,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      paddingHorizontal: 14,
+      paddingVertical: 13,
+    },
+    fieldInput: { flex: 1, color: colors.text, fontSize: 15 },
+
+    error: {
+      color: colors.error,
+      fontSize: 13,
+      textAlign: 'center',
+      fontWeight: '500',
+    },
+
+    submitBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.xl,
+      paddingVertical: 16,
+      alignItems: 'center',
+      ...SHADOW.glow(colors.primary),
+    },
+    submitBtnDisabled: { opacity: 0.6 },
+    submitText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+
+    switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
+    switchLabel: { color: colors.textMuted, fontSize: 14 },
+    switchLink: { color: colors.primary, fontSize: 14, fontWeight: '700' },
+
+    dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    dividerLine: { flex: 1, height: 1, backgroundColor: colors.cardBorder },
+    dividerText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+
+    googleBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+      backgroundColor: '#fff',
+      borderRadius: RADIUS.xl,
+      paddingVertical: 14,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+    },
+    googleG: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: '#4285F4',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    googleGText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+    googleBtnText: { color: '#1a1a2e', fontSize: 15, fontWeight: '700' },
+  }), [colors]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ImageBackground
@@ -150,7 +233,7 @@ export default function AuthScreen() {
               />
               <Text style={styles.appName}>DeenQuest</Text>
               <Text style={styles.tagline}>
-                {mode === 'signin' ? 'Welcome back 👋' : 'Create your account'}
+                {mode === 'signin' ? 'Welcome back' : 'Create your account'}
               </Text>
             </View>
 
@@ -158,26 +241,30 @@ export default function AuthScreen() {
             <View style={styles.card}>
               {mode === 'signup' && (
                 <Field
-                  icon={<User size={16} color={COLORS.textMuted} />}
+                  icon={<User size={16} color={colors.textMuted} />}
                   placeholder="Full name"
                   value={name}
                   onChangeText={setName}
+                  colors={colors}
+                  styles={styles}
                 />
               )}
               <Field
-                icon={<Mail size={16} color={COLORS.textMuted} />}
+                icon={<Mail size={16} color={colors.textMuted} />}
                 placeholder="Email address"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                colors={colors}
+                styles={styles}
               />
               <View style={styles.field}>
-                <Lock size={16} color={COLORS.textMuted} />
+                <Lock size={16} color={colors.textMuted} />
                 <TextInput
                   style={styles.fieldInput}
                   placeholder="Password"
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor={colors.textMuted}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPw}
@@ -185,8 +272,8 @@ export default function AuthScreen() {
                 />
                 <Pressable onPress={() => setShowPw((v) => !v)} hitSlop={8}>
                   {showPw
-                    ? <EyeOff size={16} color={COLORS.textMuted} />
-                    : <Eye size={16} color={COLORS.textMuted} />}
+                    ? <EyeOff size={16} color={colors.textMuted} />
+                    : <Eye size={16} color={colors.textMuted} />}
                 </Pressable>
               </View>
 
@@ -198,7 +285,7 @@ export default function AuthScreen() {
                 disabled={loading}
               >
                 {loading
-                  ? <ActivityIndicator color={COLORS.white} />
+                  ? <ActivityIndicator color={colors.white} />
                   : <Text style={styles.submitText}>
                       {mode === 'signin' ? 'Sign In' : 'Create Account'}
                     </Text>}
@@ -242,7 +329,7 @@ export default function AuthScreen() {
 }
 
 function Field({
-  icon, placeholder, value, onChangeText, keyboardType, autoCapitalize,
+  icon, placeholder, value, onChangeText, keyboardType, autoCapitalize, colors, styles,
 }: {
   icon: React.ReactNode;
   placeholder: string;
@@ -250,6 +337,8 @@ function Field({
   onChangeText: (t: string) => void;
   keyboardType?: any;
   autoCapitalize?: any;
+  colors: any;
+  styles: any;
 }) {
   return (
     <View style={styles.field}>
@@ -257,7 +346,7 @@ function Field({
       <TextInput
         style={styles.fieldInput}
         placeholder={placeholder}
-        placeholderTextColor={COLORS.textMuted}
+        placeholderTextColor={colors.textMuted}
         value={value}
         onChangeText={onChangeText}
         keyboardType={keyboardType}
@@ -266,84 +355,3 @@ function Field({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  bg: { flex: 1 },
-  flex: { flex: 1 },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 24 },
-
-  header: { alignItems: 'center', gap: 8 },
-  char: { width: 130, height: 130, resizeMode: 'contain' },
-  appName: { color: COLORS.primaryDark, fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
-  tagline: { color: COLORS.textSub, fontSize: 16 },
-
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    padding: 20,
-    gap: 14,
-    ...SHADOW.strong,
-  },
-  field: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: COLORS.bg,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-  },
-  fieldInput: { flex: 1, color: COLORS.text, fontSize: 15 },
-
-  error: {
-    color: COLORS.error,
-    fontSize: 13,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-
-  submitBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 16,
-    alignItems: 'center',
-    ...SHADOW.glow(COLORS.primary),
-  },
-  submitBtnDisabled: { opacity: 0.6 },
-  submitText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-
-  switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
-  switchLabel: { color: COLORS.textMuted, fontSize: 14 },
-  switchLink: { color: COLORS.primary, fontSize: 14, fontWeight: '700' },
-
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.cardBorder },
-  dividerText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
-
-  googleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    backgroundColor: '#fff',
-    borderRadius: RADIUS.xl,
-    paddingVertical: 14,
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-  },
-  googleG: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#4285F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleGText: { color: '#fff', fontSize: 13, fontWeight: '800' },
-  googleBtnText: { color: '#1a1a2e', fontSize: 15, fontWeight: '700' },
-});

@@ -28,6 +28,8 @@ export interface UserProfile {
   currentDay?: number;
   sessionDate?: string;
   sessionsToday?: number;
+  preferredTheme?: 'light' | 'dark';
+  preferredTranslationId?: number;
 }
 
 export interface Task {

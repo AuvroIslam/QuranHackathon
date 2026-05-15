@@ -21,6 +21,8 @@ export interface UserProfile {
   timePerDay?: TimePerDay | null;
   quranProgress?: { surahNumber: number; ayahNumber: number } | null;
   currentDay?: number;
+  preferredTheme?: 'light' | 'dark';
+  preferredTranslationId?: number;
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
@@ -286,5 +288,12 @@ export async function getBookmarks(uid: string): Promise<Bookmark[]> {
 export async function isBookmarked(uid: string, verseKey: string): Promise<boolean> {
   const snap = await getDoc(doc(db, 'users', uid, 'bookmarks', bmDocId(verseKey)));
   return snap.exists();
+}
+
+export async function updateUserPreferences(
+  uid: string,
+  prefs: { preferredTheme?: 'light' | 'dark'; preferredTranslationId?: number }
+) {
+  await updateDoc(doc(db, 'users', uid), prefs);
 }
 

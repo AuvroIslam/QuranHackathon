@@ -1,13 +1,14 @@
 import { Audio } from 'expo-av';
-import { Bookmark, BookmarkCheck, Loader, Pause, Play } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import { Bookmark, BookmarkCheck, Pause, Play } from 'lucide-react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { isBookmarked, toggleBookmark } from '../lib/firestore';
 import { API_BASE } from '../services/api';
-import { COLORS, RADIUS, SHADOW } from '../theme';
+import { RADIUS, SHADOW } from '../theme';
 
 interface AyahData {
   numberInSurah: number;
@@ -38,6 +39,7 @@ function qfProxy(path: string, params: Record<string, string> = {}): string {
 
 export default function QuranReadingSession({ surahNumber, startAyah, ayahCount, onComplete }: Props) {
   const { uid } = useAuth();
+  const { colors, translationId } = useTheme();
   const [ayahs, setAyahs] = useState<AyahData[]>([]);
   const [bookmarked, setBookmarked] = useState<Record<string, boolean>>({});
   const [bmLoading, setBmLoading] = useState<Record<string, boolean>>({});
@@ -63,7 +65,7 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
     try {
       const res = await fetch(qfProxy(`verses/by_chapter/${safeSurah}`, {
         fields: 'text_uthmani',
-        translations: '57,20',
+        translations: `57,${translationId}`,
         per_page: '300',
       }));
       if (!res.ok) throw new Error('API error');
@@ -81,7 +83,7 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
           numberInSurah: v.verse_number as number,
           arabic: v.text_uthmani as string,
           transliteration: (v.translations?.find((t: any) => t.resource_id === 57)?.text ?? '') as string,
-          translation: stripHtml(v.translations?.find((t: any) => t.resource_id === 20)?.text ?? ''),
+          translation: stripHtml(v.translations?.find((t: any) => t.resource_id === translationId)?.text ?? ''),
           audioUrl: `https://everyayah.com/data/Alafasy_128kbps/${pad3(s)}${pad3(a)}.mp3`,
           read: false,
         };
@@ -205,10 +207,82 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
 
   const allRead = ayahs.length > 0 && ayahs.every((a) => a.read);
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: { padding: 16, gap: 14, paddingBottom: 40 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
+    loadingText: { color: colors.textMuted, fontSize: 14 },
+    errorText: { color: colors.textSub, fontSize: 14, textAlign: 'center' },
+    retryBtn: {
+      paddingHorizontal: 24, paddingVertical: 12, borderRadius: RADIUS.full,
+      backgroundColor: colors.primaryBg, borderWidth: 1.5, borderColor: colors.primary,
+    },
+    retryText: { color: colors.primary, fontWeight: '600' },
+
+    titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    globalPlayBtn: {
+      width: 44, height: 44, borderRadius: 22,
+      backgroundColor: colors.primaryBg,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      alignItems: 'center', justifyContent: 'center',
+      ...SHADOW.card,
+    },
+    globalPlayBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    title: { color: colors.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
+    sub: { color: colors.textSub, fontSize: 14, marginTop: 2 },
+
+    ayahCard: {
+      backgroundColor: colors.card, borderRadius: RADIUS.xl,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      padding: 16, gap: 10, ...SHADOW.card,
+    },
+    ayahCardRead: { borderColor: `${colors.primary}66`, backgroundColor: colors.primaryBg },
+    ayahHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    bmBtn: {
+      padding: 6,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    bmBtnActive: {},
+    playBtn: {
+      width: 36, height: 36, borderRadius: 18,
+      backgroundColor: colors.primaryBg,
+      alignItems: 'center', justifyContent: 'center',
+      borderWidth: 1, borderColor: colors.cardBorder,
+    },
+    playBtnActive: { backgroundColor: `${colors.primary}18`, borderColor: colors.primary },
+
+    arabic: {
+      color: colors.text, fontSize: 22, textAlign: 'right',
+      lineHeight: 40, writingDirection: 'rtl',
+    },
+    transliteration: {
+      color: colors.textMuted, fontSize: 12, fontStyle: 'italic', textAlign: 'center',
+    },
+    translation: { color: colors.textSub, fontSize: 13, lineHeight: 20 },
+
+    markReadBtn: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 14, paddingVertical: 6,
+      borderRadius: RADIUS.full, borderWidth: 1,
+      borderColor: colors.primary, backgroundColor: colors.primaryBg,
+    },
+    markReadText: { color: colors.primary, fontSize: 12, fontWeight: '600' },
+
+    completeBtn: {
+      backgroundColor: colors.primary, borderRadius: RADIUS.xl,
+      paddingVertical: 17, alignItems: 'center', justifyContent: 'center',
+      flexDirection: 'row', gap: 8, marginTop: 8,
+      ...SHADOW.glow(colors.primary),
+    },
+    completeBtnDim: { opacity: 0.7 },
+    completeBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+    skipLink: { alignSelf: 'center', paddingVertical: 8 },
+    skipText: { color: colors.textMuted, fontSize: 13, fontWeight: '500' },
+  }), [colors]);
+
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Loading Quran…</Text>
       </View>
     );
@@ -243,8 +317,8 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
           style={[styles.globalPlayBtn, (playingIndex !== null && isAudioPlaying) && styles.globalPlayBtnActive]}
         >
           {(playingIndex !== null && isAudioPlaying)
-            ? <Pause size={18} color={COLORS.white} fill={COLORS.white} />
-            : <Play size={18} color={COLORS.primary} fill={COLORS.primary} />}
+            ? <Pause size={18} color={colors.white} fill={colors.white} />
+            : <Play size={18} color={colors.primary} fill={colors.primary} />}
         </Pressable>
       </View>
 
@@ -260,18 +334,18 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
               disabled={bmLoading[verseKey]}
             >
               {bmLoading[verseKey]
-                ? <ActivityIndicator size={13} color={COLORS.primary} />
+                ? <ActivityIndicator size={13} color={colors.primary} />
                 : isBm
-                  ? <BookmarkCheck size={15} color={COLORS.primary} />
-                  : <Bookmark size={15} color={COLORS.textMuted} />}
+                  ? <BookmarkCheck size={15} color={colors.primary} />
+                  : <Bookmark size={15} color={colors.textMuted} />}
             </Pressable>
             <Pressable
               onPress={() => playAyah(index)}
               style={[styles.playBtn, playingIndex === index && styles.playBtnActive]}
             >
               {playingIndex === index && isAudioPlaying
-                ? <Pause size={16} color={COLORS.primary} fill={COLORS.primary} />
-                : <Play size={16} color={COLORS.primary} fill={COLORS.primary} />}
+                ? <Pause size={16} color={colors.primary} fill={colors.primary} />
+                : <Play size={16} color={colors.primary} fill={colors.primary} />}
             </Pressable>
           </View>
 
@@ -299,75 +373,3 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { padding: 16, gap: 14, paddingBottom: 40 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
-  loadingText: { color: COLORS.textMuted, fontSize: 14 },
-  errorText: { color: COLORS.textSub, fontSize: 14, textAlign: 'center' },
-  retryBtn: {
-    paddingHorizontal: 24, paddingVertical: 12, borderRadius: RADIUS.full,
-    backgroundColor: COLORS.primaryBg, borderWidth: 1.5, borderColor: COLORS.primary,
-  },
-  retryText: { color: COLORS.primary, fontWeight: '600' },
-
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  globalPlayBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: COLORS.primaryBg,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    alignItems: 'center', justifyContent: 'center',
-    ...SHADOW.card,
-  },
-  globalPlayBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  title: { color: COLORS.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
-  sub: { color: COLORS.textSub, fontSize: 14, marginTop: 2 },
-
-  ayahCard: {
-    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    padding: 16, gap: 10, ...SHADOW.card,
-  },
-  ayahCardRead: { borderColor: `${COLORS.primary}66`, backgroundColor: COLORS.primaryBg },
-  ayahHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  bmBtn: {
-    padding: 6,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  bmBtnActive: {},
-  playBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: COLORS.primaryBg,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: COLORS.cardBorder,
-  },
-  playBtnActive: { backgroundColor: `${COLORS.primary}18`, borderColor: COLORS.primary },
-
-  arabic: {
-    color: COLORS.text, fontSize: 22, textAlign: 'right',
-    lineHeight: 40, writingDirection: 'rtl',
-  },
-  transliteration: {
-    color: COLORS.textMuted, fontSize: 12, fontStyle: 'italic', textAlign: 'center',
-  },
-  translation: { color: COLORS.textSub, fontSize: 13, lineHeight: 20 },
-
-  markReadBtn: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: RADIUS.full, borderWidth: 1,
-    borderColor: COLORS.primary, backgroundColor: COLORS.primaryBg,
-  },
-  markReadText: { color: COLORS.primary, fontSize: 12, fontWeight: '600' },
-
-  completeBtn: {
-    backgroundColor: COLORS.primary, borderRadius: RADIUS.xl,
-    paddingVertical: 17, alignItems: 'center', justifyContent: 'center',
-    flexDirection: 'row', gap: 8, marginTop: 8,
-    ...SHADOW.glow(COLORS.primary),
-  },
-  completeBtnDim: { opacity: 0.7 },
-  completeBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  skipLink: { alignSelf: 'center', paddingVertical: 8 },
-  skipText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '500' },
-});

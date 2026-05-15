@@ -1,7 +1,8 @@
 import { Check, Lightbulb, X } from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { RADIUS, SHADOW } from '../../theme';
 import { MCQData } from '../../types';
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function MCQQuestion({ question, selectedAnswer, verdict, onAnswer }: Props) {
+  const { colors } = useTheme();
   const [answered, setAnswered] = useState(selectedAnswer !== undefined);
   const feedbackAnim = useRef(new Animated.Value(0)).current;
 
@@ -37,12 +39,55 @@ export default function MCQQuestion({ question, selectedAnswer, verdict, onAnswe
   const verdictReady = effectiveCorrectIndex >= 0;
   const isCorrect = verdictReady && selectedAnswer === effectiveCorrectIndex;
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, padding: 16, gap: 16 },
+    topRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+    questionBlock: { flex: 1, gap: 10 },
+    badge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      alignSelf: 'flex-start',
+      backgroundColor: colors.primaryBg,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: RADIUS.full,
+    },
+    badgeText: { color: colors.primary, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+    question: { color: colors.text, fontSize: 20, fontWeight: '700', lineHeight: 28, letterSpacing: -0.3 },
+    character: { width: 90, height: 100, resizeMode: 'contain' },
+    options: { gap: 10 },
+    option: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      padding: 14,
+    },
+    bullet: {
+      width: 30, height: 30, borderRadius: 15,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    bulletLetter: { fontSize: 13, fontWeight: '800' },
+    optionText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '500' },
+    feedback: {
+      padding: 14, borderRadius: RADIUS.lg, borderWidth: 1,
+    },
+    feedbackCorrect: { backgroundColor: colors.primaryBg, borderColor: colors.primary + '55' },
+    feedbackWrong: { backgroundColor: colors.primaryBg, borderColor: colors.cardBorder },
+    feedbackText: { color: colors.textSub, fontSize: 14, lineHeight: 20 },
+    checking: { color: colors.textMuted, fontSize: 13, fontStyle: 'italic', textAlign: 'center', marginTop: 4 },
+  }), [colors]);
+
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
         <View style={styles.questionBlock}>
           <View style={styles.badge}>
-            <Lightbulb size={12} color={COLORS.primary} />
+            <Lightbulb size={12} color={colors.primary} />
             <Text style={styles.badgeText}>Reflection</Text>
           </View>
           <Text style={styles.question}>{question.question}</Text>
@@ -60,6 +105,7 @@ export default function MCQQuestion({ question, selectedAnswer, verdict, onAnswe
             isCorrect={verdictReady && i === effectiveCorrectIndex}
             isSelected={i === selectedAnswer}
             onPress={() => handleAnswer(i)}
+            styles={styles}
           />
         ))}
       </View>
@@ -85,40 +131,42 @@ export default function MCQQuestion({ question, selectedAnswer, verdict, onAnswe
   );
 }
 
-function OptionButton({ text, index, answered, isCorrect, isSelected, onPress }: {
+function OptionButton({ text, index, answered, isCorrect, isSelected, onPress, styles }: {
   text: string; index: number; answered: boolean; isCorrect: boolean; isSelected: boolean; onPress: () => void;
+  styles: ReturnType<typeof StyleSheet.create>;
 }) {
+  const { colors } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
 
   const bgColor = () => {
-    if (!answered) return COLORS.card;
-    if (isCorrect) return COLORS.primaryBg;
-    if (isSelected) return `${COLORS.error}18`;
-    return COLORS.card;
+    if (!answered) return colors.card;
+    if (isCorrect) return colors.primaryBg;
+    if (isSelected) return `${colors.error}18`;
+    return colors.card;
   };
   const borderColor = () => {
-    if (!answered) return COLORS.cardBorder;
-    if (isCorrect) return COLORS.primary;
-    if (isSelected) return COLORS.error;
-    return `${COLORS.cardBorder}66`;
+    if (!answered) return colors.cardBorder;
+    if (isCorrect) return colors.primary;
+    if (isSelected) return colors.error;
+    return `${colors.cardBorder}66`;
   };
   const textColor = () => {
-    if (!answered) return COLORS.text;
-    if (isCorrect) return COLORS.primary;
-    if (isSelected) return COLORS.error;
-    return COLORS.textMuted;
+    if (!answered) return colors.text;
+    if (isCorrect) return colors.primary;
+    if (isSelected) return colors.error;
+    return colors.textMuted;
   };
 
   const BulletContent = () => {
-    if (answered && isCorrect) return <Check size={14} color={COLORS.primary} strokeWidth={3} />;
-    if (answered && isSelected) return <X size={14} color={COLORS.white} strokeWidth={3} />;
-    return <Text style={[styles.bulletLetter, { color: COLORS.primary }]}>{String.fromCharCode(65 + index)}</Text>;
+    if (answered && isCorrect) return <Check size={14} color={colors.primary} strokeWidth={3} />;
+    if (answered && isSelected) return <X size={14} color={colors.white} strokeWidth={3} />;
+    return <Text style={[styles.bulletLetter, { color: colors.primary }]}>{String.fromCharCode(65 + index)}</Text>;
   };
 
   const bulletBg = () => {
-    if (answered && isCorrect) return COLORS.primaryBg;
-    if (answered && isSelected) return COLORS.error;
-    return COLORS.primaryBg;
+    if (answered && isCorrect) return colors.primaryBg;
+    if (answered && isSelected) return colors.error;
+    return colors.primaryBg;
   };
 
   return (
@@ -141,46 +189,3 @@ function OptionButton({ text, index, answered, isCorrect, isSelected, onPress }:
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, gap: 16 },
-  topRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  questionBlock: { flex: 1, gap: 10 },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.primaryBg,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.full,
-  },
-  badgeText: { color: COLORS.primary, fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  question: { color: COLORS.text, fontSize: 20, fontWeight: '700', lineHeight: 28, letterSpacing: -0.3 },
-  character: { width: 90, height: 100, resizeMode: 'contain' },
-  options: { gap: 10 },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    padding: 14,
-  },
-  bullet: {
-    width: 30, height: 30, borderRadius: 15,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  bulletLetter: { fontSize: 13, fontWeight: '800' },
-  optionText: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: '500' },
-  feedback: {
-    padding: 14, borderRadius: RADIUS.lg, borderWidth: 1,
-  },
-  feedbackCorrect: { backgroundColor: COLORS.primaryBg, borderColor: COLORS.primary + '55' },
-  feedbackWrong: { backgroundColor: COLORS.primaryBg, borderColor: COLORS.cardBorder },
-  feedbackText: { color: COLORS.textSub, fontSize: 14, lineHeight: 20 },
-  checking: { color: COLORS.textMuted, fontSize: 13, fontStyle: 'italic', textAlign: 'center', marginTop: 4 },
-});

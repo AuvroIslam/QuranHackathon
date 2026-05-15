@@ -60,6 +60,21 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* ── Theme variables ── */
+:root {
+  --theme-bg: #0F1639;
+  --theme-bg-alt: #10153A;
+  --theme-card: rgba(20, 20, 40, 0.60);
+  --theme-card-solid: #151A4A;
+  --theme-text: #ffffff;
+  --theme-text-sub: rgba(255, 255, 255, 0.70);
+  --theme-text-muted: rgba(255, 255, 255, 0.45);
+  --theme-border: rgba(255, 255, 255, 0.10);
+  --theme-border-strong: rgba(255, 255, 255, 0.18);
+  --theme-glass-bg: rgba(20, 20, 40, 0.38);
+  --theme-glass-bg-dark: rgba(20, 20, 40, 0.82);
+}
+
 :root {
   --font-body: var(--font-poppins), var(--font-geist-sans), "Poppins", "Inter", system-ui, -apple-system, sans-serif;
   --font-heading: "Wasabi", var(--font-poppins), var(--font-geist-sans), "Poppins", "Inter", system-ui, sans-serif;
@@ -104,35 +119,35 @@ h3 {
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 1.1;
-  color: #ffffff;
+  color: var(--theme-text);
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
 }
 
 /* === Glassmorphism Utilities === */
 .glass {
-  background: rgba(20, 20, 40, 0.38);
+  background: var(--theme-glass-bg);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--theme-border);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
 }
 
 .glass-card,
 .glass-strong {
-  background: rgba(20, 20, 40, 0.55);
+  background: var(--theme-card);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--theme-border);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
 }
 
 .glass-dark {
-  background: rgba(20, 20, 40, 0.82);
+  background: var(--theme-glass-bg-dark);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--theme-border-strong);
   box-shadow: 0 10px 34px rgba(0, 0, 0, 0.38);
 }
 
@@ -275,29 +290,23 @@ button:disabled,
 }
 
 .text-primary {
-  color: #ffffff !important;
+  color: var(--theme-text) !important;
 }
 
-.text-primary\/75 {
-  color: rgba(255, 255, 255, 0.8) !important;
-}
-
-.text-primary\/70 {
-  color: rgba(255, 255, 255, 0.8) !important;
-}
-
+.text-primary\/75,
+.text-primary\/70,
 .text-primary\/60 {
-  color: rgba(255, 255, 255, 0.8) !important;
+  color: var(--theme-text-sub) !important;
 }
 
 .text-primary\/50,
 .text-primary\/45 {
-  color: rgba(255, 255, 255, 0.8) !important;
+  color: var(--theme-text-muted) !important;
 }
 
 .text-primary\/35,
 .text-primary\/25 {
-  color: rgba(255, 255, 255, 0.6) !important;
+  color: var(--theme-text-muted) !important;
 }
 
 .text-secondary {
@@ -335,15 +344,15 @@ button:disabled,
 
 /* === Body === */
 body {
-  background-color: #0F1639;
-  color: var(--surface-text);
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
   font-family: var(--font-body);
   min-height: 100vh;
 }
 
 /* === App Background === */
 .app-bg {
-  background-color: #10153A;
+  background-color: var(--theme-bg-alt);
   background-image: url('/kaaba-bg-longer.png');
   background-size: 100% auto;
   background-position: top center;
@@ -372,5 +381,5 @@ body {
 
 input::placeholder,
 textarea::placeholder {
-  color: var(--surface-text-muted);
+  color: var(--theme-text-muted);
 }

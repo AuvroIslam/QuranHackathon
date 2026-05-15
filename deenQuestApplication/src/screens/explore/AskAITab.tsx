@@ -1,5 +1,5 @@
 import { BookOpen, Send, ShieldCheck, Sparkles } from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -13,7 +13,8 @@ import {
   View,
 } from 'react-native';
 import { API_BASE } from '../../services/api';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { RADIUS, SHADOW } from '../../theme';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -67,6 +68,7 @@ function SimpleMarkdown({ text, style, userBubble }: { text: string; style: obje
 }
 
 export default function AskAITab() {
+  const { colors } = useTheme();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -113,6 +115,75 @@ export default function AskAITab() {
     }
   };
 
+  const styles = useMemo(() => StyleSheet.create({
+    flex: { flex: 1 },
+
+    emptyContainer: { alignItems: 'center', padding: 24, gap: 12 },
+    emptyChar: { width: 130, height: 130, resizeMode: 'contain', marginBottom: 4 },
+    emptyTitle: { color: colors.text, fontSize: 22, fontWeight: '800' },
+    emptySub: { color: colors.textSub, fontSize: 14, textAlign: 'center', lineHeight: 22 },
+    suggestions: { width: '100%', gap: 10, marginTop: 8 },
+    suggestion: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      backgroundColor: colors.card, borderRadius: RADIUS.xl,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      padding: 14, ...SHADOW.card,
+    },
+    suggestionText: { color: colors.text, fontSize: 14, fontWeight: '500', flex: 1 },
+
+    messages: { padding: 16, gap: 12, paddingBottom: 20 },
+    bubble: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+    bubbleUser: { justifyContent: 'flex-end' },
+    bubbleAI: { justifyContent: 'flex-start' },
+    bubbleUserWrap: { alignItems: 'flex-end', maxWidth: '78%' },
+    bubbleAIWrap: { alignItems: 'flex-start', maxWidth: '78%' },
+    aiAvatar: {
+      width: 30, height: 30, borderRadius: 15,
+      backgroundColor: colors.primaryBg,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    bubbleText: {
+      borderRadius: RADIUS.xl, padding: 12,
+    },
+    bubbleTextUser: {
+      backgroundColor: colors.primary,
+      borderBottomRightRadius: 4,
+    },
+    bubbleTextAI: {
+      backgroundColor: colors.card,
+      borderWidth: 1, borderColor: colors.cardBorder,
+      borderBottomLeftRadius: 4,
+      ...SHADOW.card,
+    },
+    typingBubble: { paddingVertical: 14, paddingHorizontal: 20 },
+    msgText: { color: colors.text, fontSize: 14, lineHeight: 22 },
+    msgTextUser: { color: colors.white },
+    groundedBadge: {
+      flexDirection: 'row', alignItems: 'center', gap: 4,
+      marginTop: 4, paddingHorizontal: 2,
+    },
+    groundedText: { color: colors.primary, fontSize: 11, opacity: 0.8 },
+
+    inputBar: {
+      flexDirection: 'row', alignItems: 'flex-end', gap: 10,
+      padding: 12, paddingBottom: Platform.OS === 'ios' ? 20 : 12,
+      backgroundColor: colors.card,
+      borderTopWidth: 1, borderTopColor: colors.cardBorder,
+    },
+    input: {
+      flex: 1, backgroundColor: colors.bg, borderRadius: RADIUS.xl,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      paddingHorizontal: 16, paddingVertical: 10,
+      color: colors.text, fontSize: 14, maxHeight: 100,
+    },
+    sendBtn: {
+      width: 44, height: 44, borderRadius: 22,
+      backgroundColor: colors.primary,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    sendBtnDisabled: { opacity: 0.4 },
+  }), [colors]);
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -127,7 +198,7 @@ export default function AskAITab() {
           <View style={styles.suggestions}>
             {SUGGESTIONS.map((s) => (
               <TouchableOpacity key={s} style={styles.suggestion} onPress={() => sendMessage(s)}>
-                <Sparkles size={13} color={COLORS.primary} />
+                <Sparkles size={13} color={colors.primary} />
                 <Text style={styles.suggestionText}>{s}</Text>
               </TouchableOpacity>
             ))}
@@ -145,7 +216,7 @@ export default function AskAITab() {
             <View key={i} style={[styles.bubble, msg.role === 'user' ? styles.bubbleUser : styles.bubbleAI]}>
               {msg.role === 'assistant' && (
                 <View style={styles.aiAvatar}>
-                  <BookOpen size={14} color={COLORS.primary} />
+                  <BookOpen size={14} color={colors.primary} />
                 </View>
               )}
               <View style={msg.role === 'user' ? styles.bubbleUserWrap : styles.bubbleAIWrap}>
@@ -158,7 +229,7 @@ export default function AskAITab() {
                 </View>
                 {msg.role === 'assistant' && msg.grounded && (
                   <View style={styles.groundedBadge}>
-                    <ShieldCheck size={11} color={COLORS.primary} />
+                    <ShieldCheck size={11} color={colors.primary} />
                     <Text style={styles.groundedText}>Verified with Quran MCP</Text>
                   </View>
                 )}
@@ -168,10 +239,10 @@ export default function AskAITab() {
           {loading && (
             <View style={[styles.bubble, styles.bubbleAI]}>
               <View style={styles.aiAvatar}>
-                <BookOpen size={14} color={COLORS.primary} />
+                <BookOpen size={14} color={colors.primary} />
               </View>
               <View style={[styles.bubbleText, styles.bubbleTextAI, styles.typingBubble]}>
-                <ActivityIndicator size="small" color={COLORS.primary} />
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             </View>
           )}
@@ -183,7 +254,7 @@ export default function AskAITab() {
         <TextInput
           style={styles.input}
           placeholder="Ask about Islam, Quran, dua…"
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={colors.textMuted}
           value={input}
           onChangeText={setInput}
           onSubmitEditing={() => sendMessage(input)}
@@ -195,78 +266,9 @@ export default function AskAITab() {
           onPress={() => sendMessage(input)}
           disabled={!input.trim() || loading}
         >
-          <Send size={18} color={COLORS.white} />
+          <Send size={18} color={colors.white} />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-
-  emptyContainer: { alignItems: 'center', padding: 24, gap: 12 },
-  emptyChar: { width: 130, height: 130, resizeMode: 'contain', marginBottom: 4 },
-  emptyTitle: { color: COLORS.text, fontSize: 22, fontWeight: '800' },
-  emptySub: { color: COLORS.textSub, fontSize: 14, textAlign: 'center', lineHeight: 22 },
-  suggestions: { width: '100%', gap: 10, marginTop: 8 },
-  suggestion: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    padding: 14, ...SHADOW.card,
-  },
-  suggestionText: { color: COLORS.text, fontSize: 14, fontWeight: '500', flex: 1 },
-
-  messages: { padding: 16, gap: 12, paddingBottom: 20 },
-  bubble: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  bubbleUser: { justifyContent: 'flex-end' },
-  bubbleAI: { justifyContent: 'flex-start' },
-  bubbleUserWrap: { alignItems: 'flex-end', maxWidth: '78%' },
-  bubbleAIWrap: { alignItems: 'flex-start', maxWidth: '78%' },
-  aiAvatar: {
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: COLORS.primaryBg,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  bubbleText: {
-    borderRadius: RADIUS.xl, padding: 12,
-  },
-  bubbleTextUser: {
-    backgroundColor: COLORS.primary,
-    borderBottomRightRadius: 4,
-  },
-  bubbleTextAI: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1, borderColor: COLORS.cardBorder,
-    borderBottomLeftRadius: 4,
-    ...SHADOW.card,
-  },
-  typingBubble: { paddingVertical: 14, paddingHorizontal: 20 },
-  msgText: { color: COLORS.text, fontSize: 14, lineHeight: 22 },
-  msgTextUser: { color: COLORS.white },
-  groundedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    marginTop: 4, paddingHorizontal: 2,
-  },
-  groundedText: { color: COLORS.primary, fontSize: 11, opacity: 0.8 },
-
-  inputBar: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 10,
-    padding: 12, paddingBottom: Platform.OS === 'ios' ? 20 : 12,
-    backgroundColor: COLORS.card,
-    borderTopWidth: 1, borderTopColor: COLORS.cardBorder,
-  },
-  input: {
-    flex: 1, backgroundColor: COLORS.bg, borderRadius: RADIUS.xl,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    paddingHorizontal: 16, paddingVertical: 10,
-    color: COLORS.text, fontSize: 14, maxHeight: 100,
-  },
-  sendBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  sendBtnDisabled: { opacity: 0.4 },
-});

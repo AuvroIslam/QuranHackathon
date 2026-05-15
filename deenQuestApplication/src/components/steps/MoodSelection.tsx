@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -14,7 +14,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { DEPTH, RADIUS, SHADOW } from '../../theme';
 import { Mood } from '../../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -39,6 +40,7 @@ interface Props {
 }
 
 export default function MoodSelection({ onSelect, onCustomText, loading = false }: Props) {
+  const { colors } = useTheme();
   const [selected, setSelected] = useState<Mood | null>(null);
   const [situation, setSituation] = useState('');
   const [findPressed, setFindPressed] = useState(false);
@@ -60,6 +62,116 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
     rows.push(MOODS.slice(i, i + 3));
   }
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1 },
+    scrollContent: { paddingBottom: 12, flexGrow: 1 },
+
+    hero: {
+      marginHorizontal: H_PADDING,
+      marginTop: 8,
+      marginBottom: 10,
+      borderRadius: RADIUS.xl,
+      overflow: 'hidden',
+    },
+    heroBg: { borderRadius: RADIUS.xl },
+
+    heroContent: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      padding: 14,
+      minHeight: 100,
+    },
+    heroChar: { width: 90, height: 110, resizeMode: 'contain' },
+    heroText: { flex: 1, paddingLeft: 10, paddingBottom: 6 },
+    bismillah: {
+      color: colors.primaryDark,
+      fontSize: 13,
+      fontStyle: 'italic',
+      marginBottom: 3,
+      opacity: 0.85,
+    },
+    heroTitle: {
+      color: colors.text,
+      fontSize: 20,
+      fontWeight: '800',
+      lineHeight: 26,
+      letterSpacing: -0.3,
+    },
+    heroSub: { color: colors.textSub, fontSize: 12, marginTop: 3 },
+
+    grid: { paddingHorizontal: H_PADDING, gap: CARD_GAP },
+    row: { flexDirection: 'row', gap: CARD_GAP },
+    rowCentered: { justifyContent: 'center' },
+
+    card: {
+      borderRadius: RADIUS.lg,
+      borderWidth: 2,
+      borderColor: colors.cardBorder,
+      overflow: 'hidden',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      backgroundColor: colors.primaryBg,
+    },
+    loadingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardSelected: {
+      borderColor: colors.primary,
+      borderWidth: 2.5,
+      ...SHADOW.glow(colors.primary),
+    },
+    labelWrap: {
+      width: '100%',
+      backgroundColor: 'rgba(255,255,255,0.85)',
+      paddingVertical: 4,
+      alignItems: 'center',
+    },
+    labelWrapSelected: { backgroundColor: colors.white },
+    cardLabel: { color: colors.primary, fontSize: 10, fontWeight: '700' },
+
+    divider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: H_PADDING,
+      marginTop: 10,
+      marginBottom: 12,
+      gap: 8,
+    },
+    dividerLine: { flex: 1, height: 1, backgroundColor: colors.cardBorder },
+    dividerText: { color: colors.textMuted, fontSize: 11, fontWeight: '500' },
+
+    textBoxWrap: {
+      marginHorizontal: H_PADDING,
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.xl,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      ...SHADOW.card,
+    },
+    textInput: {
+      color: colors.text,
+      fontSize: 14,
+      minHeight: 40,
+    },
+    findBtn: {
+      marginHorizontal: H_PADDING,
+      marginTop: 12,
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.xl,
+      paddingVertical: 17,
+      alignItems: 'center',
+    },
+    findBtnDisabled: {
+      opacity: 0.38,
+    },
+    findBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  }), [colors]);
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -68,7 +180,7 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
     >
     {loading && (
       <View style={styles.loadingOverlay} pointerEvents="none">
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     )}
     <ScrollView
@@ -103,6 +215,7 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
                 mood={mood}
                 selected={selected === mood.id}
                 onPress={() => handleMoodPress(mood.id)}
+                styles={styles}
               />
             ))}
           </View>
@@ -117,13 +230,11 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
       </View>
 
       {/* Custom text box */}
-      <View
-        style={styles.textBoxWrap}
-      >
+      <View style={styles.textBoxWrap}>
         <TextInput
           style={styles.textInput}
           placeholder="e.g. I feel empty and lost…"
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={colors.textMuted}
           value={situation}
           onChangeText={setSituation}
           returnKeyType="done"
@@ -158,9 +269,10 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
 }
 
 function MoodCard({
-  mood, selected, onPress,
+  mood, selected, onPress, styles,
 }: {
   mood: (typeof MOODS)[0]; selected: boolean; onPress: () => void;
+  styles: ReturnType<typeof StyleSheet.create>;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -176,7 +288,7 @@ function MoodCard({
         onPress={onPress}
         style={[styles.card, selected && styles.cardSelected, { width: CARD_SIZE, height: CARD_SIZE }]}
       >
-        <Image source={mood.image} style={styles.cardImage} />
+        <Image source={mood.image} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', resizeMode: 'cover' }} />
         <View style={[styles.labelWrap, selected && styles.labelWrapSelected]}>
           <Text style={styles.cardLabel} numberOfLines={1}>{mood.label}</Text>
         </View>
@@ -184,119 +296,3 @@ function MoodCard({
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { paddingBottom: 12, flexGrow: 1 },
-
-  hero: {
-    marginHorizontal: H_PADDING,
-    marginTop: 8,
-    marginBottom: 10,
-    borderRadius: RADIUS.xl,
-    overflow: 'hidden',
-  },
-  heroBg: { borderRadius: RADIUS.xl },
-
-  heroContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: 14,
-    minHeight: 100,
-  },
-  heroChar: { width: 90, height: 110, resizeMode: 'contain' },
-  heroText: { flex: 1, paddingLeft: 10, paddingBottom: 6 },
-  bismillah: {
-    color: COLORS.primaryDark,
-    fontSize: 13,
-    fontStyle: 'italic',
-    marginBottom: 3,
-    opacity: 0.85,
-  },
-  heroTitle: {
-    color: COLORS.text,
-    fontSize: 20,
-    fontWeight: '800',
-    lineHeight: 26,
-    letterSpacing: -0.3,
-  },
-  heroSub: { color: COLORS.textSub, fontSize: 12, marginTop: 3 },
-
-  grid: { paddingHorizontal: H_PADDING, gap: CARD_GAP },
-  row: { flexDirection: 'row', gap: CARD_GAP },
-  rowCentered: { justifyContent: 'center' },
-
-  card: {
-    borderRadius: RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.cardBorder,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    backgroundColor: COLORS.primaryBg,
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardSelected: {
-    borderColor: COLORS.primary,
-    borderWidth: 2.5,
-    ...SHADOW.glow(COLORS.primary),
-  },
-  cardImage: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    width: '100%', height: '100%',
-    resizeMode: 'cover',
-  },
-  labelWrap: {
-    width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    paddingVertical: 4,
-    alignItems: 'center',
-  },
-  labelWrapSelected: { backgroundColor: COLORS.white },
-  cardLabel: { color: COLORS.primary, fontSize: 10, fontWeight: '700' },
-
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: H_PADDING,
-    marginTop: 10,
-    marginBottom: 12,
-    gap: 8,
-  },
-  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.cardBorder },
-  dividerText: { color: COLORS.textMuted, fontSize: 11, fontWeight: '500' },
-
-  textBoxWrap: {
-    marginHorizontal: H_PADDING,
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    ...SHADOW.card,
-  },
-  textInput: {
-    color: COLORS.text,
-    fontSize: 14,
-    minHeight: 40,
-  },
-  findBtn: {
-    marginHorizontal: H_PADDING,
-    marginTop: 12,
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 17,
-    alignItems: 'center',
-  },
-  findBtnDisabled: {
-    opacity: 0.38,
-  },
-  findBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-});

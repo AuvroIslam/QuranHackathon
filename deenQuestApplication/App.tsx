@@ -7,11 +7,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ImageBackground, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthScreen from './src/screens/AuthScreen';
 import GoalSetupScreen, { GOAL_SET_KEY } from './src/screens/GoalSetupScreen';
 import OnboardingScreen, { ONBOARDING_KEY } from './src/screens/OnboardingScreen';
-import { COLORS } from './src/theme';
+import { LIGHT_COLORS } from './src/theme';
 
 // Configure Google Sign-In once at app startup
 GoogleSignin.configure({
@@ -21,6 +22,7 @@ GoogleSignin.configure({
 const navigationRef = createNavigationContainerRef<any>();
 
 const AppBg = require('./elementsApp/AppBg.png');
+const AppBgDark = require('./elementsApp/AppBgDark.png');
 const NAV_THEME = {
   ...DefaultTheme,
   colors: { ...DefaultTheme.colors, background: 'transparent' },
@@ -79,7 +81,7 @@ function RootNavigator() {
   if (loading || onboarded === null) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={LIGHT_COLORS.primary} />
       </View>
     );
   }
@@ -96,7 +98,7 @@ function RootNavigator() {
   if (goalSet === null) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={LIGHT_COLORS.primary} />
       </View>
     );
   }
@@ -112,15 +114,26 @@ function RootNavigator() {
   );
 }
 
+function ThemedApp() {
+  const { isDark } = useTheme();
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+      <ImageBackground source={isDark ? AppBgDark : AppBg} style={{ flex: 1 }} resizeMode="cover">
+        <RootNavigator />
+      </ImageBackground>
+    </>
+  );
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
-      <ImageBackground source={AppBg} style={{ flex: 1 }} resizeMode="cover">
-        <AuthProvider>
-          <RootNavigator />
-        </AuthProvider>
-      </ImageBackground>
+      <AuthProvider>
+        <ThemeProvider>
+          <ThemedApp />
+        </ThemeProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

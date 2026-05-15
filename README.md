@@ -273,11 +273,12 @@ SafeAreaProvider
 
 ### `src/screens/JourneyScreen.tsx` ← UPDATED
 - Loads user profile: `userGoal`, `userLevel`, `userTimePerDay`, `currentDay`, `quranProgress`
+- **Profile re-fetched on every focus via `useFocusEffect`** — `loadProfile` callback is called on every screen focus, not just on first mount. This ensures a mode switch in ProfileScreen is reflected immediately (JourneyScreen is a tab and doesn't remount).
 - **Duolingo-style header** (shown on all steps except completion):
   - `←` (X) circular button → navigates to Home tab via `useNavigation`
   - Thick purple progress bar (fills proportionally with `stepIndex / (totalSteps - 1)`)
   - `⚡ {xpEarned}` badge in amber/gold
-- **Learn path:** `'mood'` step renders `LessonIntroStep` with the lesson from `fetchLesson(levelKey, currentDay)` (live QF verse text). Tapping "Begin Lesson" calls `selectMood('justHere', lesson.learnContent, lesson.mcq)` → ayah → listen → speak → mcq → action → completion. The curriculum wraps after 20, so learn users always get a lesson; "Get an Ayah" (ayahOnly) still shows `MoodSelection`
+- **Learn path:** `'mood'` step always renders `MoodSelection` first. After mood is selected, if `apiLesson` is ready, `handleLearnMoodSelect` uses the lesson content; otherwise falls back to `getAyahByMood`. This ensures the mood screen is never skipped in Learn mode.
 - **Complete Quran path:** uses `COMPLETE_STEP_ORDER` (mood → ayah → reading → completion). `'reading'` step renders `QuranReadingSession`
 - `passThreshold` per level: newbie = 0.4, intermediate = 0.6, fluent = 0.7
 - `showTransliteration`: true for newbie/intermediate, false for fluent
@@ -303,7 +304,9 @@ SafeAreaProvider
 - XP progress bar toward next level
 - 4-stat grid: Day Streak, Hasanat, Total XP, Tasks Done
 - 6 achievement badges (locked/unlocked based on xp/streak/tasksCompleted)
-- Sign Out button (LogOut icon, top-right) with Alert confirm → `signOut(auth)`
+- **Profile re-fetched on every focus via `useFocusEffect`** — streak, XP, and badges update correctly after returning from a session (tab screen doesn't remount)
+- Sign Out shows a custom purple neumorphic modal (`DEPTH` press effect) instead of the default `Alert` — "Yes, Sign Out" + "Cancel" buttons
+- Mode switch (Learning ↔ Reading): calls `updateUserGoal`, clears journey AsyncStorage cache
 - Loads from Firestore `users/{uid}`
 
 ---
@@ -578,13 +581,20 @@ All pages, API routes, and features are implemented and deployed.
 - [x] GitHub Actions CI — runs both test suites on every push; deploys to Vercel production only after all tests pass on `main`
 - [x] Arabic normalization extracted to `src/lib/arabic-utils.ts` (shared, testable) — fixed a latent regex bug where the diacritic range also stripped base Arabic letters
 - [x] `ListenScreen.tsx` removed — was an orphaned "Coming Soon" placeholder not wired into navigation
+- [x] **Accessibility (web)** — ARIA roles, labels, and `aria-live` regions added across all major web pages and components (home, session, listen, community, chatbot, dawah, navbar, profile panel)
+- [x] **Streak = 0 bug fixed (mobile)** — `HomeScreen` `useFocusEffect` now calls `loadData()` on every focus; streak/XP re-fetched from Firestore when returning from JourneyScreen
+- [x] **Profile stale data fixed (mobile)** — `ProfileScreen` `useFocusEffect` now re-fetches the full profile (streak, XP, badges) on every focus, not just on first mount
+- [x] **JourneyScreen goal staleness fixed (mobile)** — profile loading extracted into `loadProfile` callback, called in `useFocusEffect`; mode switch from ProfileScreen is reflected immediately without requiring a remount
+- [x] **Sign out custom modal (mobile)** — replaced default `Alert.alert` with a custom purple neumorphic modal with `DEPTH` 3D press effect
+- [x] **Learning mode mood screen restored** — mood selection always shown first in Learn path; lesson content used after mood is picked (previously `LessonIntroStep` was shown instead, skipping mood)
 
 #### Pending / Known Issues
 
 - [ ] **Listen tab** — A dedicated "Listen" tab for full surah playback with word-by-word highlighting is planned but not yet built. Audio playback currently exists inside `QuranScreen` (per-ayah) and `ListenStep` (within sessions).
 - [ ] **Translation switching UI** — The Quran Foundation API supports 50+ translations and they are fetched, but the UI does not expose a language/translation selector. Users cannot switch translations.
 - [ ] **Web transliteration** — The web Quran reader (`/listen`) does not show transliteration. The mobile `QuranScreen` and `SpeakStep` do.
-- [ ] **Accessibility** — No WCAG compliance audit done. No ARIA roles, screen reader support, or high-contrast mode on either platform.
+- [x] **Accessibility (web)** — ARIA roles and labels added across all major pages and components
+- [ ] **Accessibility (mobile)** — No `accessibilityLabel` / `accessibilityRole` audit done on React Native components
 - [ ] **Dark / light mode** — Both apps use a fixed purple theme with no user toggle.
 - [ ] **Re-record the demo video** — Should reflect the current deployed build with live-fetch lessons, CI pipeline, and test suite.
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/components/AuthProvider";
+import { useTheme } from "@/context/ThemeContext";
+import { TRANSLATION_OPTIONS } from "@/lib/translations";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getSurahList } from "@/lib/quran";
@@ -67,6 +69,8 @@ async function qfProxy(path: string, extra: Record<string, string> = {}) {
 
 export default function ListenPage() {
   const { user, loading } = useAuth();
+  const { translationId } = useTheme();
+  const currentTranslation = TRANSLATION_OPTIONS.find(t => t.id === translationId) ?? TRANSLATION_OPTIONS[0];
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const verseRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -179,7 +183,7 @@ export default function ListenPage() {
         qfProxy(`verses/by_chapter/${chapter.id}`, {
           words: "true",
           word_fields: "text_uthmani,char_type_name",
-          translations: "57,20",
+          translations: `57,${translationId}`,
           per_page: "300",
         }),
         qfProxy(`recitations/7/by_chapter/${chapter.id}`, { per_page: "300" }).catch(() => null),
@@ -206,7 +210,7 @@ export default function ListenPage() {
       toast.error("Failed to load surah");
     }
     setLoadingVerses(false);
-  }, [stopAudio]);
+  }, [stopAudio, translationId]);
 
   async function playVerse(verse: Verse) {
     const vk = verse.verse_key;
@@ -457,7 +461,7 @@ export default function ListenPage() {
                 const isMeaningOpen = openMeaningKeys.has(vk);
                 const tafsirText = tafsirMap[vk];
                 const transliteration = verse.translations?.find((t) => t.resource_id === 57)?.text ?? "";
-                const translation = stripHtml(verse.translations?.find((t) => t.resource_id === 20)?.text ?? "");
+                const translation = stripHtml(verse.translations?.find((t) => t.resource_id === translationId)?.text ?? "");
                 const wordsOnly = verse.words?.filter((w) => w.char_type_name === "word") ?? [];
 
                 return (
@@ -518,7 +522,7 @@ export default function ListenPage() {
                             if (!user) return;
                             const chapterName = selectedChapter?.name_simple ?? "";
                             const arabicText = wordsOnly.map((w) => w.text_uthmani).join(" ");
-                            const trans = stripHtml(verse.translations?.find((t) => t.resource_id === 20)?.text ?? "");
+                            const trans = stripHtml(verse.translations?.find((t) => t.resource_id === translationId)?.text ?? "");
                             const wasBookmarked = bookmarkedKeys.has(vk);
                             setBookmarkedKeys((prev) => {
                               const s = new Set(prev);
@@ -601,7 +605,7 @@ export default function ListenPage() {
                         >
                           <BookOpen size={11} className="shrink-0" />
                           <span className="flex-1 text-left font-medium">
-                            {isMeaningOpen ? "Hide meaning" : "Show meaning"}
+                            {isMeaningOpen ? "Hide meaning" : `Show meaning (${currentTranslation.name})`}
                           </span>
                           <ChevronDown
                             size={13}

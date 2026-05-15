@@ -1,7 +1,8 @@
 import { CheckCircle, Flame, Moon, Zap } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { DEPTH, RADIUS, SHADOW } from '../../theme';
 
 interface Props {
   xpEarned: number;
@@ -28,6 +29,7 @@ const MAX_OUT_MESSAGES = [
 ];
 
 export default function CompletionStep({ xpEarned, streak, lastSessionDate, sessionsToday, maxSessions, onContinue, onRestart }: Props) {
+  const { colors } = useTheme();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const card1Anim = useRef(new Animated.Value(0)).current;
@@ -53,6 +55,123 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
       ]),
     ]).start();
   }, []);
+
+  const styles = useMemo(() => StyleSheet.create({
+    bg: { flex: 1 },
+    bgImage: { opacity: 0.55 },
+    container: {
+      flex: 1, padding: 24,
+      alignItems: 'center', justifyContent: 'center', gap: 20,
+    },
+    character: { width: 150, height: 150, resizeMode: 'contain' },
+    titleArea: { alignItems: 'center', gap: 8 },
+    title: { color: colors.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center' },
+    message: { color: colors.textSub, fontSize: 14, textAlign: 'center', lineHeight: 20 },
+
+    dotsRow: { flexDirection: 'row', gap: 8 },
+    sessionDot: {
+      width: 28, height: 8, borderRadius: 4,
+      backgroundColor: colors.surfaceDark,
+    },
+    sessionDotDone: { backgroundColor: colors.primary },
+
+    stats: { flexDirection: 'row', gap: 10, width: '100%' },
+    statCard: {
+      flex: 1, backgroundColor: colors.card,
+      borderRadius: RADIUS.xl, borderWidth: 1, borderColor: colors.cardBorder,
+      padding: 14, alignItems: 'center', gap: 5, ...SHADOW.card,
+    },
+    statCardStreak: { borderColor: '#FFD5C2', backgroundColor: '#FFF8F5' },
+    statCardStar: { borderColor: colors.accentLight, backgroundColor: '#FFFBEB' },
+    statValue: { fontSize: 24, fontWeight: '800' },
+    statLabel: { color: colors.textSub, fontSize: 11, fontWeight: '600' },
+
+    actions: { width: '100%', gap: 10 },
+    continueBtn: {
+      width: '100%', paddingVertical: 17,
+      borderRadius: RADIUS.xl, backgroundColor: colors.primary,
+      alignItems: 'center', ...SHADOW.glow(colors.primary),
+    },
+    continueBtnText: { color: colors.white, fontSize: 16, fontWeight: '800' },
+    doneBtn: {
+      width: '100%', paddingVertical: 14,
+      borderRadius: RADIUS.xl, backgroundColor: colors.card,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      borderBottomWidth: 4, borderBottomColor: '#9B8CC8',
+      alignItems: 'center',
+    },
+    doneBtnText: { color: colors.textSub, fontSize: 15, fontWeight: '700' },
+
+    maxedBadge: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: colors.primaryBg,
+      borderRadius: RADIUS.xl, borderWidth: 1, borderColor: colors.cardBorder,
+      paddingHorizontal: 16, paddingVertical: 12, width: '100%',
+      justifyContent: 'center',
+    },
+    maxedText: { color: colors.primaryDark, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  }), [colors]);
+
+  const streakStyles = useMemo(() => StyleSheet.create({
+    screen: {
+      flex: 1, backgroundColor: colors.bg,
+      alignItems: 'center', justifyContent: 'center',
+      paddingHorizontal: 32, gap: 28,
+    },
+    flameWrap: {
+      width: 120, height: 120,
+      alignItems: 'center', justifyContent: 'center',
+      position: 'relative',
+    },
+    flameGlow: {
+      position: 'absolute',
+      width: 100, height: 100, borderRadius: 50,
+      backgroundColor: '#fb923c',
+      opacity: 0.15,
+      transform: [{ scale: 1.4 }],
+    },
+    flameBadge: {
+      position: 'absolute', top: 4, right: 4,
+      width: 30, height: 30, borderRadius: 15,
+      backgroundColor: '#f97316',
+      alignItems: 'center', justifyContent: 'center',
+      borderWidth: 2, borderColor: colors.card,
+    },
+    flameBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+
+    weekRow: {
+      flexDirection: 'row', gap: 8, width: '100%',
+      justifyContent: 'space-between',
+    },
+    dayCol: { alignItems: 'center', gap: 6 },
+    dayLabel: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
+    dayCircle: {
+      width: 38, height: 38, borderRadius: 19,
+      borderWidth: 2, borderColor: colors.cardBorder,
+      backgroundColor: colors.surfaceDark,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    dayCircleDone: {
+      backgroundColor: '#f97316',
+      borderColor: '#fb923c',
+    },
+
+    textWrap: { alignItems: 'center', gap: 8 },
+    streakTitle: {
+      fontSize: 26, fontWeight: '800', color: colors.text, textAlign: 'center',
+    },
+    streakSub: {
+      fontSize: 14, color: colors.textSub, textAlign: 'center', lineHeight: 20,
+    },
+
+    continueBtn: {
+      width: '100%', paddingVertical: 17,
+      borderRadius: RADIUS.xl, backgroundColor: '#f97316',
+      alignItems: 'center',
+      borderBottomWidth: 4, borderBottomColor: '#c2410c',
+    },
+    continueBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
+  }), [colors]);
 
   // ── Streak celebration screen (first session of day) ──
   if (showStreak) {
@@ -150,8 +269,8 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
 
         <Animated.View style={[styles.stats, { opacity: fadeAnim }]}>
           <Animated.View style={[styles.statCard, { transform: [{ scale: card1Anim }] }]}>
-            <Zap size={22} color={COLORS.primary} fill={COLORS.primary} />
-            <Text style={[styles.statValue, { color: COLORS.primary }]}>+{xpEarned}</Text>
+            <Zap size={22} color={colors.primary} fill={colors.primary} />
+            <Text style={[styles.statValue, { color: colors.primary }]}>+{xpEarned}</Text>
             <Text style={styles.statLabel}>XP Earned</Text>
           </Animated.View>
 
@@ -162,8 +281,8 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
           </Animated.View>
 
           <Animated.View style={[styles.statCard, styles.statCardStar, { transform: [{ scale: card3Anim }] }]}>
-            <Zap size={22} color={COLORS.primary} fill={COLORS.primary} />
-            <Text style={[styles.statValue, { color: COLORS.primaryDark }]}>{xpEarned}</Text>
+            <Zap size={22} color={colors.primary} fill={colors.primary} />
+            <Text style={[styles.statValue, { color: colors.primaryDark }]}>{xpEarned}</Text>
             <Text style={styles.statLabel}>XP Earned</Text>
           </Animated.View>
         </Animated.View>
@@ -173,7 +292,7 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
             <>
               {/* Maxed out for today */}
               <View style={styles.maxedBadge}>
-                <Moon size={16} color={COLORS.primary} />
+                <Moon size={16} color={colors.primary} />
                 <Text style={styles.maxedText}>3/3 sessions done. See you tomorrow!</Text>
               </View>
               <Pressable
@@ -195,7 +314,7 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
                 style={[styles.continueBtn, DEPTH.button, continuePressed && DEPTH.buttonPressed]}
               >
                 <Text style={styles.continueBtnText}>
-                  Keep Going 
+                  Keep Going
                 </Text>
               </Pressable>
               <Pressable
@@ -213,120 +332,3 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
     </ImageBackground>
   );
 }
-
-const styles = StyleSheet.create({
-  bg: { flex: 1 },
-  bgImage: { opacity: 0.55 },
-  container: {
-    flex: 1, padding: 24,
-    alignItems: 'center', justifyContent: 'center', gap: 20,
-  },
-  character: { width: 150, height: 150, resizeMode: 'contain' },
-  titleArea: { alignItems: 'center', gap: 8 },
-  title: { color: COLORS.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center' },
-  message: { color: COLORS.textSub, fontSize: 14, textAlign: 'center', lineHeight: 20 },
-
-  dotsRow: { flexDirection: 'row', gap: 8 },
-  sessionDot: {
-    width: 28, height: 8, borderRadius: 4,
-    backgroundColor: COLORS.surfaceDark,
-  },
-  sessionDotDone: { backgroundColor: COLORS.primary },
-
-  stats: { flexDirection: 'row', gap: 10, width: '100%' },
-  statCard: {
-    flex: 1, backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl, borderWidth: 1, borderColor: COLORS.cardBorder,
-    padding: 14, alignItems: 'center', gap: 5, ...SHADOW.card,
-  },
-  statCardStreak: { borderColor: '#FFD5C2', backgroundColor: '#FFF8F5' },
-  statCardStar: { borderColor: COLORS.accentLight, backgroundColor: '#FFFBEB' },
-  statValue: { fontSize: 24, fontWeight: '800' },
-  statLabel: { color: COLORS.textSub, fontSize: 11, fontWeight: '600' },
-
-  actions: { width: '100%', gap: 10 },
-  continueBtn: {
-    width: '100%', paddingVertical: 17,
-    borderRadius: RADIUS.xl, backgroundColor: COLORS.primary,
-    alignItems: 'center', ...SHADOW.glow(COLORS.primary),
-  },
-  continueBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
-  doneBtn: {
-    width: '100%', paddingVertical: 14,
-    borderRadius: RADIUS.xl, backgroundColor: COLORS.card,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    borderBottomWidth: 4, borderBottomColor: '#9B8CC8',
-    alignItems: 'center',
-  },
-  doneBtnText: { color: COLORS.textSub, fontSize: 15, fontWeight: '700' },
-
-  maxedBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.primaryBg,
-    borderRadius: RADIUS.xl, borderWidth: 1, borderColor: COLORS.cardBorder,
-    paddingHorizontal: 16, paddingVertical: 12, width: '100%',
-    justifyContent: 'center',
-  },
-  maxedText: { color: COLORS.primaryDark, fontSize: 14, fontWeight: '700', textAlign: 'center' },
-});
-
-const streakStyles = StyleSheet.create({
-  screen: {
-    flex: 1, backgroundColor: COLORS.bg,
-    alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 32, gap: 28,
-  },
-  flameWrap: {
-    width: 120, height: 120,
-    alignItems: 'center', justifyContent: 'center',
-    position: 'relative',
-  },
-  flameGlow: {
-    position: 'absolute',
-    width: 100, height: 100, borderRadius: 50,
-    backgroundColor: '#fb923c',
-    opacity: 0.15,
-    transform: [{ scale: 1.4 }],
-  },
-  flameBadge: {
-    position: 'absolute', top: 4, right: 4,
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: '#f97316',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: COLORS.card,
-  },
-  flameBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-
-  weekRow: {
-    flexDirection: 'row', gap: 8, width: '100%',
-    justifyContent: 'space-between',
-  },
-  dayCol: { alignItems: 'center', gap: 6 },
-  dayLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
-  dayCircle: {
-    width: 38, height: 38, borderRadius: 19,
-    borderWidth: 2, borderColor: COLORS.cardBorder,
-    backgroundColor: COLORS.surfaceDark,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  dayCircleDone: {
-    backgroundColor: '#f97316',
-    borderColor: '#fb923c',
-  },
-
-  textWrap: { alignItems: 'center', gap: 8 },
-  streakTitle: {
-    fontSize: 26, fontWeight: '800', color: COLORS.text, textAlign: 'center',
-  },
-  streakSub: {
-    fontSize: 14, color: COLORS.textSub, textAlign: 'center', lineHeight: 20,
-  },
-
-  continueBtn: {
-    width: '100%', paddingVertical: 17,
-    borderRadius: RADIUS.xl, backgroundColor: '#f97316',
-    alignItems: 'center',
-    borderBottomWidth: 4, borderBottomColor: '#c2410c',
-  },
-  continueBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
-});

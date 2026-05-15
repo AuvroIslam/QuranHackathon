@@ -416,3 +416,10 @@ export async function updateUserName(uid: string, name: string) {
   await updateDoc(doc(db, "users", uid), { name });
 }
 
+export async function updateUserPreferences(
+  uid: string,
+  prefs: { preferredTheme?: 'light' | 'dark'; preferredTranslationId?: number }
+) {
+  await updateDoc(doc(db, "users", uid), prefs);
+}
+

@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Animated, Dimensions, FlatList, Image, ImageBackground,
   Pressable, StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, RADIUS, SHADOW } from '../theme';
+import { useTheme } from '../context/ThemeContext';
+import { RADIUS, SHADOW } from '../theme';
 
 const { width } = Dimensions.get('window');
 export const ONBOARDING_KEY = '@deenquest_onboarded';
@@ -32,6 +33,7 @@ const SLIDES = [
 ];
 
 export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
+  const { colors } = useTheme();
   const [index, setIndex] = useState(0);
   const flatRef = useRef<FlatList>(null);
   const dotAnim = useRef(SLIDES.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
@@ -61,6 +63,59 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
     }
   };
 
+  const styles = useMemo(() => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    bg: { flex: 1 },
+    slide: {
+      width,
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 32,
+      gap: 20,
+    },
+    character: { width: 220, height: 220, resizeMode: 'contain' },
+    title: {
+      color: colors.text,
+      fontSize: 32,
+      fontWeight: '800',
+      textAlign: 'center',
+      lineHeight: 40,
+      letterSpacing: -0.5,
+    },
+    sub: {
+      color: colors.textSub,
+      fontSize: 16,
+      textAlign: 'center',
+      lineHeight: 26,
+    },
+    dots: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 6,
+      paddingBottom: 24,
+    },
+    dot: { height: 8, borderRadius: RADIUS.full },
+    footer: {
+      paddingHorizontal: 24,
+      paddingBottom: 16,
+      gap: 12,
+      alignItems: 'center',
+    },
+    nextBtn: {
+      width: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.xl,
+      paddingVertical: 17,
+      alignItems: 'center',
+      ...SHADOW.glow(colors.primary),
+    },
+    nextBtnText: { color: colors.white, fontSize: 17, fontWeight: '700' },
+    skipBtn: { paddingVertical: 8 },
+    skipText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
+  }), [colors]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ImageBackground
@@ -89,7 +144,7 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
         <View style={styles.dots}>
           {SLIDES.map((_, i) => {
             const w = dotAnim[i].interpolate({ inputRange: [0, 1], outputRange: [8, 24] });
-            const bg = dotAnim[i].interpolate({ inputRange: [0, 1], outputRange: [COLORS.cardBorder, COLORS.primary] });
+            const bg = dotAnim[i].interpolate({ inputRange: [0, 1], outputRange: [colors.cardBorder, colors.primary] });
             return <Animated.View key={i} style={[styles.dot, { width: w, backgroundColor: bg }]} />;
           })}
         </View>
@@ -113,57 +168,3 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  bg: { flex: 1 },
-  slide: {
-    width,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 20,
-  },
-  character: { width: 220, height: 220, resizeMode: 'contain' },
-  title: {
-    color: COLORS.text,
-    fontSize: 32,
-    fontWeight: '800',
-    textAlign: 'center',
-    lineHeight: 40,
-    letterSpacing: -0.5,
-  },
-  sub: {
-    color: COLORS.textSub,
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 26,
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    paddingBottom: 24,
-  },
-  dot: { height: 8, borderRadius: RADIUS.full },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    gap: 12,
-    alignItems: 'center',
-  },
-  nextBtn: {
-    width: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 17,
-    alignItems: 'center',
-    ...SHADOW.glow(COLORS.primary),
-  },
-  nextBtnText: { color: COLORS.white, fontSize: 17, fontWeight: '700' },
-  skipBtn: { paddingVertical: 8 },
-  skipText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
-});
-

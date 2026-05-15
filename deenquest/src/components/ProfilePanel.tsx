@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   X, Edit2, Check, Bookmark, Flame, Zap, ClipboardCheck, Medal,
   GraduationCap, TrendingUp, Trophy, BadgeCheck, Shield, Crown, Star, LogOut,
-  BookOpen, Loader2,
+  BookOpen, Loader2, Globe,
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "./AuthProvider";
@@ -12,6 +12,8 @@ import { updateUserName, getBookmarks, getTasksCompletedCount, updateUserGoal } 
 import type { Bookmark as BookmarkType, UserGoal } from "@/lib/types";
 import { getQFAccessToken, isQFConnected, initiateQFOAuth, clearQFSession } from "@/lib/qf-user-auth";
 import toast from "react-hot-toast";
+import { useTheme } from "@/context/ThemeContext";
+import { TRANSLATION_OPTIONS } from "@/lib/translations";
 
 function getLevel(xp: number) {
   if (xp < 100) return { level: 1, title: "Seeker", next: 100 };
@@ -43,6 +45,8 @@ interface QFBookmark { key: number; verseNumber: number }
 
 export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
   const { user, profile, refreshProfile, signOut } = useAuth();
+  const { translationId, setTranslationId } = useTheme();
+  const currentTranslation = TRANSLATION_OPTIONS.find(t => t.id === translationId) ?? TRANSLATION_OPTIONS[0];
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
@@ -347,6 +351,30 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Translation Language */}
+          <div className="border-t pt-4 mt-2" style={{ borderColor: 'var(--theme-border)' }}>
+            <div className="flex items-center justify-between px-1 py-2">
+              <div className="flex items-center gap-2">
+                <Globe size={16} style={{ color: 'var(--theme-text-sub)' }} />
+                <span className="text-sm font-medium" style={{ color: 'var(--theme-text)' }}>Translation</span>
+              </div>
+              <select
+                value={translationId}
+                onChange={(e) => setTranslationId(Number(e.target.value))}
+                className="text-xs rounded-lg px-2 py-1.5 border outline-none max-w-40"
+                style={{
+                  backgroundColor: 'var(--theme-card-solid)',
+                  color: 'var(--theme-text)',
+                  borderColor: 'var(--theme-border-strong)',
+                }}
+              >
+                {TRANSLATION_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>{opt.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Sign Out */}

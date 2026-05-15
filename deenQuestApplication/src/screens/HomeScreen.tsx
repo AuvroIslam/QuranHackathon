@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AlertTriangle, BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, CircleCheck, Flame, Moon, X, Zap } from 'lucide-react-native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
@@ -15,11 +15,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { completeTask, getDailySessionCount, getUserProfile, getUserTasksForDate, resetStreak } from '../lib/firestore';
 import { cancelStreakReminder, scheduleStreakReminder } from '../lib/notifications';
 import { getTodaysTasks, Task } from '../lib/tasks-data';
 import { getStreakStatus } from '../lib/streakUtils';
-import { COLORS, DEPTH, RADIUS, SHADOW } from '../theme';
+import { DEPTH, RADIUS, SHADOW } from '../theme';
 
 const SESSION_KEY_PREFIX = '@deenquest_daily_sessions';
 
@@ -30,6 +31,7 @@ interface Props {
 
 export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   const { uid, user } = useAuth();
+  const { colors, isDark } = useTheme();
   const [streak, setStreak] = useState(0);
   const [lastSessionDate, setLastSessionDate] = useState<string | null>(null);
   const [xp, setXp] = useState(0);
@@ -143,6 +145,204 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   const displayName = user?.displayName?.split(' ')[0] ?? 'there';
   const streakStatus = getStreakStatus(lastSessionDate, streak);
 
+  const styles = useMemo(() => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.bg },
+    scroll: { paddingBottom: 100, paddingTop: 12 },
+
+    greetingHeader: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
+    greetingSub: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+    greetingName: { fontSize: 24, color: colors.text, fontWeight: '800' },
+
+
+    lessonCard: { marginHorizontal: 20, marginTop: 12, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: 24, backgroundColor: colors.bgDeep, ...SHADOW.strong },
+    lessonCardBg: { borderRadius: RADIUS.xl, opacity: 0.7 },
+    lessonCardContent: { padding: 16, gap: 12 },
+    lessonBadge: {
+      flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+      backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 10, paddingVertical: 5,
+      borderRadius: RADIUS.full,
+    },
+    lessonBadgeText: { color: colors.primary, fontSize: 11, fontWeight: '700' },
+    lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    lessonChar: { width: 90, height: 110, resizeMode: 'contain' },
+    lessonText: { flex: 1, gap: 4 },
+    lessonTitle: { color: colors.text, fontSize: 18, fontWeight: '800', lineHeight: 24, letterSpacing: -0.3 },
+    lessonSub: { color: colors.textSub, fontSize: 12 },
+    progressPill: {
+      flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4,
+      alignSelf: 'flex-start',
+      backgroundColor: 'rgba(167,139,250,0.15)',
+      borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
+      borderWidth: 1, borderColor: 'rgba(167,139,250,0.4)',
+    },
+    progressPillText: { color: '#a78bfa', fontSize: 11, fontWeight: '700' },
+    lessonBtn: {
+      backgroundColor: colors.primary, borderRadius: RADIUS.xl,
+      paddingVertical: 15, alignItems: 'center',
+    },
+    lessonBtnAyah: { backgroundColor: '#6D28D9' },
+    lessonBtnText: { color: colors.white, fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
+
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, marginBottom: 12 },
+    sectionTitle: { color: colors.text, fontSize: 17, fontWeight: '800', flex: 1 },
+    sectionSub: { color: colors.textMuted, fontSize: 12 },
+
+    taskList: { paddingHorizontal: 16, gap: 10 },
+    taskCard: {
+      backgroundColor: colors.card, borderRadius: RADIUS.xl,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      padding: 14, ...SHADOW.card,
+    },
+    taskCardDone: { backgroundColor: colors.primaryBg, borderColor: `${colors.primary}44` },
+    taskRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    taskCheck: { padding: 2 },
+    checkboxDone: {
+      width: 26, height: 26, borderRadius: 13,
+      backgroundColor: colors.primaryBg,
+      borderWidth: 2, borderColor: colors.primary,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    checkboxEmpty: {
+      width: 26, height: 26, borderRadius: 13,
+      borderWidth: 2, borderColor: colors.cardBorder,
+    },
+    taskBody: { flex: 1, gap: 4 },
+    taskTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
+    taskTitle: { color: colors.text, fontSize: 15, fontWeight: '700', flex: 1 },
+    taskTitleDone: { color: colors.textMuted, textDecorationLine: 'line-through' },
+    taskDesc: { color: colors.textSub, fontSize: 12 },
+    taskMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
+    catPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.full, borderWidth: 1 },
+    catText: { fontSize: 10, fontWeight: '600', textTransform: 'capitalize' },
+    taskRef: { color: colors.textMuted, fontSize: 11 },
+    xpPill: {
+      flexDirection: 'row', alignItems: 'center', gap: 3,
+      backgroundColor: colors.surfaceDark, paddingHorizontal: 8,
+      paddingVertical: 5, borderRadius: RADIUS.full,
+      marginLeft: 'auto',
+    },
+    xpPillDone: { backgroundColor: colors.primaryBg },
+    xpText: { color: colors.textMuted, fontSize: 11, fontWeight: '700' },
+    xpTextDone: { color: colors.primary },
+    taskDetail: {
+      marginTop: 10, paddingTop: 10,
+      borderTopWidth: 1, borderTopColor: colors.cardBorder,
+      gap: 8,
+    },
+    taskDetailSection: { gap: 3 },
+    taskDetailLabel: { color: colors.primary, fontSize: 11, fontWeight: '700' },
+    taskDetailText: { color: colors.textSub, fontSize: 12, lineHeight: 18 },
+    taskDetailDivider: { height: 1, backgroundColor: colors.cardBorder },
+
+    allDoneBanner: {
+      flexDirection: 'row', alignItems: 'center', gap: 14,
+      marginHorizontal: 16, marginTop: 16,
+      backgroundColor: colors.primaryBg, borderRadius: RADIUS.xl,
+      padding: 16, borderWidth: 1, borderColor: `${colors.primary}33`,
+    },
+    allDoneChar: { width: 60, height: 60, resizeMode: 'contain' },
+    allDoneTitle: { color: colors.primaryDark, fontSize: 16, fontWeight: '800' },
+    allDoneSub: { color: colors.textSub, fontSize: 13, marginTop: 2 },
+    recoveryBanner: {
+      flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+      backgroundColor: 'rgba(251,146,60,0.12)', borderRadius: 16,
+      borderWidth: 1, borderColor: 'rgba(251,146,60,0.3)',
+      paddingHorizontal: 14, paddingVertical: 12, marginHorizontal: 16, marginBottom: 4,
+    },
+    recoveryText: { flex: 1, color: '#fdba74', fontSize: 13, fontWeight: '600', lineHeight: 18 },
+    brokenBanner: { backgroundColor: 'rgba(248,113,113,0.12)', borderColor: 'rgba(248,113,113,0.3)' },
+    brokenText: { color: '#fca5a5' },
+  }), [colors]);
+
+  const streakWidgetStyles = useMemo(() => StyleSheet.create({
+    card: {
+      marginHorizontal: 16, marginBottom: 4, marginTop: 4,
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.xl, borderWidth: 1, borderColor: colors.cardBorder,
+      borderBottomWidth: 3, borderBottomColor: colors.cardBorder,
+      padding: 12, gap: 10,
+    },
+    header: { flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
+    col: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
+    flameCircle: {
+      width: 40, height: 40, borderRadius: 12,
+      backgroundColor: '#FFF0EB',
+      alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0,
+    },
+    zapCircle: {
+      width: 40, height: 40, borderRadius: 12,
+      backgroundColor: colors.primaryBg,
+      alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0,
+    },
+    vDivider: { width: 1, height: 44, backgroundColor: colors.cardBorder, marginHorizontal: 8, flexShrink: 0 },
+    chevronBtn: { padding: 4, marginLeft: 4 },
+    label: { fontSize: 10, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.8 },
+    value: { fontSize: 18, fontWeight: '800', color: colors.text, lineHeight: 24 },
+    unit: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+    tagline: { fontSize: 10, fontWeight: '700', color: '#FF6B35', marginTop: 1 },
+    divider: { height: 1, backgroundColor: colors.cardBorder },
+    weekRow: { flexDirection: 'row', justifyContent: 'space-between' },
+    dayCol: { alignItems: 'center', gap: 4 },
+    dayCircle: {
+      width: 32, height: 32, borderRadius: 16,
+      borderWidth: 2, borderColor: colors.cardBorder,
+      backgroundColor: colors.surfaceDark,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    dayCircleDone: { backgroundColor: '#f97316', borderColor: '#fb923c' },
+    dayCircleMissed: { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.4)' },
+    dayCircleToday: { borderColor: '#a855f7' },
+    dayLabel: { fontSize: 10, fontWeight: '700', color: colors.textMuted },
+  }), [colors]);
+
+  const modalStyles = useMemo(() => StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      paddingBottom: 32,
+      paddingHorizontal: 16,
+    },
+    sheet: {
+      width: '100%',
+      backgroundColor: '#1e1040',
+      borderRadius: 28,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)',
+      padding: 24,
+      alignItems: 'center',
+      gap: 12,
+    },
+    iconCircle: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: 'rgba(251,146,60,0.15)',
+      borderWidth: 1,
+      borderColor: 'rgba(251,146,60,0.3)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 4,
+    },
+    title: { color: '#fff', fontSize: 20, fontWeight: '800', textAlign: 'center' },
+    body: { color: 'rgba(255,255,255,0.6)', fontSize: 14, textAlign: 'center', lineHeight: 21 },
+    highlight: { color: '#fdba74', fontWeight: '700' },
+    primaryBtn: {
+      width: '100%',
+      backgroundColor: '#f97316',
+      borderRadius: 18,
+      paddingVertical: 15,
+      alignItems: 'center',
+      marginTop: 4,
+    },
+    primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+    ghostBtn: { width: '100%', paddingVertical: 12, alignItems: 'center' },
+    ghostBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: '600' },
+  }), [colors]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -189,12 +389,12 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                 <View style={streakWidgetStyles.vDivider} />
                 <View style={streakWidgetStyles.col}>
                   <View style={streakWidgetStyles.zapCircle}>
-                    <Zap size={20} color={COLORS.primary} fill={COLORS.primary} />
+                    <Zap size={20} color={colors.primary} fill={colors.primary} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={streakWidgetStyles.label} numberOfLines={1}>XP</Text>
-                    <Text style={[streakWidgetStyles.value, { color: COLORS.primaryDark }]} numberOfLines={1}>{xp} <Text style={streakWidgetStyles.unit}>XP</Text></Text>
-                    <Text style={[streakWidgetStyles.tagline, { color: COLORS.primary }]} numberOfLines={1}>Keep growing!</Text>
+                    <Text style={[streakWidgetStyles.value, { color: colors.primaryDark }]} numberOfLines={1}>{xp} <Text style={streakWidgetStyles.unit}>XP</Text></Text>
+                    <Text style={[streakWidgetStyles.tagline, { color: colors.primary }]} numberOfLines={1}>Keep growing!</Text>
                   </View>
                 </View>
                 <Pressable
@@ -206,8 +406,8 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                   accessibilityState={{ expanded: showWeekly }}
                 >
                   {showWeekly
-                    ? <ChevronDown size={18} color={COLORS.textMuted} />
-                    : <ChevronRight size={18} color={COLORS.textMuted} />}
+                    ? <ChevronDown size={18} color={colors.textMuted} />
+                    : <ChevronRight size={18} color={colors.textMuted} />}
                 </Pressable>
               </View>
               {showWeekly && (
@@ -257,7 +457,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
 
         {/* Start Today's Lesson card */}
         <ImageBackground
-          source={require('../../elementsApp/homecardBGmoon.png')}
+          source={isDark ? require('../../elementsApp/homecardBGmoonDark.png') : require('../../elementsApp/homecardBGmoon.png')}
           style={styles.lessonCard}
           imageStyle={styles.lessonCardBg}
         >
@@ -266,7 +466,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
               <>
                 {/* Sessions maxed — show Get Ayah mode */}
                 <View style={styles.lessonBadge}>
-                  <Moon size={11} color={COLORS.primary} />
+                  <Moon size={11} color={colors.primary} />
                   <Text style={styles.lessonBadgeText}>3/3 sessions done</Text>
                 </View>
                 <View style={styles.lessonRow}>
@@ -295,7 +495,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
               <>
                 {/* Normal flow */}
                 <View style={styles.lessonBadge}>
-                  <Zap size={11} color={COLORS.primary} />
+                  <Zap size={11} color={colors.primary} />
                   <Text style={styles.lessonBadgeText}>
                     {sessionsToday > 0 ? `${3 - sessionsToday} session${3 - sessionsToday !== 1 ? 's' : ''} left today` : '3-min lesson'}
                   </Text>
@@ -354,13 +554,13 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
 
         {/* Today's Tasks */}
         <View style={styles.sectionHeader}>
-          <BookOpen size={16} color={COLORS.primary} />
+          <BookOpen size={16} color={colors.primary} />
           <Text style={styles.sectionTitle}>Today's Tasks</Text>
           <Text style={styles.sectionSub}>Earn XP for each deed</Text>
         </View>
 
         {loadingTasks ? (
-          <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
         ) : (
           <View style={styles.taskList}>
             {tasks.map((task) => (
@@ -370,6 +570,8 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                 done={completedIds.has(task.id)}
                 completing={completing === task.id}
                 onComplete={() => handleComplete(task)}
+                colors={colors}
+                styles={styles}
               />
             ))}
           </View>
@@ -438,8 +640,8 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
 }
 
 
-function TaskCard({ task, done, completing, onComplete }: {
-  task: Task; done: boolean; completing: boolean; onComplete: () => void;
+function TaskCard({ task, done, completing, onComplete, colors, styles }: {
+  task: Task; done: boolean; completing: boolean; onComplete: () => void; colors: any; styles: any;
 }) {
   const [expanded, setExpanded] = useState(false);
   const CATEGORY_COLORS: Record<string, string> = {
@@ -447,7 +649,7 @@ function TaskCard({ task, done, completing, onComplete }: {
     memorization: '#2563EB', character: '#DC2626', kindness: '#EC4899',
     listening: '#0891B2', dawah: '#7C3AED', reflection: '#6D28D9',
   };
-  const catColor = CATEGORY_COLORS[task.category] ?? COLORS.primary;
+  void (CATEGORY_COLORS[task.category] ?? colors.primary); // kept for future catPill use
 
   return (
     <View style={[styles.taskCard, done && styles.taskCardDone]}>
@@ -462,9 +664,9 @@ function TaskCard({ task, done, completing, onComplete }: {
           accessibilityState={{ checked: done, disabled: done || completing }}
         >
           {completing
-            ? <ActivityIndicator size="small" color={COLORS.primary} />
+            ? <ActivityIndicator size="small" color={colors.primary} />
             : done
-              ? <View style={styles.checkboxDone}><Check size={14} color={COLORS.primary} strokeWidth={3} /></View>
+              ? <View style={styles.checkboxDone}><Check size={14} color={colors.primary} strokeWidth={3} /></View>
               : <View style={styles.checkboxEmpty} />}
         </Pressable>
 
@@ -479,14 +681,14 @@ function TaskCard({ task, done, completing, onComplete }: {
           <View style={styles.taskTitleRow}>
             <Text style={[styles.taskTitle, done && styles.taskTitleDone]}>{task.title}</Text>
             {expanded
-              ? <ChevronUp size={16} color={COLORS.textMuted} />
-              : <ChevronDown size={16} color={COLORS.textMuted} />}
+              ? <ChevronUp size={16} color={colors.textMuted} />
+              : <ChevronDown size={16} color={colors.textMuted} />}
           </View>
           <Text style={styles.taskDesc} numberOfLines={expanded ? undefined : 1}>{task.description}</Text>
           <View style={styles.taskMeta}>
             <Text style={styles.taskRef}>Quran {task.ayahRef}</Text>
             <View style={[styles.xpPill, done && styles.xpPillDone]}>
-              <Zap size={11} color={done ? COLORS.primary : COLORS.textMuted} />
+              <Zap size={11} color={done ? colors.primary : colors.textMuted} />
               <Text style={[styles.xpText, done && styles.xpTextDone]}>+{task.xpReward} XP</Text>
             </View>
           </View>
@@ -509,201 +711,3 @@ function TaskCard({ task, done, completing, onComplete }: {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { paddingBottom: 100, paddingTop: 12 },
-
-  greetingHeader: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
-  greetingSub: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
-  greetingName: { fontSize: 24, color: COLORS.text, fontWeight: '800' },
-
-
-  lessonCard: { marginHorizontal: 20, marginTop: 12, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: 24, backgroundColor: COLORS.bgDeep, ...SHADOW.strong },
-  lessonCardBg: { borderRadius: RADIUS.xl, opacity: 0.7 },
-  lessonCardContent: { padding: 16, gap: 12 },
-  lessonBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.85)', paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: RADIUS.full,
-  },
-  lessonBadgeText: { color: COLORS.primary, fontSize: 11, fontWeight: '700' },
-  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  lessonChar: { width: 90, height: 110, resizeMode: 'contain' },
-  lessonText: { flex: 1, gap: 4 },
-  lessonTitle: { color: COLORS.text, fontSize: 18, fontWeight: '800', lineHeight: 24, letterSpacing: -0.3 },
-  lessonSub: { color: COLORS.textSub, fontSize: 12 },
-  progressPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(167,139,250,0.15)',
-    borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 1, borderColor: 'rgba(167,139,250,0.4)',
-  },
-  progressPillText: { color: '#a78bfa', fontSize: 11, fontWeight: '700' },
-  lessonBtn: {
-    backgroundColor: COLORS.primary, borderRadius: RADIUS.xl,
-    paddingVertical: 15, alignItems: 'center',
-  },
-  lessonBtnAyah: { backgroundColor: '#6D28D9' },
-  lessonBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
-
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, marginBottom: 12 },
-  sectionTitle: { color: COLORS.text, fontSize: 17, fontWeight: '800', flex: 1 },
-  sectionSub: { color: COLORS.textMuted, fontSize: 12 },
-
-  taskList: { paddingHorizontal: 16, gap: 10 },
-  taskCard: {
-    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    padding: 14, ...SHADOW.card,
-  },
-  taskCardDone: { backgroundColor: COLORS.primaryBg, borderColor: `${COLORS.primary}44` },
-  taskRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  taskCheck: { padding: 2 },
-  checkboxDone: {
-    width: 26, height: 26, borderRadius: 13,
-    backgroundColor: COLORS.primaryBg,
-    borderWidth: 2, borderColor: COLORS.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  checkboxEmpty: {
-    width: 26, height: 26, borderRadius: 13,
-    borderWidth: 2, borderColor: COLORS.cardBorder,
-  },
-  taskBody: { flex: 1, gap: 4 },
-  taskTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4 },
-  taskTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700', flex: 1 },
-  taskTitleDone: { color: COLORS.textMuted, textDecorationLine: 'line-through' },
-  taskDesc: { color: COLORS.textSub, fontSize: 12 },
-  taskMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
-  catPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.full, borderWidth: 1 },
-  catText: { fontSize: 10, fontWeight: '600', textTransform: 'capitalize' },
-  taskRef: { color: COLORS.textMuted, fontSize: 11 },
-  xpPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: COLORS.surfaceDark, paddingHorizontal: 8,
-    paddingVertical: 5, borderRadius: RADIUS.full,
-    marginLeft: 'auto',
-  },
-  xpPillDone: { backgroundColor: COLORS.primaryBg },
-  xpText: { color: COLORS.textMuted, fontSize: 11, fontWeight: '700' },
-  xpTextDone: { color: COLORS.primary },
-  taskDetail: {
-    marginTop: 10, paddingTop: 10,
-    borderTopWidth: 1, borderTopColor: COLORS.cardBorder,
-    gap: 8,
-  },
-  taskDetailSection: { gap: 3 },
-  taskDetailLabel: { color: COLORS.primary, fontSize: 11, fontWeight: '700' },
-  taskDetailText: { color: COLORS.textSub, fontSize: 12, lineHeight: 18 },
-  taskDetailDivider: { height: 1, backgroundColor: COLORS.cardBorder },
-
-  allDoneBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    marginHorizontal: 16, marginTop: 16,
-    backgroundColor: COLORS.primaryBg, borderRadius: RADIUS.xl,
-    padding: 16, borderWidth: 1, borderColor: `${COLORS.primary}33`,
-  },
-  allDoneChar: { width: 60, height: 60, resizeMode: 'contain' },
-  allDoneTitle: { color: COLORS.primaryDark, fontSize: 16, fontWeight: '800' },
-  allDoneSub: { color: COLORS.textSub, fontSize: 13, marginTop: 2 },
-  recoveryBanner: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
-    backgroundColor: 'rgba(251,146,60,0.12)', borderRadius: 16,
-    borderWidth: 1, borderColor: 'rgba(251,146,60,0.3)',
-    paddingHorizontal: 14, paddingVertical: 12, marginHorizontal: 16, marginBottom: 4,
-  },
-  recoveryText: { flex: 1, color: '#fdba74', fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  brokenBanner: { backgroundColor: 'rgba(248,113,113,0.12)', borderColor: 'rgba(248,113,113,0.3)' },
-  brokenText: { color: '#fca5a5' },
-});
-
-const streakWidgetStyles = StyleSheet.create({
-  card: {
-    marginHorizontal: 16, marginBottom: 4, marginTop: 4,
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl, borderWidth: 1, borderColor: COLORS.cardBorder,
-    borderBottomWidth: 3, borderBottomColor: COLORS.cardBorder,
-    padding: 12, gap: 10,
-  },
-  header: { flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
-  col: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
-  flameCircle: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: '#FFF0EB',
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  },
-  zapCircle: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: COLORS.primaryBg,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  },
-  vDivider: { width: 1, height: 44, backgroundColor: COLORS.cardBorder, marginHorizontal: 8, flexShrink: 0 },
-  chevronBtn: { padding: 4, marginLeft: 4 },
-  label: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.8 },
-  value: { fontSize: 18, fontWeight: '800', color: COLORS.text, lineHeight: 24 },
-  unit: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
-  tagline: { fontSize: 10, fontWeight: '700', color: '#FF6B35', marginTop: 1 },
-  divider: { height: 1, backgroundColor: COLORS.cardBorder },
-  weekRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  dayCol: { alignItems: 'center', gap: 4 },
-  dayCircle: {
-    width: 32, height: 32, borderRadius: 16,
-    borderWidth: 2, borderColor: COLORS.cardBorder,
-    backgroundColor: COLORS.surfaceDark,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  dayCircleDone: { backgroundColor: '#f97316', borderColor: '#fb923c' },
-  dayCircleMissed: { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.4)' },
-  dayCircleToday: { borderColor: '#a855f7' },
-  dayLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted },
-});
-
-const modalStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 32,
-    paddingHorizontal: 16,
-  },
-  sheet: {
-    width: '100%',
-    backgroundColor: '#1e1040',
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    padding: 24,
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(251,146,60,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(251,146,60,0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  title: { color: '#fff', fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  body: { color: 'rgba(255,255,255,0.6)', fontSize: 14, textAlign: 'center', lineHeight: 21 },
-  highlight: { color: '#fdba74', fontWeight: '700' },
-  primaryBtn: {
-    width: '100%',
-    backgroundColor: '#f97316',
-    borderRadius: 18,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  ghostBtn: { width: '100%', paddingVertical: 12, alignItems: 'center' },
-  ghostBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: '600' },
-});

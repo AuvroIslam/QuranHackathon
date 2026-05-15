@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, MessageSquare, Plus, Search, Send, ThumbsUp, X } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import {
   ActivityIndicator, KeyboardAvoidingView, Modal, Platform,
   Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
@@ -8,7 +9,7 @@ import {
 import {
   Answer, createAnswer, createPost, getAnswers, getPosts, upvoteAnswer, upvotePost,
 } from '../../lib/firestore-community';
-import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
+import { DEPTH, RADIUS, SHADOW } from '../../theme';
 
 interface Post {
   id: string;
@@ -23,6 +24,7 @@ interface Post {
 
 export default function CommunityTab() {
   const { uid, user } = useAuth();
+  const { colors } = useTheme();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -144,6 +146,155 @@ export default function CommunityTab() {
     return p.title?.toLowerCase().includes(q) || p.content.toLowerCase().includes(q);
   });
 
+  const styles = useMemo(() => StyleSheet.create({
+    flex: { flex: 1 },
+    container: { padding: 16, gap: 12, paddingBottom: 40 },
+
+    rowHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+    heading: { color: colors.text, fontSize: 20, fontWeight: '800' },
+    sub: { color: colors.textSub, fontSize: 13 },
+    newBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: colors.primary, paddingHorizontal: 14,
+      paddingVertical: 9, borderRadius: RADIUS.full,
+      ...SHADOW.glow(colors.primary),
+    },
+    newBtnText: { color: colors.white, fontSize: 13, fontWeight: '700' },
+
+    searchWrap: {
+      flexDirection: 'row', alignItems: 'center',
+      backgroundColor: colors.card, borderRadius: RADIUS.xl,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      paddingHorizontal: 12, paddingVertical: 8, gap: 8,
+    },
+    searchInput: { flex: 1, color: colors.text, fontSize: 13, paddingVertical: 0 },
+    searchClear: { padding: 2 },
+
+    emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 12 },
+    emptyText: { color: colors.textMuted, fontSize: 14, textAlign: 'center' },
+
+    postCard: {
+      backgroundColor: colors.card, borderRadius: RADIUS.xl,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      overflow: 'hidden', ...SHADOW.card,
+    },
+    postHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, paddingBottom: 6 },
+    typePill: {
+      backgroundColor: colors.primaryBg, paddingHorizontal: 10,
+      paddingVertical: 3, borderRadius: RADIUS.full,
+    },
+    typePillQ: { backgroundColor: `${colors.accent}22` },
+    typeText: { color: colors.primary, fontSize: 11, fontWeight: '700' },
+    typeTextQ: { color: colors.accentDark },
+    postTime: { color: colors.textMuted, fontSize: 11, marginLeft: 'auto' },
+    postTitle: { color: colors.text, fontSize: 15, fontWeight: '700', paddingHorizontal: 14, marginBottom: 4 },
+    postContent: { color: colors.textSub, fontSize: 13, lineHeight: 20, paddingHorizontal: 14 },
+    postFooter: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 14, paddingVertical: 10, marginTop: 4,
+    },
+    postAuthor: { color: colors.textMuted, fontSize: 12 },
+    postActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    actionChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      backgroundColor: colors.primaryBg, paddingHorizontal: 10,
+      paddingVertical: 5, borderRadius: RADIUS.full,
+      borderWidth: 1, borderColor: `${colors.primary}33`,
+    },
+    actionChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    actionChipText: { color: colors.primary, fontSize: 12, fontWeight: '700' },
+    actionChipTextActive: { color: colors.white },
+    replyChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 4,
+      paddingHorizontal: 10, paddingVertical: 5,
+      backgroundColor: colors.surfaceDark, borderRadius: RADIUS.full,
+      borderWidth: 1, borderColor: colors.cardBorder,
+    },
+    replyChipText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+
+    // Replies
+    repliesSection: { paddingHorizontal: 14, paddingBottom: 12, gap: 10 },
+    repliesDivider: { height: 1, backgroundColor: colors.cardBorder, marginBottom: 4 },
+    noReplies: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic', textAlign: 'center', paddingVertical: 8 },
+
+    replyRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+    replyAvatar: {
+      width: 30, height: 30, borderRadius: 15,
+      backgroundColor: colors.primaryBg,
+      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    },
+    replyAvatarText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
+    replyBody: { flex: 1, gap: 3 },
+    replyMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    replyName: { color: colors.text, fontSize: 12, fontWeight: '700' },
+    replyTime: { color: colors.textMuted, fontSize: 11 },
+    replyContent: { color: colors.textSub, fontSize: 13, lineHeight: 19 },
+    replyActions: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
+    replyUpvote: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    replyUpvoteText: { color: colors.textMuted, fontSize: 11 },
+    replyUpvoteTextActive: { color: colors.primary },
+    replyToBtn: { color: colors.primary, fontSize: 11, fontWeight: '700' },
+    subReplyRow: { flexDirection: 'row', marginLeft: 14, marginTop: 6 },
+    subReplyLine: { width: 2, backgroundColor: colors.cardBorder, borderRadius: 2, marginRight: 8, marginLeft: 6 },
+    subReplyAvatar: { width: 24, height: 24, borderRadius: 12 },
+    replyingToBanner: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: colors.primaryBg, borderRadius: RADIUS.md,
+      paddingHorizontal: 10, paddingVertical: 6, marginBottom: 4,
+    },
+    replyingToText: { color: colors.primary, fontSize: 12, fontWeight: '600' },
+    replyingToCancel: { color: colors.primary, fontSize: 13, fontWeight: '700', paddingHorizontal: 4 },
+
+    replyInput: {
+      flexDirection: 'row', alignItems: 'flex-end', gap: 8,
+      marginTop: 4,
+    },
+    replyTextInput: {
+      flex: 1,
+      backgroundColor: colors.surfaceDark,
+      borderRadius: RADIUS.lg,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      paddingHorizontal: 12, paddingVertical: 8,
+      color: colors.text, fontSize: 13, maxHeight: 80,
+    },
+    replySendBtn: {
+      width: 38, height: 38, borderRadius: 19,
+      backgroundColor: colors.primary,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    replySendBtnDisabled: { opacity: 0.4 },
+
+    // Modal
+    modal: { flex: 1, backgroundColor: colors.bg, padding: 20, gap: 14 },
+    modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
+    modalTitle: { color: colors.text, fontSize: 20, fontWeight: '800' },
+    modalClose: { color: colors.primary, fontSize: 15, fontWeight: '600' },
+    typeRow: { flexDirection: 'row', gap: 10 },
+    typeChip: {
+      paddingHorizontal: 16, paddingVertical: 8,
+      borderRadius: RADIUS.full, borderWidth: 1.5, borderColor: colors.cardBorder,
+    },
+    typeChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    typeChipText: { color: colors.textSub, fontSize: 13, fontWeight: '600' },
+    typeChipTextActive: { color: colors.white },
+    titleInput: {
+      backgroundColor: colors.card, borderRadius: RADIUS.lg, borderWidth: 1.5,
+      borderColor: colors.cardBorder, padding: 14, color: colors.text, fontSize: 15, fontWeight: '600',
+    },
+    contentInput: {
+      backgroundColor: colors.card, borderRadius: RADIUS.lg, borderWidth: 1.5,
+      borderColor: colors.cardBorder, padding: 14, color: colors.text, fontSize: 14,
+      minHeight: 140, flex: 1,
+    },
+    submitBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      backgroundColor: colors.primary, borderRadius: RADIUS.xl, paddingVertical: 16,
+      ...SHADOW.glow(colors.primary),
+    },
+    submitBtnDisabled: { opacity: 0.45 },
+    submitBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  }), [colors]);
+
   return (
     <View style={styles.flex}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -158,18 +309,18 @@ export default function CommunityTab() {
             onPress={() => setShowModal(true)}
             style={[styles.newBtn, DEPTH.button, newBtnPressed && DEPTH.buttonPressed]}
           >
-            <Plus size={16} color={COLORS.white} />
+            <Plus size={16} color={colors.white} />
             <Text style={styles.newBtnText}>Post</Text>
           </Pressable>
         </View>
 
         {/* Search bar */}
         <View style={styles.searchWrap}>
-          <Search size={15} color={COLORS.textMuted} />
+          <Search size={15} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search posts by keyword…"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
@@ -177,16 +328,16 @@ export default function CommunityTab() {
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.searchClear}>
-              <X size={13} color={COLORS.textMuted} />
+              <X size={13} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
 
         {loading ? (
-          <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
         ) : filteredPosts.length === 0 ? (
           <View style={styles.emptyWrap}>
-            <MessageSquare size={36} color={COLORS.textMuted} />
+            <MessageSquare size={36} color={colors.textMuted} />
             <Text style={styles.emptyText}>
               {searchQuery.trim() ? 'No posts match your search.' : 'No posts yet — be the first to share!'}
             </Text>
@@ -223,7 +374,7 @@ export default function CommunityTab() {
                       style={[styles.actionChip, isUpvoted && styles.actionChipActive]}
                       onPress={() => handleUpvote(post.id)}
                     >
-                      <ThumbsUp size={13} color={isUpvoted ? COLORS.white : COLORS.primary} />
+                      <ThumbsUp size={13} color={isUpvoted ? colors.white : colors.primary} />
                       <Text style={[styles.actionChipText, isUpvoted && styles.actionChipTextActive]}>
                         {post.upvotes}
                       </Text>
@@ -233,13 +384,13 @@ export default function CommunityTab() {
                       style={styles.replyChip}
                       onPress={() => handleToggleExpand(post.id)}
                     >
-                      <MessageSquare size={13} color={COLORS.textMuted} />
+                      <MessageSquare size={13} color={colors.textMuted} />
                       <Text style={styles.replyChipText}>
                         {replyCount > 0 ? replyCount : ''} {replyCount === 1 ? 'Reply' : 'Replies'}
                       </Text>
                       {expanded
-                        ? <ChevronUp size={13} color={COLORS.textMuted} />
-                        : <ChevronDown size={13} color={COLORS.textMuted} />}
+                        ? <ChevronUp size={13} color={colors.textMuted} />
+                        : <ChevronDown size={13} color={colors.textMuted} />}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -250,7 +401,7 @@ export default function CommunityTab() {
                     <View style={styles.repliesDivider} />
 
                     {loadingAnswers[post.id] ? (
-                      <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 12 }} />
+                      <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 12 }} />
                     ) : replies.filter((r) => !r.parentAnswerId).length === 0 ? (
                       <Text style={styles.noReplies}>No replies yet — add the first one!</Text>
                     ) : (
@@ -278,7 +429,7 @@ export default function CommunityTab() {
                                     style={styles.replyUpvote}
                                     onPress={() => handleAnswerUpvote(answer.id, post.id)}
                                   >
-                                    <ThumbsUp size={11} color={answerUpvoted ? COLORS.primary : COLORS.textMuted} />
+                                    <ThumbsUp size={11} color={answerUpvoted ? colors.primary : colors.textMuted} />
                                     <Text style={[styles.replyUpvoteText, answerUpvoted && styles.replyUpvoteTextActive]}>
                                       {answer.upvotes > 0 ? answer.upvotes : ''}
                                     </Text>
@@ -320,7 +471,7 @@ export default function CommunityTab() {
                                         style={styles.replyUpvote}
                                         onPress={() => handleAnswerUpvote(sub.id, post.id)}
                                       >
-                                        <ThumbsUp size={11} color={subUpvoted ? COLORS.primary : COLORS.textMuted} />
+                                        <ThumbsUp size={11} color={subUpvoted ? colors.primary : colors.textMuted} />
                                         <Text style={[styles.replyUpvoteText, subUpvoted && styles.replyUpvoteTextActive]}>
                                           {sub.upvotes > 0 ? sub.upvotes : ''}
                                         </Text>
@@ -348,7 +499,7 @@ export default function CommunityTab() {
                       <TextInput
                         style={styles.replyTextInput}
                         placeholder={replyingTo[post.id] ? `Reply to ${replyingTo[post.id]!.userName}…` : 'Write a reply…'}
-                        placeholderTextColor={COLORS.textMuted}
+                        placeholderTextColor={colors.textMuted}
                         value={answerInput[post.id] ?? ''}
                         onChangeText={(t) => setAnswerInput((prev) => ({ ...prev, [post.id]: t }))}
                         multiline
@@ -364,8 +515,8 @@ export default function CommunityTab() {
                         disabled={!answerInput[post.id]?.trim() || answerLoading[post.id]}
                       >
                         {answerLoading[post.id]
-                          ? <ActivityIndicator size="small" color={COLORS.white} />
-                          : <Send size={15} color={COLORS.white} />}
+                          ? <ActivityIndicator size="small" color={colors.white} />
+                          : <Send size={15} color={colors.white} />}
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -403,14 +554,14 @@ export default function CommunityTab() {
           <TextInput
             style={styles.titleInput}
             placeholder="Title…"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={title}
             onChangeText={setTitle}
           />
           <TextInput
             style={styles.contentInput}
             placeholder="Share your thoughts…"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={content}
             onChangeText={setContent}
             multiline
@@ -430,10 +581,10 @@ export default function CommunityTab() {
             ]}
           >
             {posting ? (
-              <ActivityIndicator color={COLORS.white} size="small" />
+              <ActivityIndicator color={colors.white} size="small" />
             ) : (
               <>
-                <Send size={15} color={COLORS.white} />
+                <Send size={15} color={colors.white} />
                 <Text style={styles.submitBtnText}>Post</Text>
               </>
             )}
@@ -443,152 +594,3 @@ export default function CommunityTab() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { padding: 16, gap: 12, paddingBottom: 40 },
-
-  rowHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  heading: { color: COLORS.text, fontSize: 20, fontWeight: '800' },
-  sub: { color: COLORS.textSub, fontSize: 13 },
-  newBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: COLORS.primary, paddingHorizontal: 14,
-    paddingVertical: 9, borderRadius: RADIUS.full,
-    ...SHADOW.glow(COLORS.primary),
-  },
-  newBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
-
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    paddingHorizontal: 12, paddingVertical: 8, gap: 8,
-  },
-  searchInput: { flex: 1, color: COLORS.text, fontSize: 13, paddingVertical: 0 },
-  searchClear: { padding: 2 },
-
-  emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 12 },
-  emptyText: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center' },
-
-  postCard: {
-    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    overflow: 'hidden', ...SHADOW.card,
-  },
-  postHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, paddingBottom: 6 },
-  typePill: {
-    backgroundColor: COLORS.primaryBg, paddingHorizontal: 10,
-    paddingVertical: 3, borderRadius: RADIUS.full,
-  },
-  typePillQ: { backgroundColor: `${COLORS.accent}22` },
-  typeText: { color: COLORS.primary, fontSize: 11, fontWeight: '700' },
-  typeTextQ: { color: COLORS.accentDark },
-  postTime: { color: COLORS.textMuted, fontSize: 11, marginLeft: 'auto' },
-  postTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700', paddingHorizontal: 14, marginBottom: 4 },
-  postContent: { color: COLORS.textSub, fontSize: 13, lineHeight: 20, paddingHorizontal: 14 },
-  postFooter: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 14, paddingVertical: 10, marginTop: 4,
-  },
-  postAuthor: { color: COLORS.textMuted, fontSize: 12 },
-  postActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  actionChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: COLORS.primaryBg, paddingHorizontal: 10,
-    paddingVertical: 5, borderRadius: RADIUS.full,
-    borderWidth: 1, borderColor: `${COLORS.primary}33`,
-  },
-  actionChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  actionChipText: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
-  actionChipTextActive: { color: COLORS.white },
-  replyChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 10, paddingVertical: 5,
-    backgroundColor: COLORS.surfaceDark, borderRadius: RADIUS.full,
-    borderWidth: 1, borderColor: COLORS.cardBorder,
-  },
-  replyChipText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
-
-  // Replies
-  repliesSection: { paddingHorizontal: 14, paddingBottom: 12, gap: 10 },
-  repliesDivider: { height: 1, backgroundColor: COLORS.cardBorder, marginBottom: 4 },
-  noReplies: { color: COLORS.textMuted, fontSize: 12, fontStyle: 'italic', textAlign: 'center', paddingVertical: 8 },
-
-  replyRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  replyAvatar: {
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: COLORS.primaryBg,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  replyAvatarText: { color: COLORS.primary, fontSize: 12, fontWeight: '800' },
-  replyBody: { flex: 1, gap: 3 },
-  replyMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  replyName: { color: COLORS.text, fontSize: 12, fontWeight: '700' },
-  replyTime: { color: COLORS.textMuted, fontSize: 11 },
-  replyContent: { color: COLORS.textSub, fontSize: 13, lineHeight: 19 },
-  replyActions: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 2 },
-  replyUpvote: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  replyUpvoteText: { color: COLORS.textMuted, fontSize: 11 },
-  replyUpvoteTextActive: { color: COLORS.primary },
-  replyToBtn: { color: COLORS.primary, fontSize: 11, fontWeight: '700' },
-  subReplyRow: { flexDirection: 'row', marginLeft: 14, marginTop: 6 },
-  subReplyLine: { width: 2, backgroundColor: COLORS.cardBorder, borderRadius: 2, marginRight: 8, marginLeft: 6 },
-  subReplyAvatar: { width: 24, height: 24, borderRadius: 12 },
-  replyingToBanner: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.primaryBg, borderRadius: RADIUS.md,
-    paddingHorizontal: 10, paddingVertical: 6, marginBottom: 4,
-  },
-  replyingToText: { color: COLORS.primary, fontSize: 12, fontWeight: '600' },
-  replyingToCancel: { color: COLORS.primary, fontSize: 13, fontWeight: '700', paddingHorizontal: 4 },
-
-  replyInput: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 8,
-    marginTop: 4,
-  },
-  replyTextInput: {
-    flex: 1,
-    backgroundColor: COLORS.surfaceDark,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    paddingHorizontal: 12, paddingVertical: 8,
-    color: COLORS.text, fontSize: 13, maxHeight: 80,
-  },
-  replySendBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  replySendBtnDisabled: { opacity: 0.4 },
-
-  // Modal
-  modal: { flex: 1, backgroundColor: COLORS.bg, padding: 20, gap: 14 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
-  modalTitle: { color: COLORS.text, fontSize: 20, fontWeight: '800' },
-  modalClose: { color: COLORS.primary, fontSize: 15, fontWeight: '600' },
-  typeRow: { flexDirection: 'row', gap: 10 },
-  typeChip: {
-    paddingHorizontal: 16, paddingVertical: 8,
-    borderRadius: RADIUS.full, borderWidth: 1.5, borderColor: COLORS.cardBorder,
-  },
-  typeChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  typeChipText: { color: COLORS.textSub, fontSize: 13, fontWeight: '600' },
-  typeChipTextActive: { color: COLORS.white },
-  titleInput: {
-    backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1.5,
-    borderColor: COLORS.cardBorder, padding: 14, color: COLORS.text, fontSize: 15, fontWeight: '600',
-  },
-  contentInput: {
-    backgroundColor: COLORS.card, borderRadius: RADIUS.lg, borderWidth: 1.5,
-    borderColor: COLORS.cardBorder, padding: 14, color: COLORS.text, fontSize: 14,
-    minHeight: 140, flex: 1,
-  },
-  submitBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: COLORS.primary, borderRadius: RADIUS.xl, paddingVertical: 16,
-    ...SHADOW.glow(COLORS.primary),
-  },
-  submitBtnDisabled: { opacity: 0.45 },
-  submitBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-});

@@ -3,10 +3,11 @@
 // word-by-word accuracy feedback with green/red chips. This is NOT a stub.
 import { Audio } from 'expo-av';
 import { Loader, Mic, Pause, Play, RotateCw, Square } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { checkSpeech } from '../../services/api';
-import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { DEPTH, RADIUS, SHADOW } from '../../theme';
 import { Ayah, SpeechResult, WordResult } from '../../types';
 
 type SpeakState = 'idle' | 'recording' | 'checking' | 'correct' | 'wrong' | 'done';
@@ -18,13 +19,6 @@ function scoreLabel(score: number, correct: boolean): string {
   if (pct < 50) return 'Getting there!';
   if (pct < 75) return 'Almost there!';
   return 'So close!';
-}
-
-function pctColor(score: number): string {
-  const pct = Math.round(score * 100);
-  if (pct < 25) return COLORS.error;
-  if (pct < 50) return COLORS.accent;
-  return COLORS.accent;
 }
 
 interface Props {
@@ -44,6 +38,7 @@ export default function SpeakStep({
   passThreshold = 0.6,
   showTransliteration = true,
 }: Props) {
+  const { colors } = useTheme();
   const [speakState, setSpeakState] = useState<SpeakState>('idle');
   const [result, setResult] = useState<SpeechResult | null>(null);
   const [playState, setPlayState] = useState<'idle' | 'loading' | 'playing'>('idle');
@@ -54,6 +49,13 @@ export default function SpeakStep({
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const resultAnim = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  const pctColor = (score: number): string => {
+    const pct = Math.round(score * 100);
+    if (pct < 25) return colors.error;
+    if (pct < 50) return colors.accent;
+    return colors.accent;
+  };
 
   useEffect(() => {
     return () => {
@@ -175,17 +177,76 @@ export default function SpeakStep({
     return require('../../../elementsApp/reciting-removebg-preview.png');
   };
 
-  const micBtnColor = COLORS.primary;
+  const micBtnColor = colors.primary;
 
   const MicBtnIcon = () => {
-    if (speakState === 'checking') return <Mic size={36} color={COLORS.white} />;
-    if (speakState === 'recording') return <Square size={34} color={COLORS.white} fill={COLORS.white} />;
-    if (speakState === 'wrong') return <RotateCw size={34} color={COLORS.white} />;
-    return <Mic size={36} color={COLORS.white} />;
+    if (speakState === 'checking') return <Mic size={36} color={colors.white} />;
+    if (speakState === 'recording') return <Square size={34} color={colors.white} fill={colors.white} />;
+    if (speakState === 'wrong') return <RotateCw size={34} color={colors.white} />;
+    return <Mic size={36} color={colors.white} />;
   };
 
   // Show word chips before result (greyed) or after result (coloured)
   const arabicWords = ayah.arabic.split(' ').reverse(); // RTL display
+
+  const styles = useMemo(() => StyleSheet.create({
+    container: { padding: 16, paddingTop: 32, gap: 16, paddingBottom: 40 },
+    titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    titleBlock: { flex: 1, gap: 4 },
+    title: { color: colors.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
+    sub: { color: colors.textSub, fontSize: 14 },
+    arabicCard: {
+      backgroundColor: colors.card, borderRadius: RADIUS.xl,
+      borderWidth: 1, borderColor: colors.cardBorder, overflow: 'hidden', ...SHADOW.card,
+    },
+    cardBar: { height: 5, backgroundColor: colors.primary },
+    wordRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, padding: 14, paddingTop: 6, paddingBottom: 6 },
+    wordChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.md, borderWidth: 1 },
+    wordChipPending: { backgroundColor: colors.surfaceDark, borderColor: colors.cardBorder },
+    wordChipCorrect: { backgroundColor: `${colors.success}22`, borderColor: `${colors.success}66` },
+    wordChipWrong: { backgroundColor: `${colors.error}22`, borderColor: `${colors.error}66` },
+    wordText: { fontSize: 20, lineHeight: 36 },
+    wordTextPending: { color: colors.textMuted },
+    wordTextCorrect: { color: colors.success },
+    wordTextWrong: { color: colors.error },
+    transliteration: {
+      color: colors.textMuted, fontSize: 11, textAlign: 'center',
+      fontStyle: 'italic', paddingHorizontal: 12, paddingBottom: 4,
+    },
+    translation: { color: colors.textSub, fontSize: 12, textAlign: 'center', fontStyle: 'italic', paddingHorizontal: 12, paddingBottom: 12 },
+    cardTopRow: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2, flexDirection: 'row', alignItems: 'center', gap: 10 },
+    cardScoreLabel: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
+    cardPlayBtn: {
+      width: 26, height: 26, borderRadius: 13,
+      backgroundColor: colors.primaryBg,
+      borderWidth: 1.5, borderColor: colors.primary,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    cardPlayBtnActive: { backgroundColor: colors.primary },
+    character: { width: 90, height: 100, resizeMode: 'contain' },
+    scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    scoreTrack: { flex: 1, height: 8, backgroundColor: colors.surfaceDark, borderRadius: 4, overflow: 'hidden' },
+    scoreFill: { height: '100%', borderRadius: 4 },
+    scorePct: { color: colors.textSub, fontSize: 13, fontWeight: '700', minWidth: 36, textAlign: 'right' },
+    micArea: { alignItems: 'center', gap: 12 },
+    hearBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      paddingHorizontal: 20, paddingVertical: 10,
+      borderRadius: RADIUS.full, borderWidth: 1.5,
+      borderColor: colors.primary, backgroundColor: colors.primaryBg,
+    },
+    hearBtnActive: { backgroundColor: `${colors.primary}18` },
+    hearBtnText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+    micBtn: { width: 90, height: 90, borderRadius: 45, alignItems: 'center', justifyContent: 'center' },
+    micHint: { color: colors.textMuted, fontSize: 14, textAlign: 'center', paddingTop: 10 },
+    dotsRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.error },
+    continueWrap: { paddingTop: 8 },
+    continueBtn: { backgroundColor: colors.primary, borderRadius: RADIUS.xl, paddingVertical: 17, alignItems: 'center' },
+    continueBtnDisabled: { opacity: 0.38 },
+    continueBtnText: { color: colors.white, fontSize: 17, fontWeight: '700', letterSpacing: 0.3 },
+    continueBtnTextDisabled: {},
+  }), [colors]);
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -206,27 +267,27 @@ export default function SpeakStep({
               style={[styles.cardPlayBtn, playState === 'playing' && styles.cardPlayBtnActive]}
             >
               {playState === 'loading' ? (
-                <Loader size={12} color={COLORS.primary} />
+                <Loader size={12} color={colors.primary} />
               ) : playState === 'playing' ? (
-                <Pause size={12} color={COLORS.white} fill={COLORS.white} />
+                <Pause size={12} color={colors.white} fill={colors.white} />
               ) : (
-                <Play size={12} color={COLORS.primary} fill={COLORS.primary} />
+                <Play size={12} color={colors.primary} fill={colors.primary} />
               )}
             </Pressable>
             {result && speakState !== 'checking' && (
-              <Text style={[styles.cardScoreLabel, { color: result.correct ? COLORS.success : pctColor(result.score) }]}>
+              <Text style={[styles.cardScoreLabel, { color: result.correct ? colors.success : pctColor(result.score) }]}>
                 {scoreLabel(result.score, result.correct)}
               </Text>
             )}
           </View>
           {result?.words && result.words.length > 0 ? (
             <View style={styles.wordRow}>
-              {[...result.words].reverse().map((w, i) => <WordChip key={i} wordResult={w} revealed />)}
+              {[...result.words].reverse().map((w, i) => <WordChip key={i} wordResult={w} revealed styles={styles} />)}
             </View>
           ) : (
             <>
               <View style={styles.wordRow}>
-                {arabicWords.map((w, i) => <WordChip key={i} wordResult={{ word: w, correct: false }} revealed={false} />)}
+                {arabicWords.map((w, i) => <WordChip key={i} wordResult={{ word: w, correct: false }} revealed={false} styles={styles} />)}
               </View>
             </>
           )}
@@ -242,15 +303,13 @@ export default function SpeakStep({
             <View
               style={[
                 styles.scoreFill,
-                { width: `${Math.round(result.score * 100)}%`, backgroundColor: result.correct ? COLORS.success : COLORS.accent },
+                { width: `${Math.round(result.score * 100)}%`, backgroundColor: result.correct ? colors.success : colors.accent },
               ]}
             />
           </View>
           <Text style={styles.scorePct}>{Math.round(result.score * 100)}%</Text>
         </Animated.View>
       )}
-
-
 
       {speakState !== 'correct' && speakState !== 'done' && (
         <View style={[styles.micArea, !result && { marginTop: 44 }]}>
@@ -269,7 +328,7 @@ export default function SpeakStep({
             {speakState === 'checking' && 'Checking your recitation…'}
             {speakState === 'wrong' && 'Tap to try again'}
           </Text>
-          {speakState === 'recording' && <RecordingDots />}
+          {speakState === 'recording' && <RecordingDots styles={styles} />}
         </View>
       )}
 
@@ -291,7 +350,7 @@ export default function SpeakStep({
   );
 }
 
-function WordChip({ wordResult, revealed }: { wordResult: WordResult; revealed: boolean }) {
+function WordChip({ wordResult, revealed, styles }: { wordResult: WordResult; revealed: boolean; styles: ReturnType<typeof StyleSheet.create> }) {
   const scaleAnim = useRef(new Animated.Value(revealed ? 0 : 1)).current;
   useEffect(() => {
     if (revealed) {
@@ -316,15 +375,15 @@ function WordChip({ wordResult, revealed }: { wordResult: WordResult; revealed: 
   );
 }
 
-function RecordingDots() {
+function RecordingDots({ styles }: { styles: ReturnType<typeof StyleSheet.create> }) {
   return (
     <View style={styles.dotsRow}>
-      {[0, 150, 300].map((delay) => <Dot key={delay} delay={delay} />)}
+      {[0, 150, 300].map((delay) => <Dot key={delay} delay={delay} styles={styles} />)}
     </View>
   );
 }
 
-function Dot({ delay }: { delay: number }) {
+function Dot({ delay, styles }: { delay: number; styles: ReturnType<typeof StyleSheet.create> }) {
   const anim = useRef(new Animated.Value(0.3)).current;
   useEffect(() => {
     setTimeout(() => {
@@ -338,62 +397,3 @@ function Dot({ delay }: { delay: number }) {
   }, []);
   return <Animated.View style={[styles.dot, { opacity: anim }]} />;
 }
-
-const styles = StyleSheet.create({
-  container: { padding: 16, paddingTop: 32, gap: 16, paddingBottom: 40 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  titleBlock: { flex: 1, gap: 4 },
-  title: { color: COLORS.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
-  sub: { color: COLORS.textSub, fontSize: 14 },
-  arabicCard: {
-    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
-    borderWidth: 1, borderColor: COLORS.cardBorder, overflow: 'hidden', ...SHADOW.card,
-  },
-  cardBar: { height: 5, backgroundColor: COLORS.primary },
-  wordRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, padding: 14, paddingTop: 6, paddingBottom: 6 },
-  wordChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.md, borderWidth: 1 },
-  wordChipPending: { backgroundColor: COLORS.surfaceDark, borderColor: COLORS.cardBorder },
-  wordChipCorrect: { backgroundColor: `${COLORS.success}22`, borderColor: `${COLORS.success}66` },
-  wordChipWrong: { backgroundColor: `${COLORS.error}22`, borderColor: `${COLORS.error}66` },
-  wordText: { fontSize: 20, lineHeight: 36 },
-  wordTextPending: { color: COLORS.textMuted },
-  wordTextCorrect: { color: COLORS.success },
-  wordTextWrong: { color: COLORS.error },
-  transliteration: {
-    color: COLORS.textMuted, fontSize: 11, textAlign: 'center',
-    fontStyle: 'italic', paddingHorizontal: 12, paddingBottom: 4,
-  },
-  translation: { color: COLORS.textSub, fontSize: 12, textAlign: 'center', fontStyle: 'italic', paddingHorizontal: 12, paddingBottom: 12 },
-  cardTopRow: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  cardScoreLabel: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
-  cardPlayBtn: {
-    width: 26, height: 26, borderRadius: 13,
-    backgroundColor: COLORS.primaryBg,
-    borderWidth: 1.5, borderColor: COLORS.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  cardPlayBtnActive: { backgroundColor: COLORS.primary },
-  character: { width: 90, height: 100, resizeMode: 'contain' },
-  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  scoreTrack: { flex: 1, height: 8, backgroundColor: COLORS.surfaceDark, borderRadius: 4, overflow: 'hidden' },
-  scoreFill: { height: '100%', borderRadius: 4 },
-  scorePct: { color: COLORS.textSub, fontSize: 13, fontWeight: '700', minWidth: 36, textAlign: 'right' },
-  micArea: { alignItems: 'center', gap: 12 },
-  hearBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 20, paddingVertical: 10,
-    borderRadius: RADIUS.full, borderWidth: 1.5,
-    borderColor: COLORS.primary, backgroundColor: COLORS.primaryBg,
-  },
-  hearBtnActive: { backgroundColor: `${COLORS.primary}18` },
-  hearBtnText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
-  micBtn: { width: 90, height: 90, borderRadius: 45, alignItems: 'center', justifyContent: 'center' },
-  micHint: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center', paddingTop: 10 },
-  dotsRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.error },
-  continueWrap: { paddingTop: 8 },
-  continueBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.xl, paddingVertical: 17, alignItems: 'center' },
-  continueBtnDisabled: { opacity: 0.38 },
-  continueBtnText: { color: COLORS.white, fontSize: 17, fontWeight: '700', letterSpacing: 0.3 },
-  continueBtnTextDisabled: {},
-});

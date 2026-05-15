@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS, DEPTH, RADIUS, SHADOW } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { DEPTH, RADIUS, SHADOW } from '../../theme';
 // Only the display fields are needed here; the lesson (incl. its live Quran
 // text) is fetched from the backend, never bundled in the app.
 interface LessonIntro {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function LessonIntroStep({ lesson, currentDay, totalDays, onBegin }: Props) {
+  const { colors } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
   const [pressed, setPressed] = useState(false);
@@ -28,6 +30,60 @@ export default function LessonIntroStep({ lesson, currentDay, totalDays, onBegin
   }, []);
 
   const progress = currentDay / totalDays;
+
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, padding: 20, gap: 18 },
+
+    mascotRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+    mascot: { width: 90, height: 90, resizeMode: 'contain' },
+    bubble: {
+      flex: 1, backgroundColor: colors.card,
+      borderRadius: RADIUS.lg, padding: 14,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      position: 'relative',
+      ...SHADOW.card,
+    },
+    bubbleTail: {
+      position: 'absolute', left: -10, bottom: 18,
+      width: 0, height: 0,
+      borderTopWidth: 8, borderTopColor: 'transparent',
+      borderBottomWidth: 8, borderBottomColor: 'transparent',
+      borderRightWidth: 10, borderRightColor: colors.card,
+    },
+    bubbleText: { color: colors.text, fontSize: 14, fontWeight: '600', lineHeight: 20 },
+
+    dayRow: { gap: 6 },
+    dayLabel: { color: colors.primary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
+    dayTrack: { height: 10, backgroundColor: colors.surfaceDark, borderRadius: 5, overflow: 'hidden' },
+    dayFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 5 },
+
+    lessonCard: {
+      backgroundColor: colors.card, borderRadius: RADIUS.xl,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      padding: 18, gap: 8, ...SHADOW.card,
+    },
+    focusBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.primaryBg, borderRadius: RADIUS.full,
+      paddingHorizontal: 10, paddingVertical: 4,
+    },
+    focusText: { color: colors.primary, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
+    lessonTitle: { color: colors.text, fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
+    lessonSubtitle: { color: colors.textSub, fontSize: 13, lineHeight: 19 },
+    divider: { height: 1, backgroundColor: colors.surfaceDark, marginVertical: 4 },
+    practiceLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 },
+    practiceItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    dot: { color: colors.primary, fontSize: 12 },
+    practiceText: { color: colors.textSub, fontSize: 13 },
+
+    beginBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.xl,
+      paddingVertical: 17,
+      alignItems: 'center',
+    },
+    beginText: { color: colors.white, fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
+  }), [colors]);
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -88,57 +144,3 @@ export default function LessonIntroStep({ lesson, currentDay, totalDays, onBegin
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, gap: 18 },
-
-  mascotRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
-  mascot: { width: 90, height: 90, resizeMode: 'contain' },
-  bubble: {
-    flex: 1, backgroundColor: COLORS.card,
-    borderRadius: RADIUS.lg, padding: 14,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    position: 'relative',
-    ...SHADOW.card,
-  },
-  bubbleTail: {
-    position: 'absolute', left: -10, bottom: 18,
-    width: 0, height: 0,
-    borderTopWidth: 8, borderTopColor: 'transparent',
-    borderBottomWidth: 8, borderBottomColor: 'transparent',
-    borderRightWidth: 10, borderRightColor: COLORS.card,
-  },
-  bubbleText: { color: COLORS.text, fontSize: 14, fontWeight: '600', lineHeight: 20 },
-
-  dayRow: { gap: 6 },
-  dayLabel: { color: COLORS.primary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
-  dayTrack: { height: 10, backgroundColor: COLORS.surfaceDark, borderRadius: 5, overflow: 'hidden' },
-  dayFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 5 },
-
-  lessonCard: {
-    backgroundColor: COLORS.card, borderRadius: RADIUS.xl,
-    borderWidth: 1.5, borderColor: COLORS.cardBorder,
-    padding: 18, gap: 8, ...SHADOW.card,
-  },
-  focusBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.primaryBg, borderRadius: RADIUS.full,
-    paddingHorizontal: 10, paddingVertical: 4,
-  },
-  focusText: { color: COLORS.primary, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
-  lessonTitle: { color: COLORS.text, fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
-  lessonSubtitle: { color: COLORS.textSub, fontSize: 13, lineHeight: 19 },
-  divider: { height: 1, backgroundColor: COLORS.surfaceDark, marginVertical: 4 },
-  practiceLabel: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 },
-  practiceItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dot: { color: COLORS.primary, fontSize: 12 },
-  practiceText: { color: COLORS.textSub, fontSize: 13 },
-
-  beginBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: 17,
-    alignItems: 'center',
-  },
-  beginText: { color: COLORS.white, fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
-});

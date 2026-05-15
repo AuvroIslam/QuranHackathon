@@ -1,13 +1,8 @@
 import { Check, Clock, Hand, Users } from 'lucide-react-native';
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS, RADIUS, SHADOW } from '../../theme';
-
-const ACTIONS = [
-  { id: 'dua', icon: <Hand size={24} color={COLORS.primary} />, label: 'Make dua', sub: 'Speak to Allah right now' },
-  { id: 'patient', icon: <Clock size={24} color={COLORS.primary} />, label: 'Be patient', sub: 'Trust His timing today' },
-  { id: 'help', icon: <Users size={24} color={COLORS.primary} />, label: 'Help someone', sub: 'One kind act before sleep' },
-];
+import { useTheme } from '../../context/ThemeContext';
+import { RADIUS, SHADOW } from '../../theme';
 
 interface Props {
   onSelect: (action: string) => void;
@@ -15,13 +10,61 @@ interface Props {
 }
 
 export default function ActionSelection({ onSelect, selected }: Props) {
+  const { colors } = useTheme();
   const [picked, setPicked] = useState<string | undefined>(selected);
+
+  const ACTIONS = useMemo(() => [
+    { id: 'dua', icon: <Hand size={24} color={colors.primary} />, label: 'Make dua', sub: 'Speak to Allah right now' },
+    { id: 'patient', icon: <Clock size={24} color={colors.primary} />, label: 'Be patient', sub: 'Trust His timing today' },
+    { id: 'help', icon: <Users size={24} color={colors.primary} />, label: 'Help someone', sub: 'One kind act before sleep' },
+  ], [colors.primary]);
 
   const handlePick = (id: string) => {
     if (picked) return;
     setPicked(id);
     onSelect(id);
   };
+
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, padding: 16, gap: 20 },
+    topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    textBlock: { flex: 1, gap: 6 },
+    title: { color: colors.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5, lineHeight: 32 },
+    subtitle: { color: colors.textSub, fontSize: 14 },
+    character: { width: 100, height: 110, resizeMode: 'contain' },
+    actions: { gap: 12 },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      backgroundColor: colors.card,
+      borderRadius: RADIUS.xl,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      padding: 16,
+    },
+    cardSelected: { backgroundColor: colors.primaryBg, borderColor: colors.primary },
+    cardDimmed: { borderColor: colors.cardBorder, backgroundColor: colors.card },
+    dimmed: { opacity: 0.55 },
+    iconWrap: {
+      width: 48, height: 48, borderRadius: RADIUS.md,
+      backgroundColor: colors.primaryBg,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    iconWrapSelected: { backgroundColor: colors.primary },
+    cardText: { flex: 1, gap: 3 },
+    cardLabel: { color: colors.text, fontSize: 17, fontWeight: '700' },
+    cardLabelSelected: { color: colors.primaryDark },
+    cardLabelDimmed: { color: colors.textMuted },
+    cardSub: { color: colors.textSub, fontSize: 13 },
+    cardSubDimmed: { color: colors.textMuted },
+    check: {
+      width: 28, height: 28, borderRadius: 14,
+      backgroundColor: colors.primary,
+      alignItems: 'center', justifyContent: 'center',
+      ...SHADOW.glow(colors.primary),
+    },
+  }), [colors]);
 
   return (
     <View style={styles.container}>
@@ -41,6 +84,8 @@ export default function ActionSelection({ onSelect, selected }: Props) {
             selected={picked === a.id}
             dimmed={!!picked && picked !== a.id}
             onPress={() => handlePick(a.id)}
+            styles={styles}
+            colors={colors}
           />
         ))}
       </View>
@@ -48,8 +93,11 @@ export default function ActionSelection({ onSelect, selected }: Props) {
   );
 }
 
-function ActionCard({ action, selected, dimmed, onPress }: {
-  action: (typeof ACTIONS)[0]; selected: boolean; dimmed: boolean; onPress: () => void;
+function ActionCard({ action, selected, dimmed, onPress, styles, colors }: {
+  action: { id: string; icon: React.ReactNode; label: string; sub: string };
+  selected: boolean; dimmed: boolean; onPress: () => void;
+  styles: ReturnType<typeof StyleSheet.create>;
+  colors: ReturnType<typeof useTheme>['colors'];
 }) {
   const scale = useRef(new Animated.Value(1)).current;
   const checkAnim = useRef(new Animated.Value(0)).current;
@@ -75,51 +123,10 @@ function ActionCard({ action, selected, dimmed, onPress }: {
         </View>
         {selected && (
           <Animated.View style={[styles.check, { transform: [{ scale: checkAnim }] }]}>
-            <Check size={14} color={COLORS.white} strokeWidth={3} />
+            <Check size={14} color={colors.white} strokeWidth={3} />
           </Animated.View>
         )}
       </Pressable>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, gap: 20 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  textBlock: { flex: 1, gap: 6 },
-  title: { color: COLORS.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5, lineHeight: 32 },
-  subtitle: { color: COLORS.textSub, fontSize: 14 },
-  character: { width: 100, height: 110, resizeMode: 'contain' },
-  actions: { gap: 12 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: COLORS.card,
-    borderRadius: RADIUS.xl,
-    borderWidth: 1.5,
-    borderColor: COLORS.cardBorder,
-    padding: 16,
-  },
-  cardSelected: { backgroundColor: COLORS.primaryBg, borderColor: COLORS.primary },
-  cardDimmed: { borderColor: COLORS.cardBorder, backgroundColor: COLORS.card },
-  dimmed: { opacity: 0.55 },
-  iconWrap: {
-    width: 48, height: 48, borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primaryBg,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  iconWrapSelected: { backgroundColor: COLORS.primary },
-  cardText: { flex: 1, gap: 3 },
-  cardLabel: { color: COLORS.text, fontSize: 17, fontWeight: '700' },
-  cardLabelSelected: { color: COLORS.primaryDark },
-  cardLabelDimmed: { color: COLORS.textMuted },
-  cardSub: { color: COLORS.textSub, fontSize: 13 },
-  cardSubDimmed: { color: COLORS.textMuted },
-  check: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center', justifyContent: 'center',
-    ...SHADOW.glow(COLORS.primary),
-  },
-});

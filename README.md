@@ -37,8 +37,7 @@ Every session ends with XP, a streak update, and progress synced to your Quran.c
 | `/settings` | Change goal, reading time, translation preference |
 | `/community` | Community posts — share reflections and questions (Firestore) |
 | `/chatbot` | Islamic Q&A chatbot (Groq-powered, MCP-grounded) |
-| `/dawah` | Dawah topic search — Quranic guidance + cross-scripture perspectives |
-| `/perspective` | AI reflection on any topic, grounded in verified tafsir |
+| `/dawah` | Dawah topic search — Quranic guidance + cross-scripture perspectives + AI reflection grounded in verified tafsir |
 | `/levels` | XP level system and badge gallery |
 | `/login` | Firebase email/password auth |
 | `/terms` · `/privacy` | Legal pages |

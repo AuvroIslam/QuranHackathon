@@ -6,7 +6,7 @@ import Image from "next/image";
 import { BookOpen, GraduationCap, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { saveUserGoal } from "@/lib/firestore";
-import { initiateQFOAuth } from "@/lib/qf-user-auth";
+import { initiateQFOAuth, getQFAccessToken } from "@/lib/qf-user-auth";
 import type { UserGoal, UserLevel, TimePerDay } from "@/lib/types";
 
 type WizardStep = "goal" | "level" | "time" | "quran-connect";
@@ -66,6 +66,17 @@ export default function SetupPage() {
     try {
       await saveUserGoal(user.uid, goal, { level: level ?? undefined, timePerDay: time });
       await refreshProfile();
+      // Store time so qf-callback can sync goal after OAuth connect
+      localStorage.setItem("deenquest_pending_time", String(time));
+      // If already connected, sync goal now
+      const token = getQFAccessToken();
+      if (token) {
+        fetch("/api/qf/goal", {
+          method: "POST",
+          headers: { "x-qf-token": token, "Content-Type": "application/json" },
+          body: JSON.stringify({ timePerDay: time }),
+        }).catch(() => {});
+      }
       setStep("quran-connect");
     } catch {
       // keep saving=false so user can retry

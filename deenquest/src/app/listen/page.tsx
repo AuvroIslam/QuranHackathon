@@ -19,6 +19,7 @@ import {
   Shuffle, BookOpen, Headphones, ScrollText, Loader2, Bookmark, BookmarkCheck,
 } from "lucide-react";
 import PageContainer from "../../components/PageContainer";
+import BookmarkModal from "../../components/BookmarkModal";
 import toast from "react-hot-toast";
 
 interface Chapter {
@@ -103,6 +104,9 @@ export default function ListenPage() {
   const [sessionSynced, setSessionSynced] = useState(false);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bookmarkedKeys, setBookmarkedKeys] = useState<Set<string>>(new Set());
+  const [bmModalVerse, setBmModalVerse] = useState<{
+    verseKey: string; surahName: string; arabic: string; translation: string;
+  } | null>(null);
 
   const verseStartRef = useRef<{ key: string; startedAt: number } | null>(null);
 
@@ -520,38 +524,32 @@ export default function ListenPage() {
                         <button
                           onClick={async () => {
                             if (!user) return;
-                            const chapterName = selectedChapter?.name_simple ?? "";
-                            const arabicText = wordsOnly.map((w) => w.text_uthmani).join(" ");
-                            const trans = stripHtml(verse.translations?.find((t) => t.resource_id === translationId)?.text ?? "");
-                            const wasBookmarked = bookmarkedKeys.has(vk);
-                            setBookmarkedKeys((prev) => {
-                              const s = new Set(prev);
-                              wasBookmarked ? s.delete(vk) : s.add(vk);
-                              return s;
-                            });
-                            try {
-                              await toggleBookmark(user.uid, {
-                                verseKey: vk,
-                                surahName: chapterName,
-                                arabic: arabicText,
-                                translation: trans,
-                              });
-                              // Sync to QF API if connected
-                              const qfToken = getQFAccessToken();
-                              if (qfToken) {
-                                const [chStr, vStr] = vk.split(":");
-                                fetch("/api/qf/bookmark", {
-                                  method: wasBookmarked ? "DELETE" : "POST",
-                                  headers: { "x-qf-token": qfToken, "Content-Type": "application/json" },
-                                  body: JSON.stringify({ chapterNumber: parseInt(chStr, 10), verseNumber: parseInt(vStr, 10) }),
-                                }).catch(() => {});
+                            if (bookmarkedKeys.has(vk)) {
+                              // Remove bookmark directly
+                              setBookmarkedKeys((prev) => { const s = new Set(prev); s.delete(vk); return s; });
+                              try {
+                                const chapterName = selectedChapter?.name_simple ?? "";
+                                const arabicText = wordsOnly.map((w) => w.text_uthmani).join(" ");
+                                const trans = stripHtml(verse.translations?.find((t) => t.resource_id === translationId)?.text ?? "");
+                                await toggleBookmark(user.uid, { verseKey: vk, surahName: chapterName, arabic: arabicText, translation: trans });
+                                const qfToken = getQFAccessToken();
+                                if (qfToken) {
+                                  const [chStr, vStr] = vk.split(":");
+                                  fetch("/api/qf/bookmark", {
+                                    method: "DELETE",
+                                    headers: { "x-qf-token": qfToken, "Content-Type": "application/json" },
+                                    body: JSON.stringify({ chapterNumber: parseInt(chStr, 10), verseNumber: parseInt(vStr, 10) }),
+                                  }).catch(() => {});
+                                }
+                              } catch {
+                                setBookmarkedKeys((prev) => { const s = new Set(prev); s.add(vk); return s; });
                               }
-                            } catch {
-                              setBookmarkedKeys((prev) => {
-                                const s = new Set(prev);
-                                wasBookmarked ? s.add(vk) : s.delete(vk);
-                                return s;
-                              });
+                            } else {
+                              // Open collection modal
+                              const chapterName = selectedChapter?.name_simple ?? "";
+                              const arabicText = wordsOnly.map((w) => w.text_uthmani).join(" ");
+                              const trans = stripHtml(verse.translations?.find((t) => t.resource_id === translationId)?.text ?? "");
+                              setBmModalVerse({ verseKey: vk, surahName: chapterName, arabic: arabicText, translation: trans });
                             }
                           }}
                           className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
@@ -644,6 +642,21 @@ export default function ListenPage() {
             </>
           )}
         </div>
+
+      {bmModalVerse && (
+        <BookmarkModal
+          verseKey={bmModalVerse.verseKey}
+          surahName={bmModalVerse.surahName}
+          arabic={bmModalVerse.arabic}
+          translation={bmModalVerse.translation}
+          onClose={() => setBmModalVerse(null)}
+          onSaved={() => {
+            const vk = bmModalVerse.verseKey;
+            setBookmarkedKeys((prev) => { const s = new Set(prev); s.add(vk); return s; });
+            setBmModalVerse(null);
+          }}
+        />
+      )}
       </div>
     );
   }

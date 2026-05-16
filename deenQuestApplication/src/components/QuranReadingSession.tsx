@@ -9,6 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { isBookmarked, toggleBookmark } from '../lib/firestore';
 import { API_BASE } from '../services/api';
 import { RADIUS, SHADOW } from '../theme';
+import BookmarkCollectionModal from './BookmarkCollectionModal';
 
 interface AyahData {
   numberInSurah: number;
@@ -43,6 +44,9 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
   const [ayahs, setAyahs] = useState<AyahData[]>([]);
   const [bookmarked, setBookmarked] = useState<Record<string, boolean>>({});
   const [bmLoading, setBmLoading] = useState<Record<string, boolean>>({});
+  const [bmModalVerse, setBmModalVerse] = useState<{
+    verseKey: string; arabic: string; translation: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [totalInSurah, setTotalInSurah] = useState(0);
@@ -176,15 +180,20 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
 
   const handleBookmark = async (verseKey: string, arabic: string, translation: string) => {
     if (!uid || bmLoading[verseKey]) return;
-    const next = !bookmarked[verseKey];
-    setBookmarked((prev) => ({ ...prev, [verseKey]: next }));
-    setBmLoading((prev) => ({ ...prev, [verseKey]: true }));
-    try {
-      await toggleBookmark(uid, { verseKey, surahName: `Surah ${surahNumber}`, arabic, translation });
-    } catch {
-      setBookmarked((prev) => ({ ...prev, [verseKey]: !next }));
-    } finally {
-      setBmLoading((prev) => ({ ...prev, [verseKey]: false }));
+    if (bookmarked[verseKey]) {
+      // Remove directly
+      setBookmarked((prev) => ({ ...prev, [verseKey]: false }));
+      setBmLoading((prev) => ({ ...prev, [verseKey]: true }));
+      try {
+        await toggleBookmark(uid, { verseKey, surahName: `Surah ${surahNumber}`, arabic, translation });
+      } catch {
+        setBookmarked((prev) => ({ ...prev, [verseKey]: true }));
+      } finally {
+        setBmLoading((prev) => ({ ...prev, [verseKey]: false }));
+      }
+    } else {
+      // Open collection modal
+      setBmModalVerse({ verseKey, arabic, translation });
     }
   };
 
@@ -370,6 +379,22 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
       >
         <Text style={styles.completeBtnText}>Complete Session</Text>
       </Pressable>
+
+      {bmModalVerse && uid && (
+        <BookmarkCollectionModal
+          uid={uid}
+          verseKey={bmModalVerse.verseKey}
+          surahName={`Surah ${surahNumber}`}
+          arabic={bmModalVerse.arabic}
+          translation={bmModalVerse.translation}
+          onClose={() => setBmModalVerse(null)}
+          onSaved={() => {
+            const vk = bmModalVerse.verseKey;
+            setBookmarked((prev) => ({ ...prev, [vk]: true }));
+            setBmModalVerse(null);
+          }}
+        />
+      )}
     </ScrollView>
   );
 }

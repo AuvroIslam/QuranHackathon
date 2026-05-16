@@ -177,3 +177,43 @@ export async function checkSpeech(
     return { spoken: '', score: 0, correct: false, words: [] };
   }
 }
+
+/** Fire-and-forget: sync the user's daily time goal to Quran.com */
+export async function syncGoalToQF(accessToken: string, timePerDay: 3 | 5 | 10): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/qf/goal`, {
+      method: 'POST',
+      headers: { 'x-qf-token': accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timePerDay }),
+    });
+  } catch {
+    // Best-effort only
+  }
+}
+
+/** Fire-and-forget: add a bookmark to a QF collection */
+export async function addToQFCollection(
+  accessToken: string,
+  chapterNumber: number,
+  verseNumber: number,
+  collectionId?: string,
+): Promise<void> {
+  try {
+    const bmRes = await fetch(`${API_BASE}/api/qf/bookmark`, {
+      method: 'POST',
+      headers: { 'x-qf-token': accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chapterNumber, verseNumber }),
+    }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+
+    const bmId = bmRes?.data?.id ?? bmRes?.id;
+    if (collectionId && bmId) {
+      await fetch(`${API_BASE}/api/qf/collections`, {
+        method: 'POST',
+        headers: { 'x-qf-token': accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookmarkId: String(bmId), collectionId }),
+      });
+    }
+  } catch {
+    // Best-effort only
+  }
+}

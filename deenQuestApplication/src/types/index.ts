@@ -10,6 +10,7 @@ export interface Bookmark {
   arabic: string;
   translation: string;
   createdAt: string;
+  collectionName?: string;
 }
 
 export interface Ayah {

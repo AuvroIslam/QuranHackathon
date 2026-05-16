@@ -313,42 +313,60 @@ export default function ProfilePanel({ open, onClose }: ProfilePanelProps) {
             ) : totalBookmarks === 0 ? (
               <p className="text-xs text-white/30 text-center py-4">No bookmarks yet — tap the bookmark icon on any ayah</p>
             ) : (
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {localBookmarks.map((b) => (
-                  <div key={b.id} className="rounded-xl glass overflow-hidden">
-                    <button
-                      onClick={() => setExpandedBm(expandedBm === b.id ? null : b.id)}
-                      className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/5 transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Bookmark size={11} className="text-secondary shrink-0" />
-                        <span className="text-sm text-white/80 truncate">{b.surahName} · {b.verseKey}</span>
-                      </div>
-                      <span className="text-xs text-white/25 shrink-0 ml-2">{expandedBm === b.id ? "▲" : "▼"}</span>
-                    </button>
-                    {expandedBm === b.id && (
-                      <div className="px-3 pb-3 space-y-2 border-t border-white/8">
-                        <p className="text-right text-lg leading-loose text-white font-arabic pt-2" dir="rtl">{b.arabic}</p>
-                        <p className="text-xs text-white/55 italic leading-relaxed">"{b.translation}"</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {qfConnected && qfBookmarks.map((b) => (
-                  <a
-                    key={`qf-${b.key}-${b.verseNumber}`}
-                    href={`https://quran.com/${b.key}/${b.verseNumber}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl glass hover:bg-white/10 transition-colors group"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-bold text-secondary bg-secondary/15 px-1.5 py-0.5 rounded">QF</span>
-                      <span className="text-sm text-white/70">Surah {b.key} : {b.verseNumber}</span>
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {/* Group local bookmarks by collection */}
+                {(() => {
+                  const groups: Record<string, BookmarkType[]> = {};
+                  localBookmarks.forEach((b) => {
+                    const key = b.collectionName ?? "Default";
+                    (groups[key] = groups[key] ?? []).push(b);
+                  });
+                  return Object.entries(groups).map(([col, bms]) => (
+                    <div key={col}>
+                      <p className="text-[10px] text-white/30 uppercase tracking-wider px-1 mb-1.5">{col}</p>
+                      {bms.map((b) => (
+                        <div key={b.id} className="rounded-xl glass overflow-hidden mb-1.5">
+                          <button
+                            onClick={() => setExpandedBm(expandedBm === b.id ? null : b.id)}
+                            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/5 transition-colors text-left"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Bookmark size={11} className="text-secondary shrink-0" />
+                              <span className="text-sm text-white/80 truncate">{b.surahName} · {b.verseKey}</span>
+                            </div>
+                            <span className="text-xs text-white/25 shrink-0 ml-2">{expandedBm === b.id ? "▲" : "▼"}</span>
+                          </button>
+                          {expandedBm === b.id && (
+                            <div className="px-3 pb-3 space-y-2 border-t border-white/8">
+                              <p className="text-right text-lg leading-loose text-white font-arabic pt-2" dir="rtl">{b.arabic}</p>
+                              <p className="text-xs text-white/55 italic leading-relaxed">"{b.translation}"</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    <span className="text-xs text-white/25 group-hover:text-secondary transition-colors">↗</span>
-                  </a>
-                ))}
+                  ));
+                })()}
+                {qfConnected && qfBookmarks.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-white/30 uppercase tracking-wider px-1 mb-1.5">Quran.com</p>
+                    {qfBookmarks.map((b) => (
+                      <a
+                        key={`qf-${b.key}-${b.verseNumber}`}
+                        href={`https://quran.com/${b.key}/${b.verseNumber}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between px-3 py-2.5 rounded-xl glass hover:bg-white/10 transition-colors group mb-1.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-bold text-secondary bg-secondary/15 px-1.5 py-0.5 rounded">QF</span>
+                          <span className="text-sm text-white/70">Surah {b.key} : {b.verseNumber}</span>
+                        </div>
+                        <span className="text-xs text-white/25 group-hover:text-secondary transition-colors">↗</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

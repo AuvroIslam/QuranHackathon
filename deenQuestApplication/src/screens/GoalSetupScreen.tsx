@@ -7,9 +7,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { saveQFTokens, saveUserGoal } from '../lib/firestore';
+import { saveQFTokens, saveUserGoal, getQFTokens } from '../lib/firestore';
 import { DEPTH, RADIUS, SHADOW } from '../theme';
 import { TimePerDay, UserGoal, UserLevel } from '../types';
+import { syncGoalToQF } from '../services/api';
 
 export const GOAL_SET_KEY = '@deenquest_goal_set';
 
@@ -89,6 +90,14 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
     try {
       await saveUserGoal(effectiveUid, goal, { level: level ?? undefined, timePerDay: time });
       await AsyncStorage.setItem(key, 'true');
+      // Store time so deep-link handler can sync goal after QF connect
+      await AsyncStorage.setItem(`deenquest_pending_time_${effectiveUid}`, String(time));
+      // Sync immediately if already connected
+      getQFTokens(effectiveUid).then((tokens) => {
+        if (tokens?.accessToken && tokens.expiresAt > Date.now()) {
+          syncGoalToQF(tokens.accessToken, time).catch(() => {});
+        }
+      }).catch(() => {});
     } catch {
       await AsyncStorage.setItem(key, 'true').catch(() => {});
     } finally {
@@ -120,6 +129,13 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
         setQFSuccess(true);
         setWaitingForQF(false);
         saveQFTokens(effectiveUid, at, rt, ea).catch(() => {});
+        // Sync goal if user had selected a time preference
+        AsyncStorage.getItem(`deenquest_pending_time_${effectiveUid}`).then((stored) => {
+          if (stored && at) {
+            AsyncStorage.removeItem(`deenquest_pending_time_${effectiveUid}`).catch(() => {});
+            syncGoalToQF(at, parseInt(stored, 10) as TimePerDay).catch(() => {});
+          }
+        }).catch(() => {});
         setTimeout(() => onDone(), 1800);
       } else {
         onDone();

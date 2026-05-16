@@ -40,7 +40,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST — add a bookmark to the default collection
+// POST — two actions:
+//   { name }                        → create a new named collection
+//   { bookmarkId, collectionId }    → add bookmark to existing collection
 export async function POST(req: NextRequest) {
   const clientId = process.env.QF_CLIENT_ID;
   if (!clientId) return NextResponse.json({ error: "QF_CLIENT_ID not configured" }, { status: 503 });
@@ -49,6 +51,29 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "No QF token" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
+
+  // Create new collection
+  if (body?.name && !body?.bookmarkId) {
+    const name = String(body.name).trim().slice(0, 64);
+    if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
+
+    try {
+      const res = await qfFetch(`${QF_API}/auth/v1/collections`, {
+        method: "POST",
+        headers: qfHeaders(token, clientId),
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      return NextResponse.json(data, { status: res.ok ? 200 : res.status });
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        return NextResponse.json({ error: "QF API timeout" }, { status: 504 });
+      }
+      return NextResponse.json({ error: "QF API unreachable" }, { status: 502 });
+    }
+  }
+
+  // Add bookmark to existing collection
   const bookmarkId = body?.bookmarkId;
   const rawCollectionId = body?.collectionId ?? "__default__";
 

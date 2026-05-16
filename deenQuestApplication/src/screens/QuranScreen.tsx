@@ -11,6 +11,7 @@ import { useTheme } from '../context/ThemeContext';
 import { toggleBookmark, getBookmarks } from '../lib/firestore';
 import { API_BASE } from '../services/api';
 import { RADIUS, SHADOW, type AppColors } from '../theme';
+import BookmarkCollectionModal from '../components/BookmarkCollectionModal';
 
 function qfProxy(path: string, params: Record<string, string> = {}): string {
   const p = new URLSearchParams({ path, ...params });
@@ -55,6 +56,9 @@ export default function QuranScreen() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [bookmarkedKeys, setBookmarkedKeys] = useState<Set<string>>(new Set());
+  const [bmModalVerse, setBmModalVerse] = useState<{
+    verseKey: string; surahName: string; arabic: string; translation: string;
+  } | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
   const ayahsRef = useRef<Ayah[]>([]);
 
@@ -259,24 +263,26 @@ export default function QuranScreen() {
                 onBookmark={async () => {
                   if (!uid || !selectedChapter) return;
                   const vk = item.verseKey;
-                  const wasBookmarked = bookmarkedKeys.has(vk);
-                  setBookmarkedKeys((prev) => {
-                    const s = new Set(prev);
-                    wasBookmarked ? s.delete(vk) : s.add(vk);
-                    return s;
-                  });
-                  try {
-                    await toggleBookmark(uid, {
+                  if (bookmarkedKeys.has(vk)) {
+                    // Remove directly
+                    setBookmarkedKeys((prev) => { const s = new Set(prev); s.delete(vk); return s; });
+                    try {
+                      await toggleBookmark(uid, {
+                        verseKey: vk,
+                        surahName: selectedChapter.name_simple,
+                        arabic: item.arabic,
+                        translation: item.translation,
+                      });
+                    } catch {
+                      setBookmarkedKeys((prev) => { const s = new Set(prev); s.add(vk); return s; });
+                    }
+                  } else {
+                    // Open collection modal
+                    setBmModalVerse({
                       verseKey: vk,
                       surahName: selectedChapter.name_simple,
                       arabic: item.arabic,
                       translation: item.translation,
-                    });
-                  } catch {
-                    setBookmarkedKeys((prev) => {
-                      const s = new Set(prev);
-                      wasBookmarked ? s.add(vk) : s.delete(vk);
-                      return s;
                     });
                   }
                 }}
@@ -327,6 +333,22 @@ export default function QuranScreen() {
               <ChevronRight size={16} color={colors.textMuted} />
             </Pressable>
           )}
+        />
+      )}
+
+      {bmModalVerse && uid && (
+        <BookmarkCollectionModal
+          uid={uid}
+          verseKey={bmModalVerse.verseKey}
+          surahName={bmModalVerse.surahName}
+          arabic={bmModalVerse.arabic}
+          translation={bmModalVerse.translation}
+          onClose={() => setBmModalVerse(null)}
+          onSaved={() => {
+            const vk = bmModalVerse.verseKey;
+            setBookmarkedKeys((prev) => { const s = new Set(prev); s.add(vk); return s; });
+            setBmModalVerse(null);
+          }}
         />
       )}
     </SafeAreaView>

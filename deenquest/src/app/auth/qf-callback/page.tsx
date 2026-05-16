@@ -80,6 +80,21 @@ function CallbackHandler() {
         setQFSession(accessToken, refreshToken, expiresIn);
         clearOAuthStorage();
 
+        // Sync goal if user had a pending time preference (set during setup)
+        try {
+          const pendingTime = localStorage.getItem("deenquest_pending_time");
+          if (pendingTime) {
+            localStorage.removeItem("deenquest_pending_time");
+            fetch("/api/qf/goal", {
+              method: "POST",
+              headers: { "x-qf-token": accessToken, "Content-Type": "application/json" },
+              body: JSON.stringify({ timePerDay: parseInt(pendingTime, 10) }),
+            }).catch(() => {});
+          }
+        } catch {
+          // localStorage may be unavailable in some contexts
+        }
+
         const from = getOAuthFrom();
         clearOAuthMeta();
 

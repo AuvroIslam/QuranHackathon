@@ -664,7 +664,7 @@ export default function ProfileScreen() {
               {bookmarks.length === 0 ? (
                 <Text style={styles.bmEmpty}>No bookmarks yet — save an ayah while reading.</Text>
               ) : (
-                (showAllBookmarks ? bookmarks : bookmarks.slice(0, 5)).map((bm, idx) => {
+                (showAllBookmarks ? bookmarks : bookmarks.slice(0, 5)).map((bm) => {
                   const open = expandedBm === bm.id;
                   return (
                     <Pressable key={bm.id} onPress={() => setExpandedBm(open ? null : bm.id)} style={styles.bmRow}>
@@ -673,7 +673,7 @@ export default function ProfileScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.bmTitle}>{bm.surahName || bm.verseKey}</Text>
-                        <Text style={styles.bmSub}>Page {idx + 1}</Text>
+                        <Text style={styles.bmSub}>{bm.collectionName ?? 'Default'}</Text>
                         {open && <Text style={styles.bmTranslation} numberOfLines={3}>"{bm.translation}"</Text>}
                       </View>
                       {open

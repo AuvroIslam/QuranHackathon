@@ -191,7 +191,7 @@ export async function syncGoalToQF(accessToken: string, timePerDay: 3 | 5 | 10):
   }
 }
 
-/** Fire-and-forget: add a bookmark to a QF collection */
+/** Fire-and-forget: add a verse to a QF collection (or the default bookmark list) */
 export async function addToQFCollection(
   accessToken: string,
   chapterNumber: number,
@@ -199,18 +199,19 @@ export async function addToQFCollection(
   collectionId?: string,
 ): Promise<void> {
   try {
-    const bmRes = await fetch(`${API_BASE}/api/qf/bookmark`, {
-      method: 'POST',
-      headers: { 'x-qf-token': accessToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chapterNumber, verseNumber }),
-    }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-
-    const bmId = bmRes?.data?.id ?? bmRes?.id;
-    if (collectionId && bmId) {
+    if (collectionId) {
+      // Add verse directly into the named collection
       await fetch(`${API_BASE}/api/qf/collections`, {
         method: 'POST',
         headers: { 'x-qf-token': accessToken, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookmarkId: String(bmId), collectionId }),
+        body: JSON.stringify({ collectionId, chapterNumber, verseNumber }),
+      });
+    } else {
+      // Default — just create the QF bookmark
+      await fetch(`${API_BASE}/api/qf/bookmark`, {
+        method: 'POST',
+        headers: { 'x-qf-token': accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chapterNumber, verseNumber }),
       });
     }
   } catch {

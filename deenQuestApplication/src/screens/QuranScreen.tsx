@@ -290,6 +290,22 @@ export default function QuranScreen() {
             )}
           />
         )}
+
+        {bmModalVerse && uid && (
+          <BookmarkCollectionModal
+            uid={uid}
+            verseKey={bmModalVerse.verseKey}
+            surahName={bmModalVerse.surahName}
+            arabic={bmModalVerse.arabic}
+            translation={bmModalVerse.translation}
+            onClose={() => setBmModalVerse(null)}
+            onSaved={() => {
+              const vk = bmModalVerse.verseKey;
+              setBookmarkedKeys((prev) => { const s = new Set(prev); s.add(vk); return s; });
+              setBmModalVerse(null);
+            }}
+          />
+        )}
       </SafeAreaView>
     );
   }
@@ -336,21 +352,6 @@ export default function QuranScreen() {
         />
       )}
 
-      {bmModalVerse && uid && (
-        <BookmarkCollectionModal
-          uid={uid}
-          verseKey={bmModalVerse.verseKey}
-          surahName={bmModalVerse.surahName}
-          arabic={bmModalVerse.arabic}
-          translation={bmModalVerse.translation}
-          onClose={() => setBmModalVerse(null)}
-          onSaved={() => {
-            const vk = bmModalVerse.verseKey;
-            setBookmarkedKeys((prev) => { const s = new Set(prev); s.add(vk); return s; });
-            setBmModalVerse(null);
-          }}
-        />
-      )}
     </SafeAreaView>
   );
 }

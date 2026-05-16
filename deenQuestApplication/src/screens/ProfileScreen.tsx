@@ -1,4 +1,4 @@
-import { BadgeCheck, Bookmark, BookmarkCheck, BookOpen, Check, ChevronRight, ClipboardCheck, Crown, Flame, Globe, GraduationCap, LogOut, Medal, Moon, Shield, Star, Sun, Trophy, TrendingUp, Zap } from 'lucide-react-native';
+import { BadgeCheck, Bookmark, BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, ClipboardCheck, Crown, Flame, Globe, GraduationCap, LogOut, Medal, Moon, Shield, Star, Sun, Trophy, TrendingUp, Zap } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   ActivityIndicator, FlatList, Image, ImageBackground, Linking, Modal, Pressable, ScrollView,
@@ -227,6 +227,11 @@ export default function ProfileScreen() {
 
     /* Bookmarks */
     bmEmpty: { color: colors.textMuted, fontSize: 13, fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 },
+    bmCollectionLabel: {
+      color: colors.textMuted, fontSize: 10, fontWeight: '700',
+      textTransform: 'uppercase', letterSpacing: 0.8,
+      marginTop: 8, marginBottom: 6, paddingHorizontal: 4,
+    },
     bmRow: {
       flexDirection: 'row', alignItems: 'center', gap: 12,
       backgroundColor: colors.card, borderRadius: RADIUS.lg,
@@ -239,9 +244,12 @@ export default function ProfileScreen() {
       width: 40, height: 40, borderRadius: 20,
       backgroundColor: colors.primaryBg, alignItems: 'center', justifyContent: 'center',
     },
-    bmTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
-    bmSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
-    bmTranslation: { color: '#4C4693', fontSize: 12, fontStyle: 'italic', marginTop: 6, lineHeight: 18 },
+    bmTitle: { color: colors.text, fontSize: 13, fontWeight: '600' },
+    bmArabic: {
+      color: colors.text, fontSize: 18, textAlign: 'right',
+      lineHeight: 32, writingDirection: 'rtl', marginTop: 8,
+    },
+    bmTranslation: { color: colors.textSub, fontSize: 12, fontStyle: 'italic', marginTop: 4, lineHeight: 18 },
 
     /* QF */
     qfConnectBtn: {
@@ -655,7 +663,7 @@ export default function ProfileScreen() {
             <View style={styles.sectionWrap}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Bookmarks</Text>
-                {bookmarks.length > 5 && (
+                {bookmarks.length > 8 && (
                   <Pressable hitSlop={8} onPress={() => setShowAllBookmarks(v => !v)}>
                     <Text style={styles.viewAll}>{showAllBookmarks ? 'Show less' : 'View all  ›'}</Text>
                   </Pressable>
@@ -663,26 +671,43 @@ export default function ProfileScreen() {
               </View>
               {bookmarks.length === 0 ? (
                 <Text style={styles.bmEmpty}>No bookmarks yet — save an ayah while reading.</Text>
-              ) : (
-                (showAllBookmarks ? bookmarks : bookmarks.slice(0, 5)).map((bm) => {
-                  const open = expandedBm === bm.id;
-                  return (
-                    <Pressable key={bm.id} onPress={() => setExpandedBm(open ? null : bm.id)} style={styles.bmRow}>
-                      <View style={styles.bmIconWrap}>
-                        <Bookmark size={18} color={colors.primary} fill={`${colors.primary}20`} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.bmTitle}>{bm.surahName || bm.verseKey}</Text>
-                        <Text style={styles.bmSub}>{bm.collectionName ?? 'Default'}</Text>
-                        {open && <Text style={styles.bmTranslation} numberOfLines={3}>"{bm.translation}"</Text>}
-                      </View>
-                      {open
-                        ? <BookmarkCheck size={16} color={colors.primary} />
-                        : <Bookmark size={16} color={colors.textMuted} />}
-                    </Pressable>
-                  );
-                })
-              )}
+              ) : (() => {
+                const displayed = showAllBookmarks ? bookmarks : bookmarks.slice(0, 8);
+                const groups: Record<string, typeof bookmarks> = {};
+                displayed.forEach((b) => {
+                  const key = b.collectionName ?? 'Default';
+                  (groups[key] = groups[key] ?? []).push(b);
+                });
+                return Object.entries(groups).map(([col, bms]) => (
+                  <View key={col}>
+                    <Text style={styles.bmCollectionLabel}>{col}</Text>
+                    {bms.map((bm) => {
+                      const open = expandedBm === bm.id;
+                      return (
+                        <Pressable key={bm.id} onPress={() => setExpandedBm(open ? null : bm.id)} style={styles.bmRow}>
+                          <View style={styles.bmIconWrap}>
+                            <Bookmark size={18} color={colors.primary} fill={`${colors.primary}20`} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.bmTitle}>
+                              {bm.surahName ? `${bm.surahName} · ${bm.verseKey}` : bm.verseKey}
+                            </Text>
+                            {open && !!bm.arabic && (
+                              <Text style={styles.bmArabic}>{bm.arabic}</Text>
+                            )}
+                            {open && !!bm.translation && (
+                              <Text style={styles.bmTranslation} numberOfLines={4}>"{bm.translation}"</Text>
+                            )}
+                          </View>
+                          {open
+                            ? <ChevronUp size={16} color={colors.primary} />
+                            : <ChevronDown size={16} color={colors.textMuted} />}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ));
+              })()}
             </View>
 
             {/* ── QF Connect ── */}

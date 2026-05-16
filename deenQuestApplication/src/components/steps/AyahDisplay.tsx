@@ -6,6 +6,7 @@ import { RADIUS, SHADOW } from '../../theme';
 import { toggleBookmark, isBookmarked } from '../../lib/firestore';
 import { fetchHadithForMood, fetchLessonReflection, HadithEntry } from '../../services/api';
 import { Ayah, Mood } from '../../types';
+import BookmarkCollectionModal from '../BookmarkCollectionModal';
 
 interface Props {
   ayah: Ayah;
@@ -35,6 +36,7 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
   const { colors } = useTheme();
   const [bookmarked, setBookmarked] = useState(false);
   const [bmLoading, setBmLoading] = useState(false);
+  const [bmModalOpen, setBmModalOpen] = useState(false);
   const [reflection, setReflection] = useState<string | null>(null);
   const [reflectionLoading, setReflectionLoading] = useState(false);
   const [hadith, setHadith] = useState<HadithEntry | null>(null);
@@ -73,17 +75,22 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
 
   async function handleBookmark() {
     if (!uid || bmLoading) return;
-    setBmLoading(true);
-    try {
-      const result = await toggleBookmark(uid, {
-        verseKey: ayah.reference,
-        surahName: surahName ?? `Quran ${ayah.reference}`,
-        arabic: ayah.arabic,
-        translation: ayah.translation,
-      });
-      setBookmarked(result);
-    } catch {} finally {
-      setBmLoading(false);
+    if (bookmarked) {
+      // Remove directly
+      setBmLoading(true);
+      try {
+        await toggleBookmark(uid, {
+          verseKey: ayah.reference,
+          surahName: surahName ?? `Quran ${ayah.reference}`,
+          arabic: ayah.arabic,
+          translation: ayah.translation,
+        });
+        setBookmarked(false);
+      } catch {} finally {
+        setBmLoading(false);
+      }
+    } else {
+      setBmModalOpen(true);
     }
   }
 
@@ -193,6 +200,20 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
 
   return (
     <View style={styles.container}>
+      {bmModalOpen && uid && (
+        <BookmarkCollectionModal
+          uid={uid}
+          verseKey={ayah.reference}
+          surahName={surahName ?? `Quran ${ayah.reference}`}
+          arabic={ayah.arabic}
+          translation={ayah.translation}
+          onClose={() => setBmModalOpen(false)}
+          onSaved={() => {
+            setBookmarked(true);
+            setBmModalOpen(false);
+          }}
+        />
+      )}
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
       {/* Header row */}
       <View style={styles.topRow}>

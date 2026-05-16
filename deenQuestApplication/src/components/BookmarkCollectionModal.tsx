@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Check, ChevronDown, Folder, FolderPlus, X } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
-import { toggleBookmark, getQFTokens } from '../lib/firestore';
+import { toggleBookmark, getQFTokens, getBookmarks } from '../lib/firestore';
 import { API_BASE, addToQFCollection } from '../services/api';
 import { RADIUS, SHADOW } from '../theme';
 
@@ -23,12 +23,14 @@ interface Props {
 
 const DEFAULT_ID = '__default__';
 const NEW_ID = '__new__';
+const LOCAL_PREFIX = '__local__:';
 
 export default function BookmarkCollectionModal({
   uid, verseKey, surahName, arabic, translation, onClose, onSaved,
 }: Props) {
   const { colors } = useTheme();
-  const [collections, setCollections] = useState<QFCollection[]>([]);
+  const [qfCollections, setQfCollections] = useState<QFCollection[]>([]);
+  const [localCollectionNames, setLocalCollectionNames] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState(DEFAULT_ID);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -36,8 +38,18 @@ export default function BookmarkCollectionModal({
   const [qfToken, setQfToken] = useState<string | null>(null);
 
   useEffect(() => {
+    // Always load local collection names from existing bookmarks
+    getBookmarks(uid).then((bms) => {
+      const names = Array.from(
+        new Set(bms.map((b) => b.collectionName).filter(Boolean) as string[])
+      );
+      setLocalCollectionNames(names);
+    }).catch(() => {});
+
+    // Also load QF collections if token is valid
     getQFTokens(uid).then((tokens) => {
-      if (!tokens?.accessToken || tokens.expiresAt < Date.now()) return;
+      if (!tokens?.accessToken) return;
+      if (tokens.expiresAt && tokens.expiresAt < Date.now()) return;
       setQfToken(tokens.accessToken);
       fetch(`${API_BASE}/api/qf/collections`, {
         headers: { 'x-qf-token': tokens.accessToken },
@@ -45,16 +57,28 @@ export default function BookmarkCollectionModal({
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
           if (Array.isArray(data?.data)) {
-            setCollections(data.data.filter((c: QFCollection) => c.id && c.name));
+            setQfCollections(data.data.filter((c: QFCollection) => c.id && c.name));
           }
         })
         .catch(() => {});
     }).catch(() => {});
   }, [uid]);
 
+  // Merge local and QF collections by name, QF takes precedence (has an id for sync)
+  const mergedCollections = useMemo(() => {
+    const byName = new Map<string, string | null>();
+    localCollectionNames.forEach((name) => byName.set(name, null));
+    qfCollections.forEach((c) => byName.set(c.name, c.id));
+    return Array.from(byName.entries()).map(([name, qfId]) => ({
+      id: qfId ?? `${LOCAL_PREFIX}${name}`,
+      label: name,
+      qfId,
+    }));
+  }, [localCollectionNames, qfCollections]);
+
   const allOptions = [
     { id: DEFAULT_ID, label: 'Default' },
-    ...collections.map((c) => ({ id: c.id, label: c.name })),
+    ...mergedCollections.map((c) => ({ id: c.id, label: c.label })),
     { id: NEW_ID, label: 'New collection…' },
   ];
 
@@ -81,9 +105,16 @@ export default function BookmarkCollectionModal({
           if (res?.data?.id) qfCollectionId = String(res.data.id);
         }
       } else if (selectedId !== DEFAULT_ID) {
-        const col = collections.find((c) => c.id === selectedId);
-        collectionName = col?.name;
-        qfCollectionId = selectedId;
+        if (selectedId.startsWith(LOCAL_PREFIX)) {
+          // Local-only collection (no QF id yet)
+          collectionName = selectedId.slice(LOCAL_PREFIX.length);
+          const matchingQF = qfCollections.find((c) => c.name === collectionName);
+          qfCollectionId = matchingQF?.id;
+        } else {
+          const col = mergedCollections.find((c) => c.id === selectedId);
+          collectionName = col?.label;
+          qfCollectionId = selectedId;
+        }
       }
 
       await toggleBookmark(uid, { verseKey, surahName, arabic, translation, collectionName });

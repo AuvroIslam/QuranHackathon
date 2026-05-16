@@ -357,9 +357,9 @@ export default function DawahTab() {
             <Pressable
               key={topic}
               onPress={() => !searching && handleTopicSelect(topic)}
-              style={[styles.chip, selectedTopic === topic && !searching && styles.chipActive]}
+              style={[styles.chip, selectedTopic === topic && styles.chipActive]}
             >
-              <Text style={[styles.chipText, selectedTopic === topic && !searching && styles.chipTextActive]}>
+              <Text style={[styles.chipText, selectedTopic === topic && styles.chipTextActive]}>
                 {topic}
               </Text>
             </Pressable>

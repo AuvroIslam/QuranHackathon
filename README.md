@@ -1,651 +1,342 @@
-# QuranHackathon — DeenQuest
+# DeenQuest — Quran Foundation Hackathon
+
+## What Is DeenQuest?
+
+DeenQuest helps Muslims build a daily habit of connecting with the Quran — just 3, 5, or 10 minutes a day. Instead of overwhelming users with the full Quran at once, it meets them where they are:
+
+- **Read the Quran** — work through all 114 surahs at your own pace, a few ayahs each session
+- **Learn to Read Quran** — structured lessons from Arabic letters all the way to full verses, matched to your level (Newbie / Intermediate / Fluent)
+
+Every session ends with XP, a streak update, and progress synced to your Quran.com account. The goal is consistency: show up for 3–10 minutes, every day.
+
+---
 
 ## Repository Structure
 
 ```
-├── deenquest/                  # Next.js web application (COMPLETE)
-├── deenQuestApplication/       # Expo React Native mobile app (COMPLETE)
-├── ApiDetails.md               # QF API credentials & endpoint reference
-├── prompt.md                   # Base feature specification
-├── questionHackathon.md        # Official hackathon questions & requirements
+├── deenquest/                  # Next.js 16 web app — deployed on Vercel
+├── deenQuestApplication/       # Expo SDK 54 mobile app (iOS + Android)
+├── ApiDetails.md               # QF API credentials & endpoint notes
 └── README.md                   # This file
 ```
 
-> **Security note:** Firebase service account JSON files (`*-firebase-adminsdk-*.json`) are git-ignored at both root and `deenquest/` level. Never commit them.
-
 ---
 
-## 1. Web App — `deenquest/` (Next.js, App Router)
+## 1. Web App — `deenquest/`
 
-### Tech Stack
-- Next.js 16, TypeScript, Tailwind CSS v4
-- Firebase JS SDK v12 (Firestore + Auth) + Firebase Admin SDK (server-side)
-- OpenAI / Groq / Mistral APIs (chatbot, speech check, dawah)
-- Quran.Foundation (QF) OAuth2 PKCE + user/content APIs
-- Deployed on Vercel
+**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Firebase Firestore + Auth · Quran Foundation APIs · Groq / Mistral / DeepSeek LLM chain · OpenAI Whisper · Deployed on Vercel
 
-### Pages (`src/app/`)
-| Route | Description |
+### Pages
+
+| Route | What it does |
 |---|---|
-| `/` | Home — mood selector, personalised ayah, today's tasks, streak/XP stats |
-| `/session` | Guided session — mood → ayah → reading journey with streak tracking |
-| `/listen` | Full Quran reader — surah list, word-by-word Arabic, audio, per-ayah bookmark, tafsir |
-| `/community` | Firestore community posts — share reflections & questions |
-| `/chatbot` | Ask AI — Islamic Q&A (Groq-powered) |
-| `/dawah` | Dawah perspectives — topic search, Quranic guidance, cross-scripture comparison |
-| `/perspective` | AI-powered perspective & reflection on any topic |
-| `/levels` | XP levels & badge gallery |
+| `/` | Home — mood selector, today's personalised ayah, 3 daily tasks, streak/XP dashboard |
+| `/session` | Guided daily session — mood → ayah → reading journey with streak tracking |
+| `/listen` | Full Quran reader — 114 surahs, word-by-word Arabic, per-word audio highlight, per-ayah bookmarks with collection picker, tafsir, translation |
+| `/setup` | First-time goal wizard — goal → level → time → Quran.com connect |
+| `/settings` | Change goal, reading time, translation preference |
+| `/community` | Community posts — share reflections and questions (Firestore) |
+| `/chatbot` | Islamic Q&A chatbot (Groq-powered, MCP-grounded) |
+| `/dawah` | Dawah topic search — Quranic guidance + cross-scripture perspectives |
+| `/perspective` | AI reflection on any topic, grounded in verified tafsir |
+| `/levels` | XP level system and badge gallery |
 | `/login` | Firebase email/password auth |
-| `/setup` | Goal setup wizard |
-| `/terms` | Terms of service |
-| `/privacy` | Privacy policy |
-| `/auth/qf-start` | Initiates QF OAuth PKCE flow (mobile deep-link trigger) |
-| `/auth/qf-callback` | QF OAuth callback — exchanges code, saves tokens via Admin SDK |
+| `/terms` · `/privacy` | Legal pages |
+| `/auth/qf-start` | Initiates Quran Foundation OAuth2 PKCE flow (used by both web and mobile) |
+| `/auth/qf-callback` | Handles OAuth callback — exchanges code, stores tokens via Firebase Admin SDK |
 
-### API Routes (`src/app/api/`) — 14 routes
+### API Routes
 
-> **No Quran text is hardcoded.** Every ayah's Arabic / transliteration /
-> translation is fetched live by verse key from the Quran Foundation Content
-> API (OAuth2 client-credentials; `api.quran.com` public fallback; 1 h cache).
-> If verified text can't be fetched the route fails (503) and the client shows
-> a retry — it never serves a bundled copy of the Quran.
+> **No Quran text is hardcoded.** Every Arabic ayah, transliteration, and translation is fetched live from the Quran Foundation Content API. If the fetch fails the route returns 503 — the client shows a retry, never a bundled copy.
 
-| Route | Method | Description |
+| Route | Method(s) | What it does |
 |---|---|---|
-| `/api/quran` | GET | QF Content API proxy — verses, chapters, recitations, tafsir |
-| `/api/quran/search` | GET | QF full-text Quran search |
-| `/api/mood-ayah` | GET | `?mood=` → a verified ayah (fetched live from QF) + a comprehension MCQ. Fetch-or-fail. |
-| `/api/lessons` | GET | `?level=&day=` → lesson pedagogy from the server bank, with the verse's Arabic/translation fetched live from QF. Fetch-or-fail. |
-| `/api/lessons/check` | POST | Server-side MCQ answer validation — the answer key is never sent to the client |
-| `/api/hadith` | GET | `?mood=&situation=` → authentic hadith from hadithapi.com (Sahih) → curated verified bank. The LLM only refines the search keyword; it never authors hadith text or numbers. |
-| `/api/reflection` | POST | AI reflection on an ayah, **grounded in verified tafsir from the Quran MCP server** |
-| `/api/deepseek` | POST | LLM (Groq → Mistral → DeepSeek) for the chatbot & dawah; grounded via the Quran MCP server |
-| `/api/speech-check` | POST | Audio → OpenAI Whisper transcription + word-level recitation accuracy |
-| `/api/qf/token` | POST | QF OAuth2 (PKCE) code→token exchange + Firestore token persistence (Admin SDK) |
-| `/api/qf/bookmark` | GET/POST/DELETE | QF User API bookmark add/remove |
-| `/api/qf/collections` | GET/POST | QF User API collections |
-| `/api/qf/reading-session` | POST | QF User API reading-session sync |
-| `/api/qf/streak` | GET/POST | QF User API activity-day / streak sync |
+| `/api/quran` | GET | QF Content API proxy — chapters, verses, recitations, tafsir |
+| `/api/quran/search` | GET | Full-text Quran search via QF |
+| `/api/mood-ayah` | GET | `?mood=` → verified ayah from QF + comprehension MCQ |
+| `/api/lessons` | GET | `?level=&day=` → lesson pedagogy + live QF verse text |
+| `/api/lessons/check` | POST | Server-side MCQ answer validation (answer key never sent to client) |
+| `/api/hadith` | GET | Authentic hadith from hadithapi.com (Sahih) — LLM only refines search keyword, never authors citations |
+| `/api/reflection` | POST | AI reflection on an ayah, grounded in verified tafsir via Quran MCP server |
+| `/api/deepseek` | POST | Groq → Mistral → DeepSeek LLM chain; used by chatbot and dawah |
+| `/api/speech-check` | POST | Audio → OpenAI Whisper → word-level recitation accuracy |
+| `/api/qf/token` | POST | OAuth2 PKCE code → token exchange + Firestore token persistence |
+| `/api/qf/bookmark` | GET · POST · DELETE | QF bookmark add / remove / list |
+| `/api/qf/collections` | GET · POST | List collections; create named collection; add verse to collection |
+| `/api/qf/goal` | POST | Set user's daily reading goal on Quran.com (pages based on time preference) |
+| `/api/qf/reading-session` | POST | Sync reading session to QF |
+| `/api/qf/streak` | GET · POST | Fetch streak; report activity-day to QF |
 
-> Note: the chatbot UI calls `/api/deepseek` (there is no `/api/chatbot`
-> route). MCP grounding lives in `src/lib/quran-mcp.ts` and is used by
-> `/api/reflection` and `/api/deepseek`.
+### Key Library Files (`src/lib/`)
 
-### Key Lib Files (`src/lib/`)
-- `firebase.ts` — Firebase client SDK init
-- `firebase-admin.ts` — Firebase Admin SDK init (base64 service account via `FIREBASE_SERVICE_ACCOUNT_BASE64`)
-- `firestore.ts` — User profile, XP, streak, bookmarks, QF token helpers
-- `tasks-data.ts` — 12 `DAILY_TASKS`; a seeded (epoch-day) Fisher–Yates shuffle picks 3 distinct tasks that change every calendar day (same algorithm in the mobile app)
-- `qf-auth.ts` / `qf-user-auth.ts` — QF PKCE flow, session storage, OAuth state helpers
-- `quran.ts` / `quran-mcp.ts` — Quran data helpers + MCP tool calls
+| File | Purpose |
+|---|---|
+| `firebase.ts` | Firebase client SDK init |
+| `firebase-admin.ts` | Firebase Admin SDK (base64 service account via env var) |
+| `firestore.ts` | User profile, XP, streak, bookmarks, QF token helpers |
+| `tasks-data.ts` | 12 daily tasks; epoch-day seeded Fisher–Yates shuffle picks 3/day (same algorithm in mobile) |
+| `arabic-utils.ts` | `normalize()` + `compareTexts()` — diacritic stripping and word-level accuracy scoring (shared, tested) |
+| `streakUtils.ts` | Streak state logic — healthy / recovery-needed / broken |
+| `qf-user-auth.ts` | PKCE OAuth helpers, localStorage token management |
+| `quran-mcp.ts` | Quran MCP server tool calls for AI grounding |
+| `translations.ts` | Translation option list for the UI selector |
+| `types.ts` | Shared TypeScript interfaces |
 
-### Environment Variables (Vercel + `.env.local`)
+### Environment Variables
+
 ```
 FIREBASE_SERVICE_ACCOUNT_BASE64=...   # base64(service-account.json) — Admin SDK
 NEXT_PUBLIC_FIREBASE_*=...            # Firebase client config
-QF_CLIENT_ID / QF_CLIENT_SECRET=...   # Quran Foundation OAuth
-OPENAI_API_KEY=...                    # Whisper speech check
-GROQ_API_KEY=...                      # Chatbot (primary)
-MISTRAL_API_KEY=...                   # Dawah generation
-DEEPSEEK_API_KEY=...                  # Fallback
+QF_CLIENT_ID / QF_CLIENT_SECRET=...  # Quran Foundation OAuth
+QF_AUTH_BASE_URL=...                  # https://auth.quran.foundation
+QF_USER_API_BASE_URL=...              # https://apis.quran.foundation
+OPENAI_API_KEY=...                    # Whisper (set in Vercel — not in .env.local)
+GROQ_API_KEY=...                      # Chatbot (primary LLM)
+MISTRAL_API_KEY=...                   # Fallback LLM
+DEEPSEEK_API_KEY=...                  # Second fallback LLM
 ```
-See `ApiDetails.md` for the full variable list.
 
 ---
 
-## 2. Mobile App — `deenQuestApplication/` (Expo SDK 54, React Native 0.81.5)
+## 2. Mobile App — `deenQuestApplication/`
 
-### Tech Stack
-- Expo SDK 54, React Native 0.81.5, React 19.1.0, TypeScript
-- `@react-navigation/bottom-tabs` + `@react-navigation/native`
-- Firebase JS SDK v10.14.1 (same Firestore project as web)
-- `expo-av` for Quran audio playback
-- `lucide-react-native` + `react-native-svg` for icons
-- `react-native-safe-area-context` v5.6 — all screens use `SafeAreaView` from this package
-- `@react-native-async-storage/async-storage` for local persistence
-- Metro config: `unstable_enablePackageExports: true` (required for Firebase CJS modules)
-- Deep link scheme: `deenquest://` (registered in `app.json`)
+**Stack:** Expo SDK 54 · React Native 0.81.5 · React 19 · TypeScript · Firebase JS SDK v10 · expo-av · lucide-react-native · react-native-safe-area-context · Deep link scheme: `deenquest://`
 
-### App Entry Flow (`App.tsx`)
+### App Entry Flow
+
 ```
 SafeAreaProvider
-  └── AuthProvider (Firebase onAuthStateChanged)
+  └── AuthProvider  (Firebase onAuthStateChanged)
         └── RootNavigator
-              ├── [loading] ActivityIndicator
-              ├── [not onboarded] OnboardingScreen
-              ├── [no user] AuthScreen
-              ├── [!goalSet] GoalSetupScreen
-              └── [authenticated + goalSet] AppNavigator (5 tabs)
+              ├── [loading]         ActivityIndicator
+              ├── [not onboarded]   OnboardingScreen  (3 slides → @deenquest_onboarded)
+              ├── [no user]         AuthScreen
+              ├── [!goalSet]        GoalSetupScreen
+              └── [ready]           AppNavigator  (5 tabs)
 ```
 
 ### Tab Navigation
-| Tab | Screen | Icon |
+
+| Tab | Screen | Description |
 |---|---|---|
-| Home | `HomeScreen` | Home |
-| Journey | `JourneyScreen` | Map |
-| Quran | `QuranScreen` | BookOpen |
-| Explore | `ExploreScreen` | Compass |
-| Profile | `ProfileScreen` | User |
+| Home | `HomeScreen` | Greeting, streak/XP/hasanat stats, lesson card, 3 daily tasks |
+| Journey | `JourneyScreen` | Full guided session — learn or complete-Quran path |
+| Quran | `QuranScreen` | 114 surah browser, per-ayah audio + bookmark with collection picker |
+| Explore | `ExploreScreen` | Dawah · Community · Ask AI pill tabs |
+| Profile | `ProfileScreen` | Level, badges, bookmarks (with collection labels), Quran.com status, sign out |
 
----
+### Screens (`src/screens/`)
 
-## 3. Screens
+| Screen | Notes |
+|---|---|
+| `OnboardingScreen.tsx` | 3 animated slides, shown once |
+| `AuthScreen.tsx` | Email/password sign in + sign up; creates Firestore `users/{uid}` doc |
+| `GoalSetupScreen.tsx` | Animated wizard: goal → level (learn path) → time → Quran.com connect. Syncs daily goal to QF after connect |
+| `HomeScreen.tsx` | Stats, lesson card, 3 deterministic daily tasks, all-done banner |
+| `JourneyScreen.tsx` | Learn path (mood → lesson → speak → MCQ → completion) or Complete Quran path (mood → ayah → reading session → completion) |
+| `QuranScreen.tsx` | Searchable surah list; per-ayah audio via everyayah.com; bookmark with collection modal |
+| `ExploreScreen.tsx` | `DawahTab` · `CommunityTab` · `AskAITab` |
+| `ProfileScreen.tsx` | XP levels, 6 badges, bookmarks grouped by collection, QF connection, sign out modal |
 
-### `OnboardingScreen.tsx`
-3 animated slides → saves `@deenquest_onboarded`
-
-### `AuthScreen.tsx`
-Email/password sign in + sign up. Creates Firestore `users/{uid}` doc on first signup.
-
-### `GoalSetupScreen.tsx`
-3-step animated wizard (goal → level/time). Saves goal to Firestore + `@deenquest_goal_set`.
-
-### `HomeScreen.tsx`
-Arabic greeting, streak/XP/hasanat stats, lesson card, today's 3 tasks (deterministic).
-
-### `JourneyScreen.tsx`
-Duolingo-style lesson flow. Learn path: intro → ayah → listen → speak → MCQ → action → completion (lesson + live Quran text fetched from `/api/lessons`, advancing each completed session). Complete Quran path: mood → ayah → reading session → completion.
-
-### `QuranScreen.tsx`
-114 surahs, searchable. Per-ayah audio playback via `everyayah.com`.
-
-### `ExploreScreen.tsx`
-Pill tab bar: Dawah | Community | Ask AI
-
-### `ProfileScreen.tsx`
-Level/XP, 4-stat grid, 6 achievement badges, bookmarks list, Quran.com connection badge, sign out.
-
----
-
-## 4. Journey Step Components
+### Journey Step Components (`src/components/steps/`)
 
 | Component | Description |
 |---|---|
-| `LessonIntroStep` | Day intro for learn path (days 1–10) |
-| `MoodSelection` | 7 mood card grid with custom text input |
-| `AyahDisplay` | Arabic + transliteration + translation with bookmark button |
-| `ListenStep` | Audio playback of ayah |
-| `SpeakStep` | Mic → Whisper → word-chip accuracy feedback |
-| `MCQQuestion` | 4-option MCQ |
-| `ActionSelection` | Spiritual action picker |
-| `CompletionStep` | XP + streak summary |
-| `QuranReadingSession` | Per-ayah reading session — Arabic/transliteration/translation, audio, bookmark button (with loading state) |
+| `LessonIntroStep.tsx` | Day intro — mascot, speech bubble, lesson card, 3D Begin button |
+| `MoodSelection.tsx` | 7-mood card grid with custom text input |
+| `AyahDisplay.tsx` | Arabic + transliteration + translation + bookmark button |
+| `ListenStep.tsx` | Audio playback of the session ayah |
+| `SpeakStep.tsx` | Mic → OpenAI Whisper → word-chip accuracy feedback; level-based pass threshold |
+| `MCQQuestion.tsx` | 4-option MCQ, answer validated server-side |
+| `ActionSelection.tsx` | Spiritual action picker |
+| `CompletionStep.tsx` | XP earned + streak summary |
+
+### Other Components (`src/components/`)
+
+| Component | Description |
+|---|---|
+| `QuranReadingSession.tsx` | Per-ayah reader with audio, mark-as-read, and bookmark modal — used in "Complete Quran" journey |
+| `BookmarkCollectionModal.tsx` | Bottom-sheet modal: dropdown selector for Default / existing QF collections / new named collection |
+| `NeuButton.tsx` | Neumorphic 3D button |
+| `ProgressBar.tsx` | Animated step progress bar |
+| `StreakHeader.tsx` | Streak + XP header strip |
+
+### Services (`src/services/api.ts`)
+
+All calls go to `https://quran-hackathon-omega.vercel.app` (Vercel production).
+
+| Function | What it calls |
+|---|---|
+| `getAyahByMood(mood)` | `GET /api/mood-ayah` |
+| `fetchLesson(level, day)` | `GET /api/lessons` |
+| `checkLessonAnswer(level, day, i)` | `POST /api/lessons/check` |
+| `checkSpeech(audioUri, expectedText)` | `POST /api/speech-check` — fallback is `{ correct: false }` never `true` |
+| `syncGoalToQF(accessToken, timePerDay)` | `POST /api/qf/goal` — fire-and-forget |
+| `addToQFCollection(token, chapter, verse, collectionId?)` | `POST /api/qf/collections` — adds verse to named collection or default |
 
 ---
 
-## 5. QF OAuth Flow (Mobile)
+## 3. Quran.com (QF) Integration
 
+DeenQuest syncs with the user's Quran.com account after they connect via OAuth2 PKCE.
+
+| Feature | Status | Notes |
+|---|---|---|
+| Bookmarks | Synced | Add/remove via `/api/qf/bookmark` |
+| Collections | Synced | Create named collection; add verse directly to collection via `/api/qf/collections` |
+| Reading sessions | Synced | After each verse is marked in the Quran reader |
+| Daily goal | Synced | Set on setup completion (3 min → 1 page/day, 5 min → 2 pages, 10 min → 4 pages) |
+| Activity days / streak | Synced | Reported after each session via `/api/qf/streak` |
+
+**OAuth flow (mobile):**
 ```
 ProfileScreen "Connect Quran.com"
-  → opens browser: /auth/qf-start
-  → redirects to oauth2.quran.foundation
+  → opens browser: /auth/qf-start?from=mobile&uid=...
+  → redirects to Quran Foundation OAuth server
   → user authenticates
-  → callback: /auth/qf-callback
-  → /api/qf/token (server) exchanges code + saves tokens via Admin SDK → Firestore users/{uid}
+  → /auth/qf-callback exchanges code, saves tokens to Firestore via Admin SDK
   → deep link: deenquest://qf-connected
-  → ProfileScreen reads tokens via getQFTokens(uid) → shows green "Connected" badge
-```
-
-
-## 6. Mobile App — Detailed Reference (`deenQuestApplication/`)
-
-### Tech Stack
-- Expo SDK 54, React Native 0.81.5, React 19.1.0, TypeScript
-- `@react-navigation/bottom-tabs` + `@react-navigation/native` for tab navigation
-- Firebase JS SDK v10.14.1 (same project as web)
-- `expo-av` for Quran audio playback
-- `lucide-react-native` + `react-native-svg` for icons
-- `react-native-safe-area-context` v5.6 — **all screens use `SafeAreaView` from this package, NOT from `react-native`**
-- `@react-native-async-storage/async-storage` for local storage
-- Metro config: `unstable_enablePackageExports: true` (required for Firebase CJS modules)
-
-### App Entry Flow (`App.tsx`)
-```
-SafeAreaProvider
-  └── AuthProvider (Firebase onAuthStateChanged)
-        └── RootNavigator
-              ├── [loading] ActivityIndicator (purple, COLORS.bg background)
-              ├── [not onboarded] OnboardingScreen (3 slides → saves @deenquest_onboarded)
-              ├── [no user] AuthScreen (email/password sign in + sign up)
-              ├── [goalSet === null] ActivityIndicator (reading AsyncStorage)
-              ├── [!goalSet] GoalSetupScreen (3-step wizard → saves @deenquest_goal_set)
-              └── [authenticated + goalSet] NavigationContainer → AppNavigator (5 tabs)
-```
-
-**Streak check on app open:** `checkDailyStreak(uid)` is called in `RootNavigator` whenever `uid` becomes truthy — increments Firestore streak once per calendar day.
-
-**First sign-in detection:** `user.metadata?.creationTime === user.metadata?.lastSignInTime` is used as fallback when `@deenquest_goal_set` is not in AsyncStorage (handles app reinstall / AsyncStorage wipe — returning users skip goal setup).
-
-### Tab Navigation (`src/navigation/AppNavigator.tsx`)
-| Tab | Screen | Icon |
-|---|---|---|
-| Home | `HomeScreen` | `Home` (Lucide) |
-| Journey | `JourneyScreen` | `Map` (Lucide) |
-| Quran | `QuranScreen` | `BookOpen` (Lucide) |
-| Explore | `ExploreScreen` | `Compass` (Lucide) |
-| Profile | `ProfileScreen` | `User` (Lucide) |
-
-### Auth & Context (`src/context/AuthContext.tsx`)
-- `AuthProvider` — wraps entire app, listens to `onAuthStateChanged`
-- `useAuth()` hook — returns `{ user, uid, loading }`
-- Available in every screen — eliminates need for prop drilling
-
----
-
-## 3. Screens
-
-### `src/screens/OnboardingScreen.tsx`
-- 3 animated slides (FlatList, pagingEnabled, scrollEnabled=false)
-- Characters: `waving_onboarding`, `reciting`, `reading`
-- Purple dot indicator with animated width
-- On final slide "Get Started" → saves `@deenquest_onboarded = 'true'` → calls `onDone()`
-- Exports `ONBOARDING_KEY = '@deenquest_onboarded'`
-
-### `src/screens/AuthScreen.tsx`
-- Toggle between Sign In / Sign Up
-- Sign Up: name + email + password → `createUserWithEmailAndPassword` + `updateProfile` + creates Firestore `users/{uid}` doc
-- Signup doc fields: `name, email, xp: 0, streak: 0, tasksCompleted: 0, lastActive, createdAt, goal: null, level: null, timePerDay: null, quranProgress: null, currentDay: 1`
-- Sign In: `signInWithEmailAndPassword`
-- Friendly error messages mapped from Firebase error codes
-- Uses `mainBg.png` as background, `waving_onboarding` character
-
-### `src/screens/GoalSetupScreen.tsx` ← NEW
-- **Shown once after first sign-in, before the main app**
-- 3-step animated wizard (2 steps for "Complete Quran" path, 3 steps for "Learn to Read" path)
-- Exports `GOAL_SET_KEY = '@deenquest_goal_set'`
-- Animated mascot image + speech bubble changes per step (fade transition)
-- **Step 1 — Goal:** "Complete the Quran" or "Learn to Read Quran"
-- **Step 2A — Time per day** (Complete path): 3 / 5 / 10 mins with estimated completion time
-- **Step 2B — Level** (Learn path): Newbie / Intermediate / Fluent
-- **Step 3 — Time per day** (Learn path): 3 / 5 / 10 mins with exercises-per-session estimate
-- On finish: calls `saveUserGoal(uid, goal, { level, timePerDay })` → saves to Firestore → writes `@deenquest_goal_set = 'true'` to AsyncStorage → calls `onDone()`
-- Uses Duolingo-style 3D cards (`DEPTH.card`, `DEPTH.cardPressed`)
-- Mascot images: Step goal = `waving_onboarding`, Step level = `achievement`, Step time = `reading`
-- Progress dots at top (fills purple as steps complete)
-
-### `src/screens/HomeScreen.tsx`
-- Uses `useAuth()` for uid + user.displayName
-- Arabic greeting: `مرحباً، {firstName}`
-- **Stats row:** Streak (orange flame), Hasanat (gold star, = xp×2), XP (purple zap)
-- **Lesson card:** `ImageBackground(mainBg.png)` + `waving_onboarding` character + `NeuButton` "Begin Now" → navigates to Journey tab
-- **Today's Tasks:** 3 tasks from `getTodaysTasks()` (deterministic, same as web), checkable, writes to Firestore on completion
-- **All-done banner:** shows `celebrating` character when all 3 tasks complete
-
-### `src/screens/JourneyScreen.tsx` ← UPDATED
-- Loads user profile: `userGoal`, `userLevel`, `userTimePerDay`, `currentDay`, `quranProgress`
-- **Profile re-fetched on every focus via `useFocusEffect`** — `loadProfile` callback is called on every screen focus, not just on first mount. This ensures a mode switch in ProfileScreen is reflected immediately (JourneyScreen is a tab and doesn't remount).
-- **Duolingo-style header** (shown on all steps except completion):
-  - `←` (X) circular button → navigates to Home tab via `useNavigation`
-  - Thick purple progress bar (fills proportionally with `stepIndex / (totalSteps - 1)`)
-  - `⚡ {xpEarned}` badge in amber/gold
-- **Learn path:** `'mood'` step always renders `MoodSelection` first. After mood is selected, if `apiLesson` is ready, `handleLearnMoodSelect` uses the lesson content; otherwise falls back to `getAyahByMood`. This ensures the mood screen is never skipped in Learn mode.
-- **Complete Quran path:** uses `COMPLETE_STEP_ORDER` (mood → ayah → reading → completion). `'reading'` step renders `QuranReadingSession`
-- `passThreshold` per level: newbie = 0.4, intermediate = 0.6, fluent = 0.7
-- `showTransliteration`: true for newbie/intermediate, false for fluent
-- `ayahCount` for reading session: 3/5/10 based on `timePerDay`
-- `handleComplete` calls `incrementCurrentDay(uid)` for learn users on days ≤ 10
-- `ContinueButton` uses `DEPTH.button` / `DEPTH.buttonPressed` for 3D press effect
-- **No `assets/logo.png` dependency** — brandBar removed in the rewrite
-
-### `src/screens/QuranScreen.tsx`
-- **Surah list view:** 114 surahs from `api.alquran.cloud/v1/surah`, searchable by name/number
-- **Surah detail view:** Arabic ayahs from `api.alquran.cloud/v1/surah/{number}`
-- **Per-ayah audio:** `everyayah.com/data/Alafasy_128kbps/{surah3}{ayah3}.mp3` via `expo-av`
-- Play/pause toggle per ayah, single `Audio.Sound` ref (stops previous on new tap)
-- Back navigation via `ChevronRight` rotated 180°
-
-### `src/screens/ExploreScreen.tsx`
-- Inner pill tab bar: **Dawah | Community | Ask AI**
-- Routes to `DawahTab`, `CommunityTab`, `AskAITab`
-
-### `src/screens/ProfileScreen.tsx`
-- Shows `user.displayName ?? user.email`
-- Level system: Seeker(0) → Student(100) → Reader(300) → Reciter(600) → Hafidh(1000) → Scholar(1500)
-- XP progress bar toward next level
-- 4-stat grid: Day Streak, Hasanat, Total XP, Tasks Done
-- 6 achievement badges (locked/unlocked based on xp/streak/tasksCompleted)
-- **Profile re-fetched on every focus via `useFocusEffect`** — streak, XP, and badges update correctly after returning from a session (tab screen doesn't remount)
-- Sign Out shows a custom purple neumorphic modal (`DEPTH` press effect) instead of the default `Alert` — "Yes, Sign Out" + "Cancel" buttons
-- Mode switch (Learning ↔ Reading): calls `updateUserGoal`, clears journey AsyncStorage cache
-- Loads from Firestore `users/{uid}`
-
----
-
-## 4. Journey Step Components (`src/components/steps/`)
-
-| Component | Description |
-|---|---|
-| `LessonIntroStep.tsx` | **NEW** — Day intro for learn users (days 1–10). Shows mascot (`pointing_towards_you`), speech bubble, day progress bar, lesson card (title/subtitle/practice list), 3D "Begin Lesson" button |
-| `MoodSelection.tsx` | 3-col grid of 7 mood cards with `elementsApp/mood/` images + custom text input |
-| `AyahDisplay.tsx` | Arabic ayah + transliteration (if present) + translation + `reading` character |
-| `ListenStep.tsx` | Audio playback of ayah + `listening` character |
-| `SpeakStep.tsx` | Mic recording → `/api/speech-check` → word-chip feedback. Props: `passThreshold` (level-based), `showTransliteration`. Features: "Hear it again" play button above mic, greyed word chips before recording that light up green/red after |
-| `MCQQuestion.tsx` | 4-option MCQ with `thinking` character |
-| `ActionSelection.tsx` | Pick a spiritual action with `dua_praying` character |
-| `CompletionStep.tsx` | XP + streak summary with `celebrating` character + `mainBg` background |
-
----
-
-## 5. Other Components (`src/components/`)
-
-| Component | Description |
-|---|---|
-| `QuranReadingSession.tsx` | **NEW** — Used in Journey for "Complete Quran" users. Fetches 3 APIs in parallel: `alquran.cloud` Arabic + `en.asad` + `en.transliteration`. Per-ayah play/pause audio, mark as read, "Complete Session" button. Props: `surahNumber`, `startAyah`, `ayahCount`, `onComplete(nextSurah, nextAyah)`. Handles surah boundary (advances to next surah when current exhausted). |
-| `NeuButton.tsx` | Neumorphic button — dual-shadow via 2 nested `Animated.View`s. `default export NeuButton`, named export `NeuIconButton`. `primary` prop = solid purple. |
-| `ProgressBar.tsx` | Animated step progress bar (used internally by older code — superseded by inline progress in JourneyScreen header) |
-| `StreakHeader.tsx` | Streak + XP + stars header strip (kept for potential reuse) |
-
----
-
-## 6. Lib Files (`src/lib/`)
-
-### `firebase.ts`
-- `initializeApp` + `initializeAuth` with AsyncStorage React-Native persistence + `getFirestore`
-- `auth` is explicitly typed `Auth` and `getReactNativePersistence` is imported with a `@ts-ignore` (it exists in the firebase RN runtime but is missing from this version's web typings) — the project type-checks cleanly with `npm run typecheck`
-- Exports: `auth`, `db`, `default app`
-
-### `firestore.ts`
-
-`UserProfile` interface:
-```ts
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  xp: number;
-  streak: number;
-  tasksCompleted: number;
-  lastActive: string;           // ISO string
-  createdAt: string;
-  goal?: 'complete' | 'learn' | null;
-  level?: 'newbie' | 'intermediate' | 'fluent' | null;
-  timePerDay?: 3 | 5 | 10 | null;
-  quranProgress?: { surahNumber: number; ayahNumber: number } | null;
-  currentDay?: number;          // 1-based, incremented each session for learn users
-}
-```
-
-Exported functions:
-| Function | Description |
-|---|---|
-| `getUserProfile(uid)` | Fetch full profile from `users/{uid}` |
-| `getUserTasksForDate(uid, date)` | Query `userTasks` collection |
-| `completeTask(uid, taskId, date, xpReward)` | Batch: write userTask + increment xp/tasksCompleted |
-| `addXP(uid, amount)` | Increment xp + update lastActive |
-| `completeJourney(uid, xpEarned)` | Increment xp, update lastActive, increment streak if new day |
-| `saveUserGoal(uid, goal, options)` | Write goal/level/timePerDay to Firestore. For 'complete' goal: also sets `quranProgress: { surahNumber: 1, ayahNumber: 1 }` |
-| `incrementCurrentDay(uid)` | advances `currentDay` after each completed learn session, so the next session serves the next lesson (curriculum wraps after 20) |
-| `updateQuranProgress(uid, surahNumber, ayahNumber)` | Write new Quran reading position |
-| `checkDailyStreak(uid)` | Called on app open — increments streak once per calendar day using `lastActive` comparison |
-
-### Lesson curriculum (server-side, no hardcoded Quran)
-The mobile app no longer bundles any Quran text. The curriculum lives
-server-side in `deenquest/src/lib/server/lessons-bank.ts` and holds **only
-pedagogy** — verse `reference`, teaching `explanation`, `audioUrl`, `mcq`,
-`actionText`. The Arabic / transliteration / translation are fetched live by
-verse key from the Quran Foundation Content API inside `/api/lessons`.
-
-- **20 lessons per level (60 total)**, wrapping into a review cycle once
-  exhausted (`getLesson` never returns null for a valid day ≥ 1)
-- Beginner: Arabic letters → Bismillah → Al-Fatiha → first short surahs
-- Intermediate: the short surahs (Al-Ikhlas … Al-'Alaq)
-- Fluent: powerful verses (Ayatul Kursi, Al-Baqarah 285-286, Ar-Rahman, …)
-- The mobile screen fetches the lesson via `fetchLesson(level, day)` in
-  `services/api.ts`; `mcq.correctIndex` is `-1` client-side and validated
-  server-side by `/api/lessons/check`
-- **Level key mapping in JourneyScreen:** `newbie → beginner`,
-  `intermediate → intermediate`, `fluent → fluent`
-- The legacy `deenQuestApplication/src/lib/lessons-data.ts` is retained but is
-  no longer in the lesson render path
-
-### `tasks-data.ts`
-- 12 `DAILY_TASKS`, `getTasksForDate(date)`, `getTodaysTasks()`
-- Algorithm: a seeded (epoch-day) Fisher–Yates shuffle picks 3 distinct tasks
-  that change every calendar day
-- **Must stay in sync with web app's `src/lib/tasks-data.ts`** (identical algorithm)
-
----
-
-## 7. Services (`src/services/api.ts`)
-
-- `API_BASE = 'https://quran-hackathon-omega.vercel.app'` — live Vercel deployment of web app
-- `getAyahByMood(mood)` — GETs `/api/mood-ayah`; returns `{ ayah, question } | null`. The verse text is fetched live from the Quran Foundation API server-side; on failure it returns `null` and the UI shows a retry (no hardcoded Quran fallback)
-- `fetchLesson(level, day)` — GETs `/api/lessons`; returns the lesson with live QF verse text, or `null`
-- `checkLessonAnswer(level, day, i)` — POSTs `/api/lessons/check` for server-side MCQ validation
-- `checkSpeech(audioUri, expectedText)` — POST to `/api/speech-check`. **Fallback on error is `{ spoken: '', score: 0, correct: false, words: [] }` (NOT `correct: true`)**
-
----
-
-## 8. Types (`src/types/index.ts`)
-
-```ts
-export type Mood = 'stressed' | 'sad' | 'grateful' | 'lost' | 'indecisive' | 'justHere' | 'overthinking';
-export type UserGoal = 'complete' | 'learn';
-export type UserLevel = 'newbie' | 'intermediate' | 'fluent';
-export type TimePerDay = 3 | 5 | 10;
-
-export interface Ayah {
-  arabic: string;
-  transliteration?: string;   // ← added; shown in SpeakStep and AyahDisplay
-  translation: string;
-  explanation: string;
-  audioUrl: string;
-  reference: string;
-}
-
-export type JourneyStep = 'mood' | 'ayah' | 'listen' | 'speak' | 'mcq' | 'action' | 'reading' | 'completion';
-
-// Learn path: mood → ayah → listen → speak → mcq → action → completion
-export const LEARN_STEP_ORDER: JourneyStep[];
-
-// Complete Quran path: mood → ayah → reading → completion
-export const COMPLETE_STEP_ORDER: JourneyStep[];
+  → GoalSetupScreen / ProfileScreen saves tokens, syncs pending goal
 ```
 
 ---
 
-## 9. Theme (`src/theme.ts`)
-
-```ts
-// Colors (purple scheme — DO NOT CHANGE)
-primary: '#7C3AED'
-primaryLight: '#A78BFA'
-primaryDark: '#5B21B6'
-primaryBg: '#EDE9FE'
-bg: '#F0EBFF'
-card: '#FFFFFF'
-cardBorder: '#E4D9FF'
-accent: '#F59E0B'      // gold — used in XP badge
-accentLight: '#FDE68A'
-accentDark: '#B45309'
-text: '#1E1B4B'
-textSub: '#4C4693'
-textMuted: '#9D99CC'
-
-// Duolingo-style 3D depth (apply to interactive buttons & cards)
-DEPTH.button           = { borderBottomWidth: 4, borderBottomColor: '#5B21B6' }
-DEPTH.buttonPressed    = { borderBottomWidth: 0, marginTop: 4 }
-DEPTH.card             = { borderBottomWidth: 3, borderBottomColor: '#C4B5FD' }
-DEPTH.cardPressed      = { borderBottomWidth: 0, marginTop: 3 }
-```
-
-`DEPTH` is used in: `GoalSetupScreen` (all cards), `LessonIntroStep` (Begin button), `JourneyScreen` (Continue button).
-
----
-
-## 10. Asset Images (`elementsApp/`)
-
-All character images have `-removebg-preview.png` suffix:
-
-| Image | Used In |
-|---|---|
-| `waving_onboarding` | Onboarding slide 1, AuthScreen, HomeScreen lesson card, GoalSetupScreen (goal step) |
-| `reciting` | Onboarding slide 2 |
-| `reading` | Onboarding slide 3, AyahDisplay, GoalSetupScreen (time step) |
-| `listening` | ListenStep |
-| `thinking` | MCQQuestion, AskAITab empty state |
-| `celebrating` | CompletionStep, HomeScreen all-done banner |
-| `dua_praying` | ActionSelection |
-| `thumbsUp_Encouraging` | SpeakStep (correct result) |
-| `sad_retry` | SpeakStep (wrong result) |
-| `achievement` | ProfileScreen, GoalSetupScreen (level step) |
-| `pointing_towards_you` | LessonIntroStep mascot |
-| `surprised` | Available, not yet used |
-| `mainBg.png` | HomeScreen lesson card, MoodSelection hero, OnboardingScreen, AuthScreen, CompletionStep |
-| `alternateBG.png` | Available, not yet used |
-| `uiThemeRef.png` | Design reference only |
-
-**Mood images (`elementsApp/mood/`):** `stressed.png, sad.png, grateful.png, lost.png, indecisive.png, overthinking.png, justHere.png`
-
----
-
-## 11. Firestore Schema
+## 4. Firestore Schema
 
 ### `users/{uid}`
 ```
-name: string
-email: string
-xp: number
-streak: number
-tasksCompleted: number
-lastActive: string          // ISO datetime — used for streak calculation
-createdAt: string
+name, email, xp, streak, tasksCompleted, lastActive, createdAt
 goal: 'complete' | 'learn' | null
-level: 'newbie' | 'intermediate' | 'fluent' | null   // learn path only
+level: 'newbie' | 'intermediate' | 'fluent' | null
 timePerDay: 3 | 5 | 10 | null
-quranProgress: { surahNumber: number; ayahNumber: number } | null  // complete path only
-currentDay: number          // 1-based day counter for learn path (days 1-10)
+quranProgress: { surahNumber, ayahNumber } | null   # complete path
+currentDay: number                                   # learn path, 1-based
+lastSessionDate, sessionsToday                       # session rate-limiting
+goalSet: boolean
+qfAccessToken, qfRefreshToken, qfTokenExpiresAt     # QF OAuth tokens (mobile)
+preferredTheme: 'light' | 'dark'
+preferredTranslationId: number
+```
+
+### `users/{uid}/bookmarks/{verseKey}`
+```
+verseKey, surahName, arabic, translation, collectionName?, createdAt
 ```
 
 ### `userTasks/{auto}`
 ```
-userId: string
-taskId: string
-completed: boolean
-date: string   // 'YYYY-MM-DD'
+userId, taskId, completed, date ('YYYY-MM-DD'), isStreakRecovery?
 ```
 
-### `posts/{auto}` (shared with web app)
+### `posts/{auto}` / `posts/{id}/answers/{auto}`
 ```
 userId, userName, title, content, type, upvotes, upvotedBy[], createdAt
 ```
 
 ---
 
-## 12. Firebase Project
+## 5. Lesson Curriculum
 
-- **Project ID:** `quranhackathon`
-- **API Key:** `AIzaSyAJxUgFdrKXqQ-ZT6sL8GwirGe0wdw-X-o`
-- **App ID:** `1:94900107612:web:cde4b4b02c73c3e8c5e999`
-- Web and mobile share the **same Firestore database**
-
----
-
-## 13. What Is Complete vs Pending
-
-### Web App (`deenquest/`) — COMPLETE
-All pages, API routes, and features are implemented and deployed.
-
-### Mobile App (`deenQuestApplication/`) — FEATURE COMPLETE
-
-#### Done
-- [x] Expo SDK 54 + React Native 0.81.5 setup
-- [x] Purple theme with `DEPTH` 3D constants (`src/theme.ts`)
-- [x] Firebase auth with AsyncStorage persistence
-- [x] `AuthContext` with `useAuth()` hook
-- [x] 3-slide `OnboardingScreen` (one-time)
-- [x] `AuthScreen` — sign in + sign up + Firestore profile creation (with all new fields)
-- [x] `GoalSetupScreen` — 3-step goal wizard (goal → level → time), mascot animations, 3D cards
-- [x] `App.tsx` — full flow: onboarding → auth → goal setup → main app
-- [x] 5-tab `AppNavigator`
-- [x] `HomeScreen` — stats, lesson CTA, today's tasks, Firebase sync
-- [x] `JourneyScreen` — Duolingo header, API-driven lesson flow (live QF verse text), Complete Quran path, goal-aware routing
-- [x] `LessonIntroStep` — day intro with mascot, progress bar, lesson card, 3D begin button
-- [x] Server lesson bank — 60 lessons (20/level), pedagogy + verse reference only, Quran text fetched live from QF (no hardcoded Quran)
-- [x] All Journey step components (MoodSelection, AyahDisplay, ListenStep, SpeakStep, MCQQuestion, ActionSelection, CompletionStep)
-- [x] `AyahDisplay` — shows transliteration
-- [x] `SpeakStep` — play button, word chips, level-based threshold, transliteration option
-- [x] `QuranReadingSession` — fetches Arabic + translation + transliteration, per-ayah audio, session completion
-- [x] `QuranScreen` — 114 surah browser + ayah reader + audio
-- [x] `ExploreScreen` — Dawah, Community, Ask AI tabs
-- [x] `ProfileScreen` — levels, badges, stats, sign out
-- [x] Speech check fallback bug fixed (`correct: false` not `correct: true`)
-- [x] `checkDailyStreak` called on app open
-- [x] `incrementCurrentDay` called after each completed learn session (advances to the next lesson)
-- [x] No hardcoded Quran text anywhere — all ayah/lesson text fetched live from the Quran Foundation API (fetch-or-fail)
-- [x] AI reflection grounded in verified tafsir via the Quran MCP server
-- [x] Hadith sourced from hadithapi.com (Sahih) / curated bank — the LLM only refines the search keyword, never authors citations
-- [x] 60-lesson curriculum (20 per level), wrapping into a review cycle
-- [x] Both codebases type-check cleanly (`npm run typecheck` in the app; `tsc --noEmit` + `next build` for web)
-- [x] Unit test suite — 27 tests (web: arabic-utils, tasks-data, streakUtils) + 11 tests (mobile: tasks-data, streakUtils)
-- [x] GitHub Actions CI — runs both test suites on every push; deploys to Vercel production only after all tests pass on `main`
-- [x] Arabic normalization extracted to `src/lib/arabic-utils.ts` (shared, testable) — fixed a latent regex bug where the diacritic range also stripped base Arabic letters
-- [x] `ListenScreen.tsx` removed — was an orphaned "Coming Soon" placeholder not wired into navigation
-- [x] **Accessibility (web)** — ARIA roles, labels, and `aria-live` regions added across all major web pages and components (home, session, listen, community, chatbot, dawah, navbar, profile panel)
-- [x] **Streak = 0 bug fixed (mobile)** — `HomeScreen` `useFocusEffect` now calls `loadData()` on every focus; streak/XP re-fetched from Firestore when returning from JourneyScreen
-- [x] **Profile stale data fixed (mobile)** — `ProfileScreen` `useFocusEffect` now re-fetches the full profile (streak, XP, badges) on every focus, not just on first mount
-- [x] **JourneyScreen goal staleness fixed (mobile)** — profile loading extracted into `loadProfile` callback, called in `useFocusEffect`; mode switch from ProfileScreen is reflected immediately without requiring a remount
-- [x] **Sign out custom modal (mobile)** — replaced default `Alert.alert` with a custom purple neumorphic modal with `DEPTH` 3D press effect
-- [x] **Learning mode mood screen restored** — mood selection always shown first in Learn path; lesson content used after mood is picked (previously `LessonIntroStep` was shown instead, skipping mood)
-
-#### Pending / Known Issues
-
-- [ ] **Listen tab** — A dedicated "Listen" tab for full surah playback with word-by-word highlighting is planned but not yet built. Audio playback currently exists inside `QuranScreen` (per-ayah) and `ListenStep` (within sessions).
-- [ ] **Translation switching UI** — The Quran Foundation API supports 50+ translations and they are fetched, but the UI does not expose a language/translation selector. Users cannot switch translations.
-- [ ] **Web transliteration** — The web Quran reader (`/listen`) does not show transliteration. The mobile `QuranScreen` and `SpeakStep` do.
-- [x] **Accessibility (web)** — ARIA roles and labels added across all major pages and components
-- [ ] **Accessibility (mobile)** — No `accessibilityLabel` / `accessibilityRole` audit done on React Native components
-- [ ] **Dark / light mode** — Both apps use a fixed purple theme with no user toggle.
-- [ ] **Re-record the demo video** — Should reflect the current deployed build with live-fetch lessons, CI pipeline, and test suite.
+- **60 lessons total — 20 per level** (Newbie / Intermediate / Fluent)
+- Curriculum lives server-side in `deenquest/src/lib/server/lessons-bank.ts` — pedagogy and verse references only; Arabic text is fetched live from QF
+- Newbie: Arabic letters → Bismillah → Al-Fatiha → short surahs
+- Intermediate: short surahs (Al-Ikhlas … Al-'Alaq)
+- Fluent: powerful verses (Ayatul Kursi, Al-Baqarah 285-286, Ar-Rahman …)
+- After lesson 20 the curriculum wraps into a review cycle — `getLesson` never returns null
+- `mcq.correctIndex` is `-1` client-side; validated server-side via `/api/lessons/check`
+- Mobile level key mapping: `newbie → beginner`, `intermediate → intermediate`, `fluent → fluent`
 
 ---
 
-## 14. Running the Projects
+## 6. Daily Tasks & Streak
+
+- 12 tasks in `tasks-data.ts`; a seeded Fisher–Yates shuffle (seed = epoch-day) picks 3 distinct tasks that change every calendar day — same algorithm in both apps
+- Streak recovery: 1 missed day → complete 1 recovery task; 2 missed days → 3 tasks; 3+ days → streak resets to 0
+
+---
+
+## 7. Tests & CI
+
+```
+deenquest/src/__tests__/
+  arabic-utils.test.ts   # 15 tests — normalize + compareTexts
+  tasks-data.test.ts     #  6 tests — deterministic daily tasks
+  streakUtils.test.ts    #  6 tests — streak state logic
+
+deenQuestApplication/src/__tests__/
+  tasks-data.test.ts     #  5 tests
+  streakUtils.test.ts    #  6 tests
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs both test suites in parallel on every push. Vercel production deploy is gated behind passing tests on `main`.
+
+---
+
+## 8. Running Locally
 
 ### Web App
 ```bash
 cd deenquest
 npm install
-npm run dev
-# Open http://localhost:3000
-# .env.local is already included
+npm run dev          # http://localhost:3000
+npm test             # run unit tests
 ```
 
 ### Mobile App
 ```bash
 cd deenQuestApplication
-npm install --legacy-peer-deps   # required: React 19 peer dep conflicts
-npx expo start --clear           # --clear flushes Metro bundler cache
-# Scan QR with Expo Go (SDK 54) on Android/iOS
+npm install --legacy-peer-deps   # React 19 peer dep conflicts
+npx expo start --clear           # scan QR with Expo Go (SDK 54)
+npm test
 ```
 
 ---
 
-## 15. Handoff Notes for Next LLM
+## 9. What Is Complete vs Pending
 
-### Architecture overview
-The mobile app has two distinct user journeys determined by the `goal` field in Firestore:
+### Done
+- [x] Web app — all pages, API routes, features deployed on Vercel
+- [x] Mobile app — all screens, journey flows, Quran reader
+- [x] Quran Foundation OAuth2 PKCE (web + mobile)
+- [x] QF bookmark sync with named collections and collection picker modal
+- [x] QF daily reading goal sync (set on setup + after OAuth connect)
+- [x] QF reading-session sync and activity-day / streak sync
+- [x] 60-lesson curriculum (20/level), server-side, no hardcoded Quran text
+- [x] OpenAI Whisper recitation accuracy with word-chip feedback
+- [x] Arabic normalization extracted to `arabic-utils.ts`, latent regex bug fixed
+- [x] LLM grounded via Quran MCP server (reflection + chatbot + dawah)
+- [x] Hadith sourced from verified API — LLM never authors citations
+- [x] Unit test suite — 38 tests across both apps
+- [x] GitHub Actions CI — tests gate production deploy
+- [x] Streak recovery system (1–3 tasks based on days missed)
+- [x] Dark mode (web) + theme toggle (mobile)
+- [x] Translation selector (web profile panel + mobile settings)
+- [x] ARIA accessibility labels on web
 
-**"Learn to Read" (`goal: 'learn'`):**
-- Days 1–10: `JourneyScreen` shows `LessonIntroStep` → lesson flows through ayah/listen/speak/mcq/action
-- Level-based: `newbie` (all help, 0.4 threshold), `intermediate` (transliteration, 0.6), `fluent` (no transliteration, 0.7)
-- After day 10: mood-based free practice (same as complete path without reading session)
+### Pending / Known Issues
+- [ ] **Web transliteration** — `/listen` page does not show transliteration; mobile Quran reader does
+- [ ] **Translation switching in Quran reader** — multiple translations are fetched but the mobile Quran reader doesn't expose a live switcher mid-session
+- [ ] **Accessibility audit (mobile)** — no `accessibilityLabel` / `accessibilityRole` pass done on RN components
+- [ ] **Demo video** — needs re-recording to reflect current build
 
-**"Complete the Quran" (`goal: 'complete'`):**
-- Every session: mood → ayah → `QuranReadingSession` (reading N ayahs from current position) → completion
-- N ayahs = 3/5/10 based on `timePerDay`
-- Position saved to `quranProgress` in Firestore after each session
+---
 
-### Critical code locations
-- Goal-based routing: [JourneyScreen.tsx](deenQuestApplication/src/screens/JourneyScreen.tsx) — `isLessonDay`, `renderStep`, `handleComplete`
-- Lesson curriculum: [lessons-data.ts](deenQuestApplication/src/lib/lessons-data.ts) — `getLesson(level, day)`
-- Speech check API fallback: [api.ts](deenQuestApplication/src/services/api.ts) — must remain `correct: false`
-- App flow gating: [App.tsx](deenQuestApplication/App.tsx) — `onboarded` → `user` → `goalSet` chain
-- Firestore writes: [firestore.ts](deenQuestApplication/src/lib/firestore.ts) — `saveUserGoal`, `incrementCurrentDay`, `updateQuranProgress`, `checkDailyStreak`
+## 10. Architecture Notes
 
-### Common pitfalls
-1. **Don't import `SafeAreaView` from `react-native`** — always use `react-native-safe-area-context`
-2. **`getLesson` expects `'beginner'` not `'newbie'`** — map via `levelToLessonKey()` in JourneyScreen
-3. **Firebase requires `unstable_enablePackageExports: true`** in metro.config.js — don't remove it
-4. **`DEPTH` styles must combine with `SHADOW` separately** — `DEPTH.button` only adds `borderBottomWidth`, it doesn't include shadow. Spread both: `[styles.btn, DEPTH.button, SHADOW.glow(...)]`
-5. **`checkSpeech` fallback** — must stay `correct: false`. If server is down, all recordings should fail, not pass silently.
+### Web Components (`src/components/`)
+`AuthProvider` · `Navbar` · `PageContainer` · `PageTooltip` · `ProfilePanel` · `BookmarkModal` · `MoodSelector` · `AyahCard` · `StreakBadge`
+
+### Critical File Locations
+- Goal-based routing: `deenQuestApplication/src/screens/JourneyScreen.tsx` — `isLessonDay`, `renderStep`, `handleComplete`
+- Lesson bank: `deenquest/src/lib/server/lessons-bank.ts`
+- Speech fallback: `deenQuestApplication/src/services/api.ts` — must stay `correct: false`
+- App flow gating: `deenQuestApplication/App.tsx`
+- QF collections: `deenquest/src/app/api/qf/collections/route.ts` — POST handles create-collection and add-verse-to-collection in one route
+
+### Common Pitfalls
+1. `SafeAreaView` must come from `react-native-safe-area-context`, not `react-native`
+2. `getLesson` level key is `'beginner'` not `'newbie'` — map via `levelToLessonKey()` in JourneyScreen
+3. Firebase requires `unstable_enablePackageExports: true` in `metro.config.js`
+4. `OPENAI_API_KEY` is set in Vercel environment variables, not in `.env.local`
+5. `checkSpeech` fallback must remain `correct: false` — a server outage should not auto-pass recordings
+6. QF collection assignment sends verse coordinates directly (`{ collectionId, chapterNumber, verseNumber }`) — not a chained bookmarkId lookup

@@ -367,6 +367,14 @@ body {
   }
 }
 
+/* Hide mobile top header + remove its padding when a page requests it (e.g. listen page with chapter open) */
+body.hide-mobile-header .mobile-header {
+  display: none !important;
+}
+body.hide-mobile-header main {
+  padding-top: 0 !important;
+}
+
 .login-bg {
   background-image: url('/kaaba-bg.png');
   background-size: cover;

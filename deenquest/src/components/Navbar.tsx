@@ -131,7 +131,7 @@ export default function Navbar() {
       </aside>
 
       {/* Mobile top bar */}
-      <header className="md:hidden fixed top-0 left-0 right-0 h-14 glass-dark flex items-center justify-between px-4 z-40">
+      <header className="mobile-header md:hidden fixed top-0 left-0 right-0 h-14 glass-dark flex items-center justify-between px-4 z-40" style={{ background: "rgba(12, 14, 42, 0.97)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
         <div className="flex items-center gap-2">
           <Image src="/deenQuestLogo.png" alt="DeenQuest" width={28} height={28} className="rounded-lg" />
           <h1 className="brand-title font-heading text-2xl font-bold tracking-normal">DeenQuest</h1>

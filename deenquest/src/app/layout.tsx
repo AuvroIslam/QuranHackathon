@@ -51,7 +51,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <Navbar />
-            <main className="md:ml-64 pt-14 md:pt-0 pb-20 md:pb-0 flex-1 min-h-0 relative overflow-y-auto">
+            <main className="md:ml-64 pt-14 md:pt-0 pb-28 md:pb-0 flex-1 min-h-0 relative overflow-y-auto">
               <div className="app-bg fixed inset-0 md:left-64 z-0 pointer-events-none" />
               <div className="bg-overlay" />
               <div className="relative z-10">

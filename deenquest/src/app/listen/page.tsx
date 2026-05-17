@@ -120,6 +120,16 @@ export default function ListenPage() {
     if (!loading && !user) router.push("/");
   }, [loading, user, router]);
 
+  // Hide mobile navbar when a chapter is open
+  useEffect(() => {
+    if (selectedChapter) {
+      document.body.classList.add("hide-mobile-header");
+    } else {
+      document.body.classList.remove("hide-mobile-header");
+    }
+    return () => document.body.classList.remove("hide-mobile-header");
+  }, [selectedChapter]);
+
   // Load existing bookmarks when chapter is opened
   useEffect(() => {
     if (!user || !selectedChapter) return;
@@ -389,8 +399,8 @@ export default function ListenPage() {
     return (
       <div className="flex flex-col min-h-screen">
         {/* Header */}
-        <div className="sticky top-14 md:top-0 z-20 glass-dark border-b border-white/10 px-4 py-3">
-          <div className="flex items-center gap-3">
+        <div className="sticky top-0 z-20 glass-dark border-b border-white/10 px-4 py-3" style={{ background: "rgba(12, 14, 42, 0.97)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => { stopAudio(); setSelectedChapter(null); }}
               className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 transition-all shrink-0"
@@ -398,45 +408,46 @@ export default function ListenPage() {
               <ChevronLeft size={18} />
             </button>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-bold text-white">{selectedChapter.name_simple}</h2>
-                <span className="text-xs text-white/40 hidden sm:inline">{selectedChapter.translated_name.name}</span>
-                <span className="text-xs bg-white/10 text-white/35 px-2 py-0.5 rounded-full hidden sm:inline">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-white truncate">{selectedChapter.name_simple}</h2>
+                <span className="text-xs text-white/40 hidden sm:inline shrink-0">{selectedChapter.translated_name.name}</span>
+                <span className="text-xs bg-white/10 text-white/35 px-2 py-0.5 rounded-full hidden sm:inline shrink-0">
                   {selectedChapter.verses_count} verses
                 </span>
               </div>
-              <p className="text-sm font-arabic text-accent/70">{selectedChapter.name_arabic}</p>
+              <p className="text-xs font-arabic text-accent/70">{selectedChapter.name_arabic}</p>
             </div>
             {/* Pronunciation toggle */}
             <button
               onClick={() => setShowAllPronunciation((p) => !p)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+              title="Toggle pronunciation"
+              className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
                 showAllPronunciation
                   ? "bg-accent/20 text-accent"
                   : "bg-white/10 text-white/50 hover:bg-white/20 hover:text-white/80"
               }`}
             >
-              <AudioLines size={13} />
-              Pronunciation
+              <AudioLines size={14} />
+              <span className="hidden sm:inline">Pronunciation</span>
             </button>
             {/* Global Listen / Pause button only */}
             <button
               onClick={handleGlobalListen}
               disabled={isAnythingLoading || loadingVerses}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+              className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 ${
                 isAnythingPlaying
                   ? "bg-secondary text-white"
                   : "bg-white/15 text-white hover:bg-white/25"
               }`}
             >
               {isAnythingLoading ? (
-                <Loader2 size={13} className="animate-spin" />
+                <Loader2 size={14} className="animate-spin" />
               ) : isAnythingPlaying ? (
-                <Pause size={13} />
+                <Pause size={14} />
               ) : (
-                <Play size={13} />
+                <Play size={14} />
               )}
-              {isAnythingPlaying ? "Pause" : "Listen"}
+              <span className="hidden sm:inline">{isAnythingPlaying ? "Pause" : "Listen"}</span>
             </button>
           </div>
         </div>

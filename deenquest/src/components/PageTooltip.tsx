@@ -36,7 +36,7 @@ export default function PageTooltip({ title, description }: PageTooltipProps) {
   }, []);
 
   return (
-    <div ref={containerRef} className="relative inline-flex z-50">
+    <div ref={containerRef} className="relative hidden md:inline-flex z-50">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}

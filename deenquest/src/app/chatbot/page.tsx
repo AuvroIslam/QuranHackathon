@@ -109,7 +109,7 @@ export default function ChatbotPage() {
   }
 
   return (
-    <div className="relative flex flex-col h-[calc(100vh-3.5rem)] md:h-screen">
+    <div className="relative flex flex-col h-[calc(100vh-8.5rem)] md:h-screen">
       <div className="absolute left-4 top-4 z-40">
         <button
           type="button"
@@ -138,23 +138,26 @@ export default function ChatbotPage() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {messages.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 bg-gradient-to-br from-secondary to-secondary-dark rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-secondary/25">
-              <Bot size={28} className="text-white" />
+          <div className="text-center py-4 md:py-12">
+            <div className="w-14 h-14 md:w-16 md:h-16 bg-linear-to-br from-secondary to-secondary-dark rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-secondary/25">
+              <Bot size={26} className="text-white" />
             </div>
-            <h2 className="text-lg font-semibold text-primary mb-2">
+            <h2 className="text-lg font-semibold text-primary mb-1.5">
               Bismillah, how can I help?
             </h2>
-            <p className="text-sm text-primary/50 max-w-md mx-auto">
+            <p className="text-sm text-primary/50 max-w-xs mx-auto hidden md:block">
               Ask me about Quranic verses, their meanings, Islamic guidance, or how to apply
               Quranic teachings in your daily life.
             </p>
-            <div className="mt-6 flex flex-wrap gap-2 justify-center max-w-lg mx-auto">
+            <p className="text-xs text-primary/45 md:hidden">
+              Ask about the Quran, Islam &amp; daily guidance.
+            </p>
+            <div className="mt-4 grid grid-cols-2 md:flex md:flex-wrap gap-2 justify-center max-w-xs md:max-w-lg mx-auto">
               {[
                 "What does the Quran say about patience?",
                 "Explain Surah Al-Fatiha",
                 "How to deal with anxiety according to Islam?",
-                "What are the benefits of reading Quran daily?",
+                "Benefits of reading Quran daily?",
               ].map((suggestion) => (
                 <button
                   key={suggestion}
@@ -171,7 +174,7 @@ export default function ChatbotPage() {
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
             {msg.role === "assistant" && (
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-secondary to-secondary-dark flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div className="w-8 h-8 rounded-lg bg-linear-to-br from-secondary to-secondary-dark flex items-center justify-center shrink-0 shadow-sm">
                 <Bot size={16} className="text-white" />
               </div>
             )}
@@ -202,7 +205,7 @@ export default function ChatbotPage() {
               )}
             </div>
             {msg.role === "user" && (
-              <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center shrink-0">
                 <User size={16} className="text-secondary" />
               </div>
             )}
@@ -211,7 +214,7 @@ export default function ChatbotPage() {
 
         {sending && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-secondary to-secondary-dark flex items-center justify-center flex-shrink-0 shadow-sm">
+            <div className="w-8 h-8 rounded-lg bg-linear-to-br from-secondary to-secondary-dark flex items-center justify-center shrink-0 shadow-sm">
               <Bot size={16} className="text-white" />
             </div>
             <div className="glass-card rounded-2xl rounded-bl-md px-4 py-3">
@@ -233,7 +236,7 @@ export default function ChatbotPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={sending}
-              className="flex-1 px-4 py-3 bg-white/25 border border-white/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 disabled:opacity-50 backdrop-blur-sm placeholder:text-primary/35 transition-all duration-300"
+              className="flex-1 min-w-0 px-4 py-3 bg-white/25 border border-white/30 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/30 disabled:opacity-50 backdrop-blur-sm placeholder:text-primary/35 transition-all duration-300"
             />
             <button
               type="submit"

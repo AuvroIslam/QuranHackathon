@@ -1184,7 +1184,7 @@ function ReadSession({
       <audio ref={audioRef} />
 
       {/* ── Sticky player bar ── */}
-      <div className="sticky top-3 z-10 mx-4 px-4 py-3 flex items-center gap-3 glass-card rounded-2xl border border-white/15 shadow-lg"
+      <div className="sticky top-14 md:top-3 z-10 mx-4 px-4 py-3 flex items-center gap-3 glass-card rounded-2xl border border-white/15 shadow-lg"
         style={{ backdropFilter: "blur(16px)" }}>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-white/70 truncate">

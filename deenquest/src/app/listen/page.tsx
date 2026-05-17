@@ -389,7 +389,7 @@ export default function ListenPage() {
     return (
       <div className="flex flex-col min-h-screen">
         {/* Header */}
-        <div className="sticky top-0 z-20 glass-dark border-b border-white/10 px-4 py-3">
+        <div className="sticky top-14 md:top-0 z-20 glass-dark border-b border-white/10 px-4 py-3">
           <div className="flex items-center gap-3">
             <button
               onClick={() => { stopAudio(); setSelectedChapter(null); }}

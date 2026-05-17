@@ -14,6 +14,7 @@ import {
   X,
   Flame,
   BookOpen,
+  Smartphone,
 } from "lucide-react";
 import { useState } from "react";
 import ProfilePanel from "./ProfilePanel";
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/dawah", label: "Dawah", icon: Moon },
   { href: "/community", label: "Community", icon: Users },
   { href: "/chatbot", label: "Ask AI", icon: MessageCircle },
+  { href: "/download", label: "Get App", icon: Smartphone },
 ];
 
 export default function Navbar() {
@@ -79,13 +81,18 @@ export default function Navbar() {
         <nav className="flex-1 p-4 space-y-1" aria-label="Main navigation">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
+            const isDownload = href === "/download";
             return (
               <Link
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  active
+                  isDownload
+                    ? active
+                      ? "bg-accent/20 text-accent shadow-lg shadow-accent/15"
+                      : "text-accent/80 hover:bg-accent/15 hover:text-accent"
+                    : active
                     ? "bg-white/15 text-white shadow-lg shadow-black/25"
                     : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
@@ -155,22 +162,29 @@ export default function Navbar() {
               </button>
             </div>
             <nav className="space-y-1" aria-label="Mobile navigation">
-              {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setMenuOpen(false)}
-                  aria-current={pathname === href ? "page" : undefined}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    pathname === href
-                      ? "bg-accent/15 text-accent"
-                      : "text-slate-300 hover:bg-white/10"
-                  }`}
-                >
-                  <Icon size={18} aria-hidden="true" />
-                  {label}
-                </Link>
-              ))}
+              {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+                const isDownload = href === "/download";
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setMenuOpen(false)}
+                    aria-current={pathname === href ? "page" : undefined}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      pathname === href
+                        ? isDownload
+                          ? "bg-accent/20 text-accent"
+                          : "bg-accent/15 text-accent"
+                        : isDownload
+                        ? "text-accent/70 hover:bg-accent/10"
+                        : "text-slate-300 hover:bg-white/10"
+                    }`}
+                  >
+                    <Icon size={18} aria-hidden="true" />
+                    {label}
+                  </Link>
+                );
+              })}
             </nav>
             <div className="mt-6 pt-4 border-t border-white/10 space-y-2">
               <button

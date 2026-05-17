@@ -25,7 +25,7 @@ export const metadata = {
 };
 
 const APK_URL =
-  "https://drive.google.com/uc?export=download&id=1gHmF5D46nuAaMiPqnmjcM9Cl4Ytds527";
+  "https://pub-21bb855ecdcc4c98962a1ea619ab671a.r2.dev/DeenQuest.apk";
 
 const FEATURES = [
   { icon: BookOpen, label: "114 Surahs with audio" },
@@ -117,15 +117,7 @@ export default function DownloadPage() {
             </a>
 
             <p className="text-xs text-white/30 leading-relaxed">
-              Direct GitHub release download.{" "}
-              <a
-                href="https://github.com/AuvroIslam/QuranHackathon/releases/latest"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent/60 hover:text-accent underline underline-offset-2 transition-colors"
-              >
-                View all releases
-              </a>
+              Direct download · Cloudflare R2 CDN
             </p>
           </div>
 

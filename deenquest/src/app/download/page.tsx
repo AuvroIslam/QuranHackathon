@@ -25,7 +25,7 @@ export const metadata = {
 };
 
 const APK_URL =
-  "https://github.com/AuvroIslam/QuranHackathon/releases/latest/download/deenquest.apk";
+  "https://drive.google.com/uc?export=download&id=1gHmF5D46nuAaMiPqnmjcM9Cl4Ytds527";
 
 const FEATURES = [
   { icon: BookOpen, label: "114 Surahs with audio" },

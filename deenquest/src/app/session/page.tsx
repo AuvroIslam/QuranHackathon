@@ -28,7 +28,7 @@ function syncQFBookmark(verseKey: string, nowBookmarked: boolean) {
     method: nowBookmarked ? "POST" : "DELETE",
     headers: { "x-qf-token": token, "Content-Type": "application/json" },
     body: JSON.stringify({ chapterNumber, verseNumber }),
-  }).catch(() => {});
+  }).catch((err) => console.error("[QF] bookmark sync failed:", err));
 }
 import {
   CheckCircle2, Loader2, X, Flame, Moon,
@@ -343,12 +343,12 @@ function SessionPageInner() {
       const qfToken = getQFAccessToken();
       if (qfToken && ayahs.length > 0) {
         const ranges = ayahs.map((a) => `${a.surahNumber}:${a.ayahNumber}`);
-        const seconds = Math.max(ayahs.length * 30, 60); // estimate ~30s per ayah
+        const seconds = Math.max(ayahs.length * 30, 60);
         fetch("/api/qf/streak", {
           method: "POST",
           headers: { "x-qf-token": qfToken, "Content-Type": "application/json" },
           body: JSON.stringify({ ranges, seconds, date: new Date().toISOString().split("T")[0] }),
-        }).catch(() => {});
+        }).catch((err) => console.error("[QF] streak sync failed:", err));
       }
       // Await so profile.currentDay (and quranProgress) are fresh BEFORE the
       // next session — the lesson-load effect keys off profile.currentDay, so
@@ -549,10 +549,10 @@ function SessionPageInner() {
             </div>
             <div className="glass-card rounded-2xl px-5 py-4 text-center">
               <div className="flex items-center gap-1.5 justify-center mb-1">
-                <Zap size={14} className="text-purple-400" fill="currentColor" />
-                <span className="text-xs text-white/50">XP Earned</span>
+                <BookOpen size={14} className="text-emerald-400" fill="currentColor" />
+                <span className="text-xs text-white/50">Sessions</span>
               </div>
-              <p className="text-xl font-extrabold text-white">{xpGained}</p>
+              <p className="text-xl font-extrabold text-white">{sessionsToday}</p>
             </div>
           </div>
 

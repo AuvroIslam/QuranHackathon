@@ -75,6 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (u) {
         try {
           await loadProfile(u);
+          // Request FCM permission and register token after login — lazy import
+          // keeps firebase/messaging out of the initial bundle.
+          import("@/lib/notifications")
+            .then(({ initNotifications }) => initNotifications(u.uid))
+            .catch(() => {});
         } catch (err) {
           // Firestore offline / permission error — keep auth state, drop loading
           // so the UI can render an error state instead of an infinite spinner.

@@ -54,6 +54,12 @@ export async function updateStreak(uid: string, streak: number) {
   });
 }
 
+// ─── FCM Token ──────────────────────────────────────────────────
+
+export async function saveFcmToken(uid: string, token: string) {
+  await updateDoc(doc(db, "users", uid), { fcmToken: token });
+}
+
 // ─── Goal Setup ─────────────────────────────────────────────────
 
 export async function saveUserGoal(

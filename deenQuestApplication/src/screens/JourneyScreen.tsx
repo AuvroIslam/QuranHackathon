@@ -194,17 +194,6 @@ export default function JourneyScreen() {
     }
   };
 
-  const handleLearnCustomText = async (text: string) => {
-    if (moodLoading) return;
-    setMoodLoading(true);
-    try {
-      const { result, error } = await getAyahByCustomMood(text);
-      if (!result) { showAyahError(error); return; }
-      animateTo(1, () => selectMood('justHere', result.ayah, result.question, text));
-    } finally {
-      setMoodLoading(false);
-    }
-  };
 
   const handleSkip = async () => {
     if (moodLoading) return;
@@ -218,37 +207,6 @@ export default function JourneyScreen() {
     }
   };
 
-  const handleLearnMoodSelect = async (mood: Mood, customText?: string) => {
-    if (moodLoading) return;
-    setMoodLoading(true);
-    try {
-      if (apiLesson) {
-        animateTo(1, () => selectMood(mood, apiLesson.learnContent, apiLesson.mcq, customText));
-      } else {
-        const { result, error } = await getAyahByMood(mood);
-        if (!result) { showAyahError(error); return; }
-        animateTo(1, () => selectMood(mood, result.ayah, result.question, customText));
-      }
-    } finally {
-      setMoodLoading(false);
-    }
-  };
-
-  const handleLearnSkip = async () => {
-    if (moodLoading) return;
-    setMoodLoading(true);
-    try {
-      if (apiLesson) {
-        animateTo(1, () => skipMood('justHere', apiLesson.learnContent, apiLesson.mcq));
-      } else {
-        const { result, error } = await getAyahByMood('justHere');
-        if (!result) { showAyahError(error); return; }
-        animateTo(1, () => skipMood('justHere', result.ayah, result.question));
-      }
-    } finally {
-      setMoodLoading(false);
-    }
-  };
 
   const handleNext = () => animateTo(1, nextStep);
 
@@ -479,7 +437,7 @@ export default function JourneyScreen() {
     }
     switch (state.step) {
       case 'mood':
-        if (isLessonDay && !ayahOnly && (lessonLoading || (!apiLesson && profileLoaded))) {
+        if (lessonLoading) {
           return (
             <View style={styles.loadingCenter}>
               <ActivityIndicator size="large" color={colors.primary} />
@@ -488,8 +446,8 @@ export default function JourneyScreen() {
         }
         return (
           <MoodSelection
-            onSelect={isLessonDay && !ayahOnly ? handleLearnMoodSelect : handleMoodSelect}
-            onCustomText={isLessonDay && !ayahOnly ? handleLearnCustomText : handleCustomText}
+            onSelect={handleMoodSelect}
+            onCustomText={handleCustomText}
             loading={moodLoading}
           />
         );
@@ -593,7 +551,7 @@ export default function JourneyScreen() {
 
             {state.step === 'mood' ? (
               <Pressable
-                onPress={() => { triggerHaptic(hapticsEnabled, 'light'); if (isLessonDay && !ayahOnly) handleLearnSkip(); else handleSkip(); }}
+                onPress={() => { triggerHaptic(hapticsEnabled, 'light'); handleSkip(); }}
                 disabled={ayahOnly}
                 hitSlop={8}
                 style={[styles.skipHeaderBtn, ayahOnly && styles.skipHeaderBtnDisabled]}

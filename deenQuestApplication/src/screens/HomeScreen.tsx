@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { completeTask, getDailySessionCount, getUserProfile, getUserTasksForDate, resetStreak } from '../lib/firestore';
 import { cancelStreakReminder, scheduleStreakReminder } from '../lib/notifications';
+import { triggerHaptic } from '../lib/haptics';
 import { getTodaysTasks, Task } from '../lib/tasks-data';
 import { getStreakStatus } from '../lib/streakUtils';
 import { DEPTH, RADIUS, SHADOW } from '../theme';
@@ -31,7 +32,7 @@ interface Props {
 
 export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
   const { uid, user } = useAuth();
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, hapticsEnabled } = useTheme();
   const [streak, setStreak] = useState(0);
   const [lastSessionDate, setLastSessionDate] = useState<string | null>(null);
   const [xp, setXp] = useState(0);
@@ -127,6 +128,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
 
   const handleComplete = async (task: Task) => {
     if (!uid || completedIds.has(task.id) || completing) return;
+    triggerHaptic(hapticsEnabled, 'medium');
     setCompleting(task.id);
     setCompletedIds((prev) => new Set([...prev, task.id]));
     setXp((prev) => prev + task.xpReward);
@@ -528,6 +530,7 @@ export default function HomeScreen({ onStartLesson, onGetAyah }: Props) {
                   onPressIn={() => setLessonPressed(true)}
                   onPressOut={() => setLessonPressed(false)}
                   onPress={() => {
+                    triggerHaptic(hapticsEnabled, 'medium');
                     if (streakStatus.status === 'recovery') {
                       setShowRecoveryModal(true);
                     } else {

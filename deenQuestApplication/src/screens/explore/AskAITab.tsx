@@ -1,10 +1,12 @@
 import { BookOpen, Send, ShieldCheck, Sparkles } from 'lucide-react-native';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,7 +16,7 @@ import {
 } from 'react-native';
 import { API_BASE } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
-import { RADIUS, SHADOW } from '../../theme';
+import { DEPTH, RADIUS, SHADOW } from '../../theme';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -74,6 +76,14 @@ export default function AskAITab() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
+  // Scroll to end when keyboard opens (so latest message stays visible)
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+    });
+    return () => sub.remove();
+  }, []);
+
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
@@ -128,6 +138,7 @@ export default function AskAITab() {
       backgroundColor: colors.card, borderRadius: RADIUS.xl,
       borderWidth: 1.5, borderColor: colors.cardBorder,
       padding: 14, ...SHADOW.card,
+      borderBottomWidth: 4, borderBottomColor: '#9B8CC8',
     },
     suggestionText: { color: colors.text, fontSize: 14, fontWeight: '500', flex: 1 },
 
@@ -187,20 +198,22 @@ export default function AskAITab() {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={84}
     >
       {messages.length === 0 ? (
-        <ScrollView contentContainerStyle={styles.emptyContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView
+          contentContainerStyle={styles.emptyContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          style={styles.flex}
+        >
           <Image source={require('../../../elementsApp/thinking-removebg-preview.png')} style={styles.emptyChar} />
           <Text style={styles.emptyTitle}>Ask AI</Text>
           <Text style={styles.emptySub}>Ask any question about Islam, the Quran, or your spiritual journey</Text>
           <View style={styles.suggestions}>
             {SUGGESTIONS.map((s) => (
-              <TouchableOpacity key={s} style={styles.suggestion} onPress={() => sendMessage(s)}>
-                <Sparkles size={13} color={colors.primary} />
-                <Text style={styles.suggestionText}>{s}</Text>
-              </TouchableOpacity>
+              <SuggestionChip key={s} text={s} onPress={() => sendMessage(s)} styles={styles} colors={colors} />
             ))}
           </View>
         </ScrollView>
@@ -270,5 +283,23 @@ export default function AskAITab() {
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
+  );
+}
+
+function SuggestionChip({ text, onPress, styles, colors }: {
+  text: string; onPress: () => void;
+  styles: ReturnType<typeof StyleSheet.create>; colors: any;
+}) {
+  const [pressed, setPressed] = useState(false);
+  return (
+    <Pressable
+      style={[styles.suggestion, pressed && DEPTH.buttonPressed]}
+      onPress={onPress}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+    >
+      <Sparkles size={13} color={colors.primary} />
+      <Text style={styles.suggestionText}>{text}</Text>
+    </Pressable>
   );
 }

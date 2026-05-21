@@ -1,4 +1,4 @@
-import { BadgeCheck, Bookmark, BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, ClipboardCheck, Crown, Flame, Globe, GraduationCap, LogOut, Medal, Moon, Shield, Star, Sun, Trophy, TrendingUp, Zap } from 'lucide-react-native';
+import { BadgeCheck, Bookmark, BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, ClipboardCheck, Crown, Flame, Globe, GraduationCap, LogOut, Medal, Moon, Shield, Star, Sun, Trophy, TrendingUp, Vibrate, Zap } from 'lucide-react-native';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   ActivityIndicator, FlatList, Image, ImageBackground, Linking, Modal, Pressable, ScrollView,
@@ -13,6 +13,7 @@ import { useTheme } from '../context/ThemeContext';
 import { auth } from '../lib/firebase';
 import { getUserProfile, getBookmarks, updateUserPlan, updateUserGoal, getQFTokens } from '../lib/firestore';
 import { TRANSLATION_OPTIONS } from '../lib/translations';
+import { triggerHaptic } from '../lib/haptics';
 import { DEPTH, RADIUS, SHADOW } from '../theme';
 import { Bookmark as BookmarkType, TimePerDay, UserGoal, UserLevel } from '../types';
 import { signOut } from 'firebase/auth';
@@ -48,7 +49,7 @@ const BADGES = [
 
 export default function ProfileScreen() {
   const { uid, user } = useAuth();
-  const { isDark, colors, toggleTheme, translationId, setTranslationId } = useTheme();
+  const { isDark, colors, toggleTheme, translationId, setTranslationId, hapticsEnabled, toggleHaptics } = useTheme();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [bookmarks, setBookmarks] = useState<BookmarkType[]>([]);
@@ -424,6 +425,7 @@ export default function ProfileScreen() {
   const handleSignOut = () => setShowSignOutModal(true);
 
   const confirmSignOut = async () => {
+    triggerHaptic(hapticsEnabled, 'heavy');
     setShowSignOutModal(false);
     await GoogleSignin.signOut().catch(() => {});
     signOut(auth);
@@ -593,6 +595,21 @@ export default function ProfileScreen() {
                     onValueChange={toggleTheme}
                     trackColor={{ false: colors.cardBorder, true: colors.primaryLight }}
                     thumbColor={isDark ? colors.primary : colors.white}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.settingCard}>
+                <View style={styles.settingRow}>
+                  <View style={styles.settingLeft}>
+                    <Vibrate size={18} color={colors.primary} />
+                    <Text style={styles.settingLabel}>Haptic Feedback</Text>
+                  </View>
+                  <Switch
+                    value={hapticsEnabled}
+                    onValueChange={toggleHaptics}
+                    trackColor={{ false: colors.cardBorder, true: colors.primaryLight }}
+                    thumbColor={hapticsEnabled ? colors.primary : colors.white}
                   />
                 </View>
               </View>

@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { saveQFTokens, saveUserGoal, getQFTokens } from '../lib/firestore';
+import { triggerHaptic } from '../lib/haptics';
 import { DEPTH, RADIUS, SHADOW } from '../theme';
 import { TimePerDay, UserGoal, UserLevel } from '../types';
 import { syncGoalToQF } from '../services/api';
@@ -43,7 +44,7 @@ const MASCOT_SPEECH: Record<WizardStep, string> = {
 
 export default function GoalSetupScreen({ uid, onDone }: Props) {
   const { uid: ctxUid } = useAuth();
-  const { colors } = useTheme();
+  const { colors, hapticsEnabled } = useTheme();
   const effectiveUid = uid || ctxUid;
   const [wizardStep, setWizardStep] = useState<WizardStep>('goal');
   const [goal, setGoal] = useState<UserGoal | null>(null);
@@ -343,16 +344,16 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
               <ActivityIndicator size="large" color={colors.primary} />
               <Text style={qfStyles.waitingText}>Waiting for Quran.com…</Text>
               <Text style={qfStyles.waitingSub}>Complete sign-in in the browser, then return here.</Text>
-              <Pressable onPress={onDone} style={qfStyles.skipLink}>
+              <Pressable onPress={() => { triggerHaptic(hapticsEnabled, 'light'); onDone(); }} style={qfStyles.skipLink}>
                 <Text style={qfStyles.skipText}>Skip for now</Text>
               </Pressable>
             </View>
           ) : (
             <View style={qfStyles.actions}>
-              <Pressable style={qfStyles.connectBtn} onPress={handleQFConnect}>
+              <Pressable style={qfStyles.connectBtn} onPress={() => { triggerHaptic(hapticsEnabled, 'medium'); handleQFConnect(); }}>
                 <Text style={qfStyles.connectText}>Connect Quran.com</Text>
               </Pressable>
-              <Pressable onPress={onDone} style={qfStyles.skipLink}>
+              <Pressable onPress={() => { triggerHaptic(hapticsEnabled, 'light'); onDone(); }} style={qfStyles.skipLink}>
                 <Text style={qfStyles.skipText}>Maybe later</Text>
               </Pressable>
             </View>
@@ -439,11 +440,12 @@ export default function GoalSetupScreen({ uid, onDone }: Props) {
 
 function GoalCard({ icon, title, description, onPress, styles }: { icon: React.ReactNode; title: string; description: string; onPress: () => void; styles: any }) {
   const [pressed, setPressed] = useState(false);
+  const { hapticsEnabled } = useTheme();
   return (
     <Pressable
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      onPress={onPress}
+      onPress={() => { triggerHaptic(hapticsEnabled, 'medium'); onPress(); }}
       style={[styles.card, DEPTH.card, pressed && DEPTH.cardPressed]}
     >
       <View style={styles.cardIcon}>{icon}</View>
@@ -457,11 +459,12 @@ function GoalCard({ icon, title, description, onPress, styles }: { icon: React.R
 
 function LevelCard({ image, title, desc, detail, onPress, styles }: { image: any; title: string; desc: string; detail: string; onPress: () => void; styles: any }) {
   const [pressed, setPressed] = useState(false);
+  const { hapticsEnabled } = useTheme();
   return (
     <Pressable
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      onPress={onPress}
+      onPress={() => { triggerHaptic(hapticsEnabled, 'medium'); onPress(); }}
       style={[styles.card, DEPTH.card, pressed && DEPTH.cardPressed]}
     >
       <View style={styles.cardIcon}>
@@ -478,11 +481,12 @@ function LevelCard({ image, title, desc, detail, onPress, styles }: { image: any
 
 function TimeCard({ minutes, estimate, onPress, loading, colors, styles }: { minutes: number; estimate: string; onPress: () => void; loading: boolean; colors: any; styles: any }) {
   const [pressed, setPressed] = useState(false);
+  const { hapticsEnabled } = useTheme();
   return (
     <Pressable
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      onPress={onPress}
+      onPress={() => { triggerHaptic(hapticsEnabled, 'medium'); onPress(); }}
       disabled={loading}
       style={[styles.card, DEPTH.card, pressed && DEPTH.cardPressed]}
     >

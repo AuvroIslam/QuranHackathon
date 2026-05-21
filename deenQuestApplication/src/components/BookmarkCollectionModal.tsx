@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator, Modal, Pressable, ScrollView,
-  StyleSheet, Text, TextInput, View,
+  ActivityIndicator, KeyboardAvoidingView, Modal, Platform,
+  Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { Check, ChevronDown, Folder, FolderPlus, X } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
+import { triggerHaptic } from '../lib/haptics';
 import { toggleBookmark, getQFTokens, getBookmarks } from '../lib/firestore';
 import { API_BASE, addToQFCollection } from '../services/api';
-import { RADIUS, SHADOW } from '../theme';
+import { DEPTH, RADIUS, SHADOW } from '../theme';
 
 interface QFCollection { id: string; name: string }
 
@@ -28,7 +29,7 @@ const LOCAL_PREFIX = '__local__:';
 export default function BookmarkCollectionModal({
   uid, verseKey, surahName, arabic, translation, onClose, onSaved,
 }: Props) {
-  const { colors } = useTheme();
+  const { colors, hapticsEnabled } = useTheme();
   const [qfCollections, setQfCollections] = useState<QFCollection[]>([]);
   const [localCollectionNames, setLocalCollectionNames] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState(DEFAULT_ID);
@@ -36,6 +37,7 @@ export default function BookmarkCollectionModal({
   const [newName, setNewName] = useState('');
   const [saving, setSaving] = useState(false);
   const [qfToken, setQfToken] = useState<string | null>(null);
+  const [savePressed, setSavePressed] = useState(false);
 
   useEffect(() => {
     // Always load local collection names from existing bookmarks
@@ -129,6 +131,7 @@ export default function BookmarkCollectionModal({
         ).catch(() => {});
       }
 
+      triggerHaptic(hapticsEnabled, 'light');
       onSaved();
       onClose();
     } catch {
@@ -187,6 +190,7 @@ export default function BookmarkCollectionModal({
     saveBtn: {
       backgroundColor: colors.primary, borderRadius: RADIUS.md,
       padding: 15, alignItems: 'center', marginTop: 4,
+      ...DEPTH.button,
     },
     saveBtnDisabled: { opacity: 0.5 },
     saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
@@ -194,6 +198,10 @@ export default function BookmarkCollectionModal({
 
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable onPress={() => {}} style={styles.sheet}>
 
@@ -265,8 +273,10 @@ export default function BookmarkCollectionModal({
           )}
 
           <Pressable
-            style={[styles.saveBtn, (saving || (isNew && !newName.trim())) && styles.saveBtnDisabled]}
+            style={[styles.saveBtn, (saving || (isNew && !newName.trim())) && styles.saveBtnDisabled, savePressed && DEPTH.buttonPressed]}
             onPress={handleSave}
+            onPressIn={() => setSavePressed(true)}
+            onPressOut={() => setSavePressed(false)}
             disabled={saving || (isNew && !newName.trim())}
           >
             {saving
@@ -276,6 +286,7 @@ export default function BookmarkCollectionModal({
 
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

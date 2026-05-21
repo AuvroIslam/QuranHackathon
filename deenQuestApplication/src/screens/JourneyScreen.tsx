@@ -4,7 +4,6 @@ import { X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Pressable,
   StyleSheet,
@@ -32,7 +31,8 @@ import {
   updateQuranProgress,
 } from '../lib/firestore';
 import { getStreakStatus } from '../lib/streakUtils';
-import { getAyahByMood, checkLessonAnswer, fetchLesson, ApiLesson } from '../services/api';
+import { getAyahByMood, getAyahByCustomMood, checkLessonAnswer, fetchLesson, ApiLesson } from '../services/api';
+import { triggerHaptic } from '../lib/haptics';
 import { DEPTH, RADIUS, SHADOW } from '../theme';
 import { Mood, TimePerDay, UserGoal, UserLevel } from '../types';
 
@@ -47,7 +47,7 @@ function levelToLessonKey(level: UserLevel | null): 'beginner' | 'intermediate' 
 
 export default function JourneyScreen() {
   const { uid } = useAuth();
-  const { colors } = useTheme();
+  const { colors, hapticsEnabled } = useTheme();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const ayahOnly = route.params?.ayahOnly === true;
@@ -66,6 +66,7 @@ export default function JourneyScreen() {
   const [lastSessionDate, setLastSessionDate] = useState<string | null>(null);
   const [recoveryTasksDoneToday, setRecoveryTasksDoneToday] = useState(0);
   const [moodLoading, setMoodLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [mcqVerdict, setMcqVerdict] = useState<{ correctIndex: number } | null>(null);
   const [apiLesson, setApiLesson] = useState<ApiLesson | null>(null);
   const [lessonLoading, setLessonLoading] = useState(false);
@@ -167,7 +168,7 @@ export default function JourneyScreen() {
     try {
       const res = await getAyahByMood(mood);
       if (!res) {
-        Alert.alert('Connection issue', "Couldn't load the verse. Please check your connection and try again.");
+        setConnectionError("Couldn't load the verse. Please check your connection and try again.");
         return;
       }
       animateTo(1, () => selectMood(mood, res.ayah, res.question, customText));
@@ -176,7 +177,39 @@ export default function JourneyScreen() {
     }
   };
 
-  const handleCustomText = (text: string) => handleMoodSelect('justHere', text);
+  const handleCustomText = async (text: string) => {
+    if (moodLoading) return;
+    setMoodLoading(true);
+    try {
+      const res = await getAyahByCustomMood(text);
+      if (!res) {
+        setConnectionError("Couldn't load the verse. Please check your connection and try again.");
+        return;
+      }
+      animateTo(1, () => selectMood('justHere', res.ayah, res.question, text));
+    } finally {
+      setMoodLoading(false);
+    }
+  };
+
+  const handleLearnCustomText = async (text: string) => {
+    if (moodLoading) return;
+    setMoodLoading(true);
+    try {
+      if (apiLesson) {
+        animateTo(1, () => selectMood('justHere', apiLesson.learnContent, apiLesson.mcq, text));
+      } else {
+        const res = await getAyahByCustomMood(text);
+        if (!res) {
+          setConnectionError("Couldn't load the verse. Please check your connection and try again.");
+          return;
+        }
+        animateTo(1, () => selectMood('justHere', res.ayah, res.question, text));
+      }
+    } finally {
+      setMoodLoading(false);
+    }
+  };
 
   const handleSkip = async () => {
     if (moodLoading) return;
@@ -184,7 +217,7 @@ export default function JourneyScreen() {
     try {
       const res = await getAyahByMood('justHere');
       if (!res) {
-        Alert.alert('Connection issue', "Couldn't load the verse. Please check your connection and try again.");
+        setConnectionError("Couldn't load the verse. Please check your connection and try again.");
         return;
       }
       animateTo(1, () => skipMood('justHere', res.ayah, res.question));
@@ -204,7 +237,7 @@ export default function JourneyScreen() {
         // Lesson not yet loaded — fall back to mood-based ayah
         const res = await getAyahByMood(mood);
         if (!res) {
-          Alert.alert('Connection issue', "Couldn't load the verse. Please check your connection and try again.");
+          setConnectionError("Couldn't load the verse. Please check your connection and try again.");
           return;
         }
         animateTo(1, () => selectMood(mood, res.ayah, res.question, customText));
@@ -223,7 +256,7 @@ export default function JourneyScreen() {
       } else {
         const res = await getAyahByMood('justHere');
         if (!res) {
-          Alert.alert('Connection issue', "Couldn't load the verse. Please check your connection and try again.");
+          setConnectionError("Couldn't load the verse. Please check your connection and try again.");
           return;
         }
         animateTo(1, () => skipMood('justHere', res.ayah, res.question));
@@ -473,9 +506,7 @@ export default function JourneyScreen() {
         return (
           <MoodSelection
             onSelect={isLessonDay && !ayahOnly ? handleLearnMoodSelect : handleMoodSelect}
-            onCustomText={isLessonDay && !ayahOnly
-              ? (text) => handleLearnMoodSelect('justHere', text)
-              : handleCustomText}
+            onCustomText={isLessonDay && !ayahOnly ? handleLearnCustomText : handleCustomText}
             loading={moodLoading}
           />
         );
@@ -532,13 +563,41 @@ export default function JourneyScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={isCompletion ? ['top'] : ['top', 'bottom']}>
+      {connectionError && (
+        <Pressable
+          onPress={() => setConnectionError(null)}
+          style={{
+            position: 'absolute', bottom: 32, left: 16, right: 16, zIndex: 99,
+            backgroundColor: colors.card,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: colors.cardBorder,
+            padding: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            shadowColor: '#000',
+            shadowOpacity: 0.35,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 10,
+          }}
+        >
+          <View style={{ width: 6, height: '100%', backgroundColor: colors.error ?? '#ef4444', borderRadius: 3, alignSelf: 'stretch' }} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>Connection issue</Text>
+            <Text style={{ color: colors.textSub, fontSize: 12, lineHeight: 17 }}>{connectionError}</Text>
+          </View>
+          <Text style={{ color: colors.textMuted, fontSize: 18, lineHeight: 20 }}>×</Text>
+        </Pressable>
+      )}
       <View style={styles.container}>
 
         {/* Duolingo-style header */}
         {!isCompletion && (
           <View style={styles.header}>
             <Pressable
-              onPress={() => navigation.navigate('Home')}
+              onPress={() => { navigation.navigate('Home'); }}
               hitSlop={12}
               style={styles.closeBtn}
             >
@@ -551,7 +610,7 @@ export default function JourneyScreen() {
 
             {state.step === 'mood' ? (
               <Pressable
-                onPress={isLessonDay && !ayahOnly ? handleLearnSkip : handleSkip}
+                onPress={() => { triggerHaptic(hapticsEnabled, 'light'); if (isLessonDay && !ayahOnly) handleLearnSkip(); else handleSkip(); }}
                 disabled={ayahOnly}
                 hitSlop={8}
                 style={[styles.skipHeaderBtn, ayahOnly && styles.skipHeaderBtnDisabled]}
@@ -584,11 +643,12 @@ export default function JourneyScreen() {
 
 function ContinueButton({ label, onPress, disabled = false, styles }: { label: string; onPress: () => void; disabled?: boolean; styles: any }) {
   const [pressed, setPressed] = useState(false);
+  const { hapticsEnabled } = useTheme();
   return (
     <Pressable
       onPressIn={() => { if (!disabled) setPressed(true); }}
       onPressOut={() => setPressed(false)}
-      onPress={disabled ? undefined : onPress}
+      onPress={disabled ? undefined : () => { triggerHaptic(hapticsEnabled, 'medium'); onPress(); }}
       style={[
         styles.continueBtn,
         disabled ? styles.continueBtnDisabled : [DEPTH.button, pressed && DEPTH.buttonPressed],

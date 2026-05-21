@@ -34,6 +34,29 @@ export async function getAyahByMood(
   }
 }
 
+export async function getAyahByCustomMood(
+  customText: string
+): Promise<{ ayah: Ayah; question: MCQData } | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/mood-ayah?mood=justHere&customText=${encodeURIComponent(customText)}`,
+        { signal: controller.signal }
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data?.ayah?.arabic) return null;
+      return { ayah: data.ayah, question: data.question };
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchLessonReflection(opts: {
   verseKey?: string;
   arabic?: string;
@@ -50,27 +73,6 @@ export async function fetchLessonReflection(opts: {
     if (!res.ok) return null;
     const data = await res.json();
     return typeof data?.reflection === 'string' ? data.reflection : null;
-  } catch {
-    return null;
-  }
-}
-
-export interface HadithEntry {
-  english: string;
-  narrator?: string;
-  collection: string;
-  hadithNumber: string;
-  reference?: string;
-}
-
-export async function fetchHadithForMood(mood: string, situation?: string): Promise<HadithEntry | null> {
-  try {
-    const qs = new URLSearchParams({ mood });
-    if (situation && situation.trim()) qs.set('situation', situation.trim());
-    const res = await fetch(`${API_BASE}/api/hadith?${qs.toString()}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.hadith ?? null;
   } catch {
     return null;
   }

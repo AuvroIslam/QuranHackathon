@@ -2,6 +2,7 @@ import { CheckCircle, Flame, Moon, Zap } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { triggerHaptic } from '../../lib/haptics';
 import { DEPTH, RADIUS, SHADOW } from '../../theme';
 
 interface Props {
@@ -29,7 +30,7 @@ const MAX_OUT_MESSAGES = [
 ];
 
 export default function CompletionStep({ xpEarned, streak, lastSessionDate, sessionsToday, maxSessions, onContinue, onRestart }: Props) {
-  const { colors } = useTheme();
+  const { colors, isDark, hapticsEnabled } = useTheme();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const card1Anim = useRef(new Animated.Value(0)).current;
@@ -39,10 +40,14 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
   const [donePressed, setDonePressed] = useState(false);
 
   const isMaxed = sessionsToday >= maxSessions;
-  const sessionsLeft = maxSessions - sessionsToday;
   const message = MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
   const maxOutMessage = MAX_OUT_MESSAGES[Math.floor(Math.random() * MAX_OUT_MESSAGES.length)];
   const [showStreak, setShowStreak] = useState(sessionsToday === 1);
+
+  useEffect(() => {
+    triggerHaptic(hapticsEnabled, showStreak ? 'heavy' : 'success');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     Animated.sequence([
@@ -58,7 +63,7 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
 
   const styles = useMemo(() => StyleSheet.create({
     bg: { flex: 1 },
-    bgImage: { opacity: 0.55 },
+    bgImage: { opacity: isDark ? 0.6 : 0.55 },
     container: {
       flex: 1, padding: 24,
       alignItems: 'center', justifyContent: 'center', gap: 20,
@@ -81,8 +86,14 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
       borderRadius: RADIUS.xl, borderWidth: 1, borderColor: colors.cardBorder,
       padding: 14, alignItems: 'center', gap: 5, ...SHADOW.card,
     },
-    statCardStreak: { borderColor: '#FFD5C2', backgroundColor: '#FFF8F5' },
-    statCardStar: { borderColor: colors.accentLight, backgroundColor: '#FFFBEB' },
+    statCardStreak: {
+      borderColor: isDark ? '#7C3020' : '#FFD5C2',
+      backgroundColor: isDark ? '#1A0D08' : '#FFF8F5',
+    },
+    statCardStar: {
+      borderColor: isDark ? '#7C6520' : colors.accentLight,
+      backgroundColor: isDark ? '#1A1608' : '#FFFBEB',
+    },
     statValue: { fontSize: 24, fontWeight: '800' },
     statLabel: { color: colors.textSub, fontSize: 11, fontWeight: '600' },
 
@@ -109,8 +120,8 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
       paddingHorizontal: 16, paddingVertical: 12, width: '100%',
       justifyContent: 'center',
     },
-    maxedText: { color: colors.primaryDark, fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  }), [colors]);
+    maxedText: { color: isDark ? colors.primaryLight : colors.primaryDark, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  }), [colors, isDark]);
 
   const streakStyles = useMemo(() => StyleSheet.create({
     screen: {
@@ -230,7 +241,7 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
 
         {/* Button */}
         <Pressable
-          onPress={() => setShowStreak(false)}
+          onPress={() => { triggerHaptic(hapticsEnabled, 'success'); setShowStreak(false); }}
           style={streakStyles.continueBtn}
         >
           <Text style={streakStyles.continueBtnText}>CONTINUE</Text>
@@ -241,7 +252,9 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
 
   return (
     <ImageBackground
-      source={require('../../../elementsApp/cardBg1.png')}
+      source={isDark
+        ? require('../../../elementsApp/homecardBGmoonDark.png')
+        : require('../../../elementsApp/cardBg1.png')}
       style={styles.bg}
       imageStyle={styles.bgImage}
     >
@@ -298,7 +311,7 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
               <Pressable
                 onPressIn={() => setDonePressed(true)}
                 onPressOut={() => setDonePressed(false)}
-                onPress={onRestart}
+                onPress={() => { triggerHaptic(hapticsEnabled, 'light'); onRestart(); }}
                 style={[styles.doneBtn, donePressed && { borderBottomWidth: 0, marginTop: 4 }]}
               >
                 <Text style={styles.doneBtnText}>Back to Home</Text>
@@ -310,7 +323,7 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
               <Pressable
                 onPressIn={() => setContinuePressed(true)}
                 onPressOut={() => setContinuePressed(false)}
-                onPress={onContinue}
+                onPress={() => { triggerHaptic(hapticsEnabled, 'medium'); onContinue(); }}
                 style={[styles.continueBtn, DEPTH.button, continuePressed && DEPTH.buttonPressed]}
               >
                 <Text style={styles.continueBtnText}>
@@ -320,7 +333,7 @@ export default function CompletionStep({ xpEarned, streak, lastSessionDate, sess
               <Pressable
                 onPressIn={() => setDonePressed(true)}
                 onPressOut={() => setDonePressed(false)}
-                onPress={onRestart}
+                onPress={() => { triggerHaptic(hapticsEnabled, 'light'); onRestart(); }}
                 style={[styles.doneBtn, donePressed && { borderBottomWidth: 0, marginTop: 4 }]}
               >
                 <Text style={styles.doneBtnText}>I'm done for today</Text>

@@ -108,6 +108,20 @@ export async function getAyahAudio(verseKey: string): Promise<string> {
   return url.startsWith("http") ? url : `${AUDIO_CDN}${url}`;
 }
 
+export async function fetchVersesByKeys(keys: string[]): Promise<any[]> {
+  const valid = keys.filter((k) => /^\d+:\d+$/.test(k)).slice(0, 5);
+  if (valid.length === 0) return [];
+  const settled = await Promise.allSettled(
+    valid.map(async (key) => {
+      const [s, a] = key.split(":").map(Number);
+      return getAyahByKey(s, a);
+    })
+  );
+  return settled
+    .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
+    .map((r) => r.value);
+}
+
 export async function getSurahList() {
   const data = await qfGet("chapters", { language: "en" });
   return data.chapters || [];

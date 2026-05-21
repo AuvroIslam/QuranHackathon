@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Circle, Svg } from 'react-native-svg';
 import { useTheme } from '../../context/ThemeContext';
+import { triggerHaptic } from '../../lib/haptics';
 import { RADIUS, SHADOW } from '../../theme';
 import { Ayah } from '../../types';
 
@@ -14,7 +15,7 @@ interface Props {
 type PlayState = 'idle' | 'loading' | 'playing' | 'done';
 
 export default function ListenStep({ ayah }: Props) {
-  const { colors } = useTheme();
+  const { colors, hapticsEnabled } = useTheme();
   const [playState, setPlayState] = useState<PlayState>('idle');
   const progressAnim = useRef(new Animated.Value(0)).current;
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -171,7 +172,7 @@ export default function ListenStep({ ayah }: Props) {
             )}
           </Svg>
           <Pressable
-            onPress={playState === 'playing' ? stopAudio : playAudio}
+            onPress={() => { triggerHaptic(hapticsEnabled, 'light'); if (playState === 'playing') stopAudio(); else playAudio(); }}
             style={[styles.playBtn, SHADOW.glow(colors.primary)]}
           >
             <BtnIcon />

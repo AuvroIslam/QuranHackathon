@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import PageContainer from "../../components/PageContainer";
 import AyahCard from "@/components/AyahCard";
-import { searchAyahs } from "@/lib/quran";
+import { searchAyahs, fetchVersesByKeys } from "@/lib/quran";
 import { Loader2 } from "lucide-react";
 import { toggleBookmark, getBookmarks } from "@/lib/firestore";
 import { getQFAccessToken } from "@/lib/qf-user-auth";
@@ -40,6 +40,7 @@ const TOPICS = [
 ];
 
 interface DawahSections {
+  verseKeys: string[];
   quranView: string;
   scriptures: ScriptureEntry[];
   ummahReasoning: string;
@@ -56,6 +57,7 @@ function parseDawahSections(raw: string): DawahSections {
   const clean = raw.trim();
 
   const fallback: DawahSections = {
+    verseKeys: [],
     quranView: clean || "No Quranic summary generated yet.",
     scriptures: [],
     ummahReasoning: "Could not parse the ummah-focused reasoning. Please retry.",
@@ -86,7 +88,11 @@ function parseDawahSections(raw: string): DawahSections {
       typeof parsed?.quranView === "string" &&
       typeof parsed?.ummahReasoning === "string"
     ) {
+      const parsedKeys: string[] = Array.isArray(parsed?.verseKeys)
+        ? parsed.verseKeys.filter((k: unknown) => typeof k === "string" && /^\d+:\d+$/.test(k))
+        : [];
       return {
+        verseKeys: parsedKeys,
         quranView: parsed.quranView.trim(),
         scriptures: parsedScriptures,
         ummahReasoning: parsed.ummahReasoning.trim(),
@@ -160,23 +166,12 @@ export default function DawahPage() {
   async function handleTopicSelect(topic: string) {
     setSelectedTopic(topic);
     setSearching(true);
+    setAyahs([]);
     setQuranView("");
     setScriptures([]);
     setUmmahReasoning("");
 
     try {
-      const results = await searchAyahs(topic);
-      setAyahs(results);
-
-      const verseSummary = results
-        .slice(0, 3)
-        .map((r: any) => `${r.surah.englishName} ${r.numberInSurah}: "${r.translation}"`)
-        .join("\n");
-
-      const verseContext = verseSummary
-        ? `Use these relevant Quran verses as primary grounding:\n${verseSummary}`
-        : "No direct verse search results were found; use well-known Quranic principles and accurate references.";
-
       const response = await fetch("/api/deepseek", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -186,7 +181,7 @@ export default function DawahPage() {
           messages: [
             {
               role: "user",
-              content: `Topic: "${topic}"\n\n${verseContext}\n\nRespond with ONLY a raw JSON object. No markdown fences, no explanation outside the JSON.\n\nLimits per field:\n- quranView: 2-3 sentences, max 500 chars, include 1-2 ayah refs\n- Each scripture quote: max 150 chars. If translation is uncertain, end with " (translation may vary)" — do NOT wrap the quote in single quotes\n- Each scripture explanation: 2-3 sentences, max 220 chars\n- ummahReasoning: 3-4 sentences, max 500 chars\n- Exactly 3 scriptures: Bible, Bhagavad Gita, Torah\n\nShape:\n{"quranView":"...","scriptures":[{"scriptureName":"...","quote":"...","reference":"...","explanation":"..."}],"ummahReasoning":"..."}\n\nCritical: every string must be a complete sentence. Never cut off mid-word or mid-sentence.`,
+              content: `Topic: "${topic}"\n\nRespond with ONLY a raw JSON object. No markdown fences, no explanation outside the JSON.\n\nLimits per field:\n- verseKeys: array of 3-5 verse references (format "surah:ayah") most THEMATICALLY relevant to this topic — pick verses that directly address the concept, not just keyword matches\n- quranView: 2-3 sentences, max 500 chars, include 1-2 ayah refs\n- Each scripture quote: max 150 chars. If translation is uncertain, end with " (translation may vary)" — do NOT wrap the quote in single quotes\n- Each scripture explanation: 2-3 sentences, max 220 chars\n- ummahReasoning: 3-4 sentences, max 500 chars\n- Exactly 3 scriptures: Bible, Bhagavad Gita, Torah\n\nShape:\n{"verseKeys":["2:62","60:8","49:13"],"quranView":"...","scriptures":[{"scriptureName":"...","quote":"...","reference":"...","explanation":"..."}],"ummahReasoning":"..."}\n\nCritical: every string must be a complete sentence. Never cut off mid-word or mid-sentence.`,
             },
           ],
           systemPrompt:
@@ -199,6 +194,16 @@ export default function DawahPage() {
       setQuranView(sections.quranView);
       setScriptures(sections.scriptures);
       setUmmahReasoning(sections.ummahReasoning);
+
+      // Use AI-selected verse keys (thematic match); fall back to keyword search
+      let verses: any[] = [];
+      if (sections.verseKeys.length > 0) {
+        verses = await fetchVersesByKeys(sections.verseKeys);
+      }
+      if (verses.length === 0) {
+        verses = await searchAyahs(topic);
+      }
+      setAyahs(verses);
     } catch {
       setAyahs([]);
       setQuranView("Unable to generate a Quranic summary right now. Please try again.");

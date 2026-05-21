@@ -7,6 +7,7 @@ import { useAuth } from './AuthContext';
 
 const THEME_KEY = '@deenquest/theme';
 const TRANSLATION_KEY = '@deenquest/translation';
+const HAPTICS_KEY = '@deenquest/haptics';
 
 interface ThemeContextValue {
   isDark: boolean;
@@ -14,6 +15,8 @@ interface ThemeContextValue {
   toggleTheme: () => void;
   translationId: number;
   setTranslationId: (id: number) => void;
+  hapticsEnabled: boolean;
+  toggleHaptics: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
@@ -22,20 +25,25 @@ const ThemeContext = createContext<ThemeContextValue>({
   toggleTheme: () => {},
   translationId: DEFAULT_TRANSLATION_ID,
   setTranslationId: () => {},
+  hapticsEnabled: true,
+  toggleHaptics: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { uid } = useAuth();
   const [isDark, setIsDark] = useState(false);
   const [translationId, setTranslationIdState] = useState(DEFAULT_TRANSLATION_ID);
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
 
   // Load local preferences from AsyncStorage on mount
   useEffect(() => {
-    AsyncStorage.multiGet([THEME_KEY, TRANSLATION_KEY]).then((pairs) => {
+    AsyncStorage.multiGet([THEME_KEY, TRANSLATION_KEY, HAPTICS_KEY]).then((pairs) => {
       const themeVal = pairs[0][1];
       const transVal = pairs[1][1];
+      const hapticsVal = pairs[2][1];
       if (themeVal !== null) setIsDark(themeVal === 'dark');
       if (transVal !== null) setTranslationIdState(parseInt(transVal, 10));
+      if (hapticsVal !== null) setHapticsEnabled(hapticsVal !== 'off');
     }).catch(() => {});
   }, []);
 
@@ -71,6 +79,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     if (uid) updateUserPreferences(uid, { preferredTranslationId: id }).catch(() => {});
   }, [uid]);
 
+  const toggleHaptics = useCallback(() => {
+    setHapticsEnabled((prev) => {
+      const next = !prev;
+      AsyncStorage.setItem(HAPTICS_KEY, next ? 'on' : 'off').catch(() => {});
+      return next;
+    });
+  }, []);
+
   return (
     <ThemeContext.Provider value={{
       isDark,
@@ -78,6 +94,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       toggleTheme,
       translationId,
       setTranslationId,
+      hapticsEnabled,
+      toggleHaptics,
     }}>
       {children}
     </ThemeContext.Provider>

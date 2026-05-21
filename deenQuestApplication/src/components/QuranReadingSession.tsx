@@ -7,8 +7,9 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { isBookmarked, toggleBookmark } from '../lib/firestore';
+import { triggerHaptic } from '../lib/haptics';
 import { API_BASE } from '../services/api';
-import { RADIUS, SHADOW } from '../theme';
+import { DEPTH, RADIUS, SHADOW } from '../theme';
 import BookmarkCollectionModal from './BookmarkCollectionModal';
 
 interface AyahData {
@@ -40,7 +41,7 @@ function qfProxy(path: string, params: Record<string, string> = {}): string {
 
 export default function QuranReadingSession({ surahNumber, startAyah, ayahCount, onComplete }: Props) {
   const { uid } = useAuth();
-  const { colors, translationId } = useTheme();
+  const { colors, translationId, hapticsEnabled } = useTheme();
   const [ayahs, setAyahs] = useState<AyahData[]>([]);
   const [bookmarked, setBookmarked] = useState<Record<string, boolean>>({});
   const [bmLoading, setBmLoading] = useState<Record<string, boolean>>({});
@@ -52,6 +53,7 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
   const [totalInSurah, setTotalInSurah] = useState(0);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [completePressed, setCompletePressed] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
   const ayahsRef = useRef<AyahData[]>([]);
 
@@ -202,6 +204,7 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
   };
 
   const handleComplete = () => {
+    triggerHaptic(hapticsEnabled, 'medium');
     soundRef.current?.stopAsync().catch(() => {});
     soundRef.current?.unloadAsync().catch(() => {});
     // Compute next position
@@ -281,6 +284,7 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
       paddingVertical: 17, alignItems: 'center', justifyContent: 'center',
       flexDirection: 'row', gap: 8, marginTop: 8,
       ...SHADOW.glow(colors.primary),
+      ...DEPTH.button,
     },
     completeBtnDim: { opacity: 0.7 },
     completeBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
@@ -349,7 +353,7 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
                   : <Bookmark size={15} color={colors.textMuted} />}
             </Pressable>
             <Pressable
-              onPress={() => playAyah(index)}
+              onPress={() => { triggerHaptic(hapticsEnabled, 'tick'); playAyah(index); }}
               style={[styles.playBtn, playingIndex === index && styles.playBtnActive]}
             >
               {playingIndex === index && isAudioPlaying
@@ -365,7 +369,7 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
           <Text style={styles.translation}>{ayah.translation}</Text>
 
           {!ayah.read && (
-            <Pressable onPress={() => markRead(index)} style={styles.markReadBtn}>
+            <Pressable onPress={() => { triggerHaptic(hapticsEnabled, 'tick'); markRead(index); }} style={styles.markReadBtn}>
               <Text style={styles.markReadText}>Mark as read</Text>
             </Pressable>
           )}
@@ -375,7 +379,9 @@ export default function QuranReadingSession({ surahNumber, startAyah, ayahCount,
 
       <Pressable
         onPress={handleComplete}
-        style={[styles.completeBtn, !allRead && styles.completeBtnDim]}
+        onPressIn={() => setCompletePressed(true)}
+        onPressOut={() => setCompletePressed(false)}
+        style={[styles.completeBtn, !allRead && styles.completeBtnDim, completePressed && DEPTH.buttonPressed]}
       >
         <Text style={styles.completeBtnText}>Complete Session</Text>
       </Pressable>

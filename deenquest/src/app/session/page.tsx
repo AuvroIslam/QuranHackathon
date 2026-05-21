@@ -827,14 +827,6 @@ function MoodStep({
 
 // ─── Ayah Step ────────────────────────────────────────────────────────────────
 
-interface HadithEntry {
-  english: string;
-  narrator?: string;
-  collection: string;
-  hadithNumber: string;
-  reference?: string;
-}
-
 function truncateForLabel(text: string, max = 40): string {
   const t = text.trim();
   if (t.length <= max) return t;
@@ -867,8 +859,6 @@ function AyahStep({
 
   const [reflection, setReflection] = useState<string | null>(null);
   const [reflectionLoading, setReflectionLoading] = useState(false);
-  const [hadith, setHadith] = useState<HadithEntry | null>(null);
-  const [hadithLoading, setHadithLoading] = useState(false);
 
   useEffect(() => {
     if (!ayah) return;
@@ -890,22 +880,6 @@ function AyahStep({
       .then((data) => { if (!cancelled) setReflection(data?.reflection ?? null); })
       .catch(() => { if (!cancelled) setReflection(null); })
       .finally(() => { if (!cancelled) setReflectionLoading(false); });
-    return () => { cancelled = true; };
-  }, [ayah, mood, customText]);
-
-  useEffect(() => {
-    if (!ayah) return;
-    let cancelled = false;
-    setHadithLoading(true);
-    setHadith(null);
-    const moodKey = mood ?? "justHere";
-    const qs = new URLSearchParams({ mood: moodKey });
-    if (customText) qs.set("situation", customText);
-    fetch(`/api/hadith?${qs.toString()}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { if (!cancelled) setHadith(data?.hadith ?? null); })
-      .catch(() => { if (!cancelled) setHadith(null); })
-      .finally(() => { if (!cancelled) setHadithLoading(false); });
     return () => { cancelled = true; };
   }, [ayah, mood, customText]);
 
@@ -1012,31 +986,6 @@ function AyahStep({
           </p>
         )}
       </div>
-
-      {/* Hadith */}
-      {(hadithLoading || hadith) && (
-        <div className="rounded-2xl border border-emerald-400/25 p-4" style={{ background: "rgba(20,10,40,0.75)" }}>
-          <div className="flex items-center gap-2 mb-2">
-            <BookOpen size={13} className="text-emerald-400" />
-            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Hadith</p>
-          </div>
-          {hadithLoading ? (
-            <div className="space-y-2 animate-pulse">
-              <div className="h-3 rounded bg-white/12 w-full" />
-              <div className="h-3 rounded bg-white/12 w-10/12" />
-              <div className="h-3 rounded bg-white/12 w-2/3" />
-            </div>
-          ) : hadith ? (
-            <>
-              <p className="text-sm text-white leading-relaxed italic">&ldquo;{hadith.english}&rdquo;</p>
-              <p className="text-[11px] text-white/45 mt-2">
-                {hadith.narrator ? `${hadith.narrator} · ` : ""}
-                {hadith.reference ?? `${hadith.collection} ${hadith.hadithNumber}`}
-              </p>
-            </>
-          ) : null}
-        </div>
-      )}
 
       <button
         onClick={onContinue}

@@ -2,6 +2,7 @@ import { Check, Clock, Hand, Users } from 'lucide-react-native';
 import React, { useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { triggerHaptic } from '../../lib/haptics';
 import { RADIUS, SHADOW } from '../../theme';
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
 }
 
 export default function ActionSelection({ onSelect, selected }: Props) {
-  const { colors } = useTheme();
+  const { colors, hapticsEnabled } = useTheme();
   const [picked, setPicked] = useState<string | undefined>(selected);
 
   const ACTIONS = useMemo(() => [
@@ -21,6 +22,7 @@ export default function ActionSelection({ onSelect, selected }: Props) {
 
   const handlePick = (id: string) => {
     if (picked) return;
+    triggerHaptic(hapticsEnabled, 'light');
     setPicked(id);
     onSelect(id);
   };

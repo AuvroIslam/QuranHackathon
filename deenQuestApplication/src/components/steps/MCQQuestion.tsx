@@ -1,7 +1,8 @@
 import { Check, Lightbulb, X } from 'lucide-react-native';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { triggerHaptic } from '../../lib/haptics';
 import { RADIUS, SHADOW } from '../../theme';
 import { MCQData } from '../../types';
 
@@ -16,9 +17,10 @@ interface Props {
 }
 
 export default function MCQQuestion({ question, selectedAnswer, verdict, onAnswer }: Props) {
-  const { colors } = useTheme();
+  const { colors, hapticsEnabled } = useTheme();
   const [answered, setAnswered] = useState(selectedAnswer !== undefined);
   const feedbackAnim = useRef(new Animated.Value(0)).current;
+  const hapticFired = useRef(false);
 
   const handleAnswer = (index: number) => {
     if (answered) return;
@@ -38,6 +40,13 @@ export default function MCQQuestion({ question, selectedAnswer, verdict, onAnswe
         : -1;
   const verdictReady = effectiveCorrectIndex >= 0;
   const isCorrect = verdictReady && selectedAnswer === effectiveCorrectIndex;
+
+  useEffect(() => {
+    if (answered && verdictReady && !hapticFired.current) {
+      hapticFired.current = true;
+      triggerHaptic(hapticsEnabled, isCorrect ? 'success' : 'error');
+    }
+  }, [answered, verdictReady, isCorrect, hapticsEnabled]);
 
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, padding: 16, gap: 16 },

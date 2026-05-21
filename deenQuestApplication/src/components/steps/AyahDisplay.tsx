@@ -1,10 +1,11 @@
-import { BookOpen, Lightbulb, Bookmark, BookmarkCheck, ScrollText } from 'lucide-react-native';
+import { BookOpen, Lightbulb, Bookmark, BookmarkCheck } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { triggerHaptic } from '../../lib/haptics';
 import { RADIUS, SHADOW } from '../../theme';
 import { toggleBookmark, isBookmarked } from '../../lib/firestore';
-import { fetchHadithForMood, fetchLessonReflection, HadithEntry } from '../../services/api';
+import { fetchLessonReflection } from '../../services/api';
 import { Ayah, Mood } from '../../types';
 import BookmarkCollectionModal from '../BookmarkCollectionModal';
 
@@ -33,15 +34,12 @@ const MOOD_LABEL: Record<string, string> = {
 };
 
 export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText }: Props) {
-  const { colors } = useTheme();
+  const { colors, hapticsEnabled } = useTheme();
   const [bookmarked, setBookmarked] = useState(false);
   const [bmLoading, setBmLoading] = useState(false);
   const [bmModalOpen, setBmModalOpen] = useState(false);
   const [reflection, setReflection] = useState<string | null>(null);
   const [reflectionLoading, setReflectionLoading] = useState(false);
-  const [hadith, setHadith] = useState<HadithEntry | null>(null);
-  const [hadithLoading, setHadithLoading] = useState(false);
-
   useEffect(() => {
     if (!uid) return;
     isBookmarked(uid, ayah.reference).then(setBookmarked).catch(() => {});
@@ -62,16 +60,6 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
       .finally(() => { if (!cancelled) setReflectionLoading(false); });
     return () => { cancelled = true; };
   }, [ayah.reference, ayah.arabic, ayah.translation, mood, customMoodText]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setHadithLoading(true);
-    setHadith(null);
-    fetchHadithForMood(mood ?? 'justHere', customMoodText ?? undefined)
-      .then((h) => { if (!cancelled) setHadith(h); })
-      .finally(() => { if (!cancelled) setHadithLoading(false); });
-    return () => { cancelled = true; };
-  }, [mood, customMoodText]);
 
   async function handleBookmark() {
     if (!uid || bmLoading) return;
@@ -173,22 +161,6 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
       fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8,
     },
     reflection: { color: colors.textSub, fontSize: 14, lineHeight: 22 },
-    hadithCard: {
-      backgroundColor: colors.card,
-      borderRadius: RADIUS.lg,
-      borderWidth: 1,
-      borderLeftWidth: 4,
-      borderLeftColor: colors.primary,
-      borderColor: colors.cardBorder,
-      padding: 16, gap: 8, ...SHADOW.card,
-    },
-    hadithHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-    hadithTitle: {
-      color: colors.primary, fontSize: 12,
-      fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8,
-    },
-    hadithText: { color: colors.text, fontSize: 14, lineHeight: 22, fontStyle: 'italic' },
-    hadithRef: { color: colors.textMuted, fontSize: 11 },
     skeletonGroup: { gap: 8 },
     skeletonLine: {
       height: 10,
@@ -233,7 +205,7 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
         <View style={styles.cardBar} />
         <View style={styles.arabicRow}>
           {uid && (
-            <Pressable onPress={handleBookmark} style={[styles.bmBtn, bookmarked && styles.bmBtnActive]} disabled={bmLoading}>
+            <Pressable onPress={() => { triggerHaptic(hapticsEnabled, 'tick'); handleBookmark(); }} style={[styles.bmBtn, bookmarked && styles.bmBtnActive]} disabled={bmLoading}>
               {bmLoading
                 ? <ActivityIndicator size={14} color={colors.primary} />
                 : bookmarked
@@ -271,30 +243,6 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
         )}
       </View>
 
-      {/* Hadith */}
-      {(hadithLoading || hadith) && (
-        <View style={styles.hadithCard}>
-          <View style={styles.hadithHeader}>
-            <ScrollText size={15} color={colors.primary} />
-            <Text style={styles.hadithTitle}>Hadith</Text>
-          </View>
-          {hadithLoading ? (
-            <View style={styles.skeletonGroup}>
-              <View style={[styles.skeletonLine, { width: '100%' }]} />
-              <View style={[styles.skeletonLine, { width: '85%' }]} />
-              <View style={[styles.skeletonLine, { width: '55%' }]} />
-            </View>
-          ) : hadith ? (
-            <>
-              <Text style={styles.hadithText}>&ldquo;{hadith.english}&rdquo;</Text>
-              <Text style={styles.hadithRef}>
-                {hadith.narrator ? `${hadith.narrator} · ` : ''}
-                {hadith.reference ?? `${hadith.collection} ${hadith.hadithNumber}`}
-              </Text>
-            </>
-          ) : null}
-        </View>
-      )}
       </ScrollView>
     </View>
   );

@@ -7,6 +7,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { checkSpeech } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
+import { triggerHaptic } from '../../lib/haptics';
 import { DEPTH, RADIUS, SHADOW } from '../../theme';
 import { Ayah, SpeechResult, WordResult } from '../../types';
 
@@ -38,10 +39,11 @@ export default function SpeakStep({
   passThreshold = 0.6,
   showTransliteration = true,
 }: Props) {
-  const { colors } = useTheme();
+  const { colors, hapticsEnabled } = useTheme();
   const [speakState, setSpeakState] = useState<SpeakState>('idle');
   const [result, setResult] = useState<SpeechResult | null>(null);
   const [playState, setPlayState] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const [continuePressed, setContinuePressed] = useState(false);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
   const countdownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -167,6 +169,7 @@ export default function SpeakStep({
   };
 
   const handleMicPress = () => {
+    triggerHaptic(hapticsEnabled, 'medium');
     if (speakState === 'idle' || speakState === 'wrong') startRecording();
     else if (speakState === 'recording') stopRecording();
   };
@@ -334,11 +337,14 @@ export default function SpeakStep({
 
       <View style={styles.continueWrap}>
         <Pressable
-          onPress={onSkip}
+          onPress={() => { triggerHaptic(hapticsEnabled, 'light'); onSkip(); }}
+          onPressIn={() => setContinuePressed(true)}
+          onPressOut={() => setContinuePressed(false)}
           disabled={speakState !== 'wrong' && speakState !== 'done' && speakState !== 'correct'}
           style={[
             styles.continueBtn,
             (speakState === 'wrong' || speakState === 'done' || speakState === 'correct') ? DEPTH.button : styles.continueBtnDisabled,
+            continuePressed && DEPTH.buttonPressed,
           ]}
         >
           <Text style={[styles.continueBtnText, (speakState !== 'wrong' && speakState !== 'done' && speakState !== 'correct') && styles.continueBtnTextDisabled]}>

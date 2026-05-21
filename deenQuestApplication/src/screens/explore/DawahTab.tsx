@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { API_BASE } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
+import { triggerHaptic } from '../../lib/haptics';
 import { DEPTH, RADIUS, SHADOW } from '../../theme';
 
 const TOPICS = [
@@ -29,6 +30,7 @@ interface ScriptureEntry {
 }
 
 interface DawahSections {
+  verseKeys: string[];
   quranView: string;
   scriptures: ScriptureEntry[];
   ummahReasoning: string;
@@ -69,6 +71,7 @@ function extractStringField(text: string, field: string): string | null {
 function parseDawahSections(raw: string): DawahSections {
   const clean = raw.trim();
   const fallback: DawahSections = {
+    verseKeys: [],
     quranView: 'Unable to generate a Quranic summary right now. Please try again.',
     scriptures: [],
     ummahReasoning: 'Could not parse the ummah-focused reasoning. Please retry.',
@@ -85,7 +88,7 @@ function parseDawahSections(raw: string): DawahSections {
     // Try regex field extraction as last resort
     const qv = extractStringField(candidate, 'quranView');
     const ur = extractStringField(candidate, 'ummahReasoning');
-    if (qv) return { quranView: qv, scriptures: [], ummahReasoning: ur ?? fallback.ummahReasoning };
+    if (qv) return { verseKeys: [], quranView: qv, scriptures: [], ummahReasoning: ur ?? fallback.ummahReasoning };
     return fallback;
   }
 
@@ -102,7 +105,11 @@ function parseDawahSections(raw: string): DawahSections {
           .filter((e: ScriptureEntry) => e.scriptureName && e.quote && e.reference)
       : [];
     if (typeof parsed?.quranView === 'string' && typeof parsed?.ummahReasoning === 'string') {
+      const parsedKeys: string[] = Array.isArray(parsed?.verseKeys)
+        ? parsed.verseKeys.filter((k: unknown) => typeof k === 'string' && /^\d+:\d+$/.test(k))
+        : [];
       return {
+        verseKeys: parsedKeys,
         quranView: parsed.quranView.trim(),
         scriptures: parsedScriptures,
         ummahReasoning: parsed.ummahReasoning.trim(),
@@ -112,13 +119,41 @@ function parseDawahSections(raw: string): DawahSections {
     // JSON.parse failed — try regex field extraction on the raw candidate
     const qv = extractStringField(candidate, 'quranView');
     const ur = extractStringField(candidate, 'ummahReasoning');
-    if (qv) return { quranView: qv, scriptures: [], ummahReasoning: ur ?? fallback.ummahReasoning };
+    if (qv) return { verseKeys: [], quranView: qv, scriptures: [], ummahReasoning: ur ?? fallback.ummahReasoning };
   }
   return fallback;
 }
 
+async function fetchVerseByKey(key: string): Promise<{ verseKey: string; arabic: string; translation: string } | null> {
+  try {
+    const params = new URLSearchParams({ path: `verses/by_key/${key}`, translations: '20', fields: 'text_uthmani,verse_key' });
+    const res = await fetch(`${API_BASE}/api/quran?${params.toString()}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const verse = data?.verse;
+    if (!verse) return null;
+    return {
+      verseKey: verse.verse_key ?? key,
+      arabic: verse.text_uthmani ?? '',
+      translation: stripHtml(verse.translations?.[0]?.text ?? ''),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchVersesByKeys(keys: string[]): Promise<{ verseKey: string; arabic: string; translation: string }[]> {
+  const valid = keys.filter((k) => /^\d+:\d+$/.test(k)).slice(0, 5);
+  if (valid.length === 0) return [];
+  const settled = await Promise.allSettled(valid.map(fetchVerseByKey));
+  return settled
+    .filter((r): r is PromiseFulfilledResult<{ verseKey: string; arabic: string; translation: string }> =>
+      r.status === 'fulfilled' && r.value !== null)
+    .map((r) => r.value);
+}
+
 export default function DawahTab() {
-  const { colors } = useTheme();
+  const { colors, hapticsEnabled } = useTheme();
   const [selectedTopic, setSelectedTopic] = useState('');
   const [customTopic, setCustomTopic] = useState('');
   const [searching, setSearching] = useState(false);
@@ -140,7 +175,6 @@ export default function DawahTab() {
 
   const handleTopicSelect = async (topic: string) => {
     setSelectedTopic(topic);
-    setCustomTopic('');
 
     const cacheKey = topic.trim().toLowerCase();
     const cached = cacheRef.current.get(cacheKey);
@@ -160,14 +194,7 @@ export default function DawahTab() {
     setUmmahReasoning('');
 
     try {
-      // Fire both requests in parallel. The DeepSeek request grounds via its own
-      // groundingQuery, so it doesn't need to wait for /api/quran search results.
-      const searchParams = new URLSearchParams({ path: 'search', q: topic, size: '5', language: 'en' });
-      const searchPromise = fetch(`${API_BASE}/api/quran?${searchParams.toString()}`)
-        .then((r) => (r.ok ? r.json() : {}))
-        .catch(() => ({}));
-
-      const aiPromise = fetch(`${API_BASE}/api/deepseek`, {
+      const aiData = await fetch(`${API_BASE}/api/deepseek`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -176,7 +203,7 @@ export default function DawahTab() {
           messages: [
             {
               role: 'user',
-              content: `Topic: "${topic}"\n\nRespond with ONLY a raw JSON object. No markdown fences, no explanation outside the JSON.\n\nLimits per field:\n- quranView: 2-3 sentences, max 500 chars, include 1-2 ayah refs\n- Each scripture quote: max 150 chars. If translation is uncertain, end with " (translation may vary)" — do NOT wrap the quote in single quotes\n- Each scripture explanation: 2-3 sentences, max 220 chars\n- ummahReasoning: 3-4 sentences, max 500 chars\n- Exactly 3 scriptures: Bible, Bhagavad Gita, Torah\n\nShape:\n{"quranView":"...","scriptures":[{"scriptureName":"...","quote":"...","reference":"...","explanation":"..."}],"ummahReasoning":"..."}\n\nCritical: every string must be a complete sentence. Never cut off mid-word or mid-sentence.`,
+              content: `Topic: "${topic}"\n\nRespond with ONLY a raw JSON object. No markdown fences, no explanation outside the JSON.\n\nLimits per field:\n- verseKeys: array of 3-5 verse references (format "surah:ayah") most THEMATICALLY relevant to this topic — pick verses that directly address the concept, not just keyword matches\n- quranView: 2-3 sentences, max 500 chars, include 1-2 ayah refs\n- Each scripture quote: max 150 chars. If translation is uncertain, end with " (translation may vary)" — do NOT wrap the quote in single quotes\n- Each scripture explanation: 2-3 sentences, max 220 chars\n- ummahReasoning: 3-4 sentences, max 500 chars\n- Exactly 3 scriptures: Bible, Bhagavad Gita, Torah\n\nShape:\n{"verseKeys":["2:62","60:8","49:13"],"quranView":"...","scriptures":[{"scriptureName":"...","quote":"...","reference":"...","explanation":"..."}],"ummahReasoning":"..."}\n\nCritical: every string must be a complete sentence. Never cut off mid-word or mid-sentence.`,
             },
           ],
           systemPrompt:
@@ -186,24 +213,33 @@ export default function DawahTab() {
         .then((r) => r.json())
         .catch(() => ({}));
 
-      const [data, aiData] = await Promise.all([searchPromise, aiPromise]);
-
-      const results: any[] = (data as { search?: { results?: any[] } })?.search?.results ?? [];
-      const mapped = results.map((r: any) => ({
-        verseKey: r.verse_key,
-        arabic: (r.text ?? '') as string,
-        translation: stripHtml(r.translations?.[0]?.text ?? ''),
-      }));
-
       const sections = parseDawahSections(aiData?.content ?? '');
 
-      setAyahs(mapped);
+      // Use AI-selected verse keys (thematic match); fall back to QF keyword search
+      let ayahList: { verseKey: string; arabic: string; translation: string }[] = [];
+      if (sections.verseKeys.length > 0) {
+        ayahList = await fetchVersesByKeys(sections.verseKeys);
+      }
+      if (ayahList.length === 0) {
+        const searchParams = new URLSearchParams({ path: 'search', q: topic, size: '5', language: 'en' });
+        const data = await fetch(`${API_BASE}/api/quran?${searchParams.toString()}`)
+          .then((r) => (r.ok ? r.json() : {}))
+          .catch(() => ({}));
+        const results: any[] = (data as { search?: { results?: any[] } })?.search?.results ?? [];
+        ayahList = results.map((r: any) => ({
+          verseKey: r.verse_key,
+          arabic: (r.text ?? '') as string,
+          translation: stripHtml(r.translations?.[0]?.text ?? ''),
+        }));
+      }
+
+      setAyahs(ayahList);
       setQuranView(sections.quranView);
       setScriptures(sections.scriptures);
       setUmmahReasoning(sections.ummahReasoning);
 
       cacheRef.current.set(cacheKey, {
-        ayahs: mapped,
+        ayahs: ayahList,
         quranView: sections.quranView,
         scriptures: sections.scriptures,
         ummahReasoning: sections.ummahReasoning,
@@ -356,7 +392,12 @@ export default function DawahTab() {
           {TOPICS.map((topic) => (
             <Pressable
               key={topic}
-              onPress={() => !searching && handleTopicSelect(topic)}
+              onPress={() => {
+                if (searching) return;
+                triggerHaptic(hapticsEnabled, 'light');
+                setCustomTopic('');
+                handleTopicSelect(topic);
+              }}
               style={[styles.chip, selectedTopic === topic && styles.chipActive]}
             >
               <Text style={[styles.chipText, selectedTopic === topic && styles.chipTextActive]}>
@@ -391,7 +432,7 @@ export default function DawahTab() {
         <Pressable
           onPressIn={() => { if (customTopic.trim() && !searching) setExplorePressed(true); }}
           onPressOut={() => setExplorePressed(false)}
-          onPress={handleCustomSearch}
+          onPress={() => { triggerHaptic(hapticsEnabled, 'medium'); handleCustomSearch(); }}
           disabled={searching || !customTopic.trim()}
           style={[
             styles.searchBtn,
@@ -453,7 +494,7 @@ export default function DawahTab() {
                     <Text style={styles.scriptureQuote}>"{entry.quote}"</Text>
                     <Text style={styles.scriptureRef}>{entry.reference}</Text>
                     <Text style={styles.scriptureExplanation}>{entry.explanation}</Text>
-                    <Pressable style={styles.shareBtn} onPress={() => handleShare(entry)}>
+                    <Pressable style={styles.shareBtn} onPress={() => { triggerHaptic(hapticsEnabled, 'tick'); handleShare(entry); }}>
                       <Share2 size={13} color={colors.white} />
                       <Text style={styles.shareBtnText}>Share</Text>
                     </Pressable>

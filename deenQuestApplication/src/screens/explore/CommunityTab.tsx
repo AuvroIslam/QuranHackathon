@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, MessageSquare, Plus, Search, Send, ThumbsUp, X } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, MessageSquare, Plus, Search, Send, ThumbsUp, Trash2, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -7,7 +7,7 @@ import {
   Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import {
-  Answer, createAnswer, createPost, getAnswers, getPosts, upvoteAnswer, upvotePost,
+  Answer, createAnswer, createPost, getAnswers, getPosts, upvoteAnswer, upvotePost, deleteAnswer,
 } from '../../lib/firestore-community';
 import { DEPTH, RADIUS, SHADOW } from '../../theme';
 
@@ -44,6 +44,8 @@ export default function CommunityTab() {
   // replyingTo[postId] = { answerId, userName } when replying to a specific answer
   const [replyingTo, setReplyingTo] = useState<Record<string, { answerId: string; userName: string } | null>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<{ answerId: string; postId: string } | null>(null);
+  const [deletingAnswer, setDeletingAnswer] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -115,6 +117,25 @@ export default function CommunityTab() {
       setReplyingTo((prev) => ({ ...prev, [postId]: null }));
     } catch {}
     setAnswerLoading((prev) => ({ ...prev, [postId]: false }));
+  };
+
+  const handleDeleteAnswer = (answerId: string, postId: string) => {
+    setConfirmDelete({ answerId, postId });
+  };
+
+  const confirmDeleteAnswer = async () => {
+    if (!confirmDelete || !uid) return;
+    const { answerId, postId } = confirmDelete;
+    setConfirmDelete(null);
+    setDeletingAnswer(answerId);
+    try {
+      await deleteAnswer(answerId, uid);
+      setAnswers((prev) => ({
+        ...prev,
+        [postId]: (prev[postId] ?? []).filter((a) => a.id !== answerId),
+      }));
+    } catch {}
+    setDeletingAnswer(null);
   };
 
   const handleAnswerUpvote = async (answerId: string, postId: string) => {
@@ -263,6 +284,39 @@ export default function CommunityTab() {
       alignItems: 'center', justifyContent: 'center',
     },
     replySendBtnDisabled: { opacity: 0.4 },
+
+    // Confirm delete dialog
+    confirmOverlay: {
+      flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
+      alignItems: 'center', justifyContent: 'center', padding: 32,
+    },
+    confirmCard: {
+      backgroundColor: colors.card, borderRadius: RADIUS.xl,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      padding: 24, gap: 16, width: '100%',
+      ...SHADOW.card,
+    },
+    confirmIconWrap: {
+      width: 48, height: 48, borderRadius: 24,
+      backgroundColor: `${colors.error ?? '#ef4444'}18`,
+      alignItems: 'center', justifyContent: 'center', alignSelf: 'center',
+    },
+    confirmTitle: { color: colors.text, fontSize: 17, fontWeight: '800', textAlign: 'center' },
+    confirmMsg: { color: colors.textSub, fontSize: 13, lineHeight: 20, textAlign: 'center' },
+    confirmBtns: { flexDirection: 'row', gap: 10, marginTop: 4 },
+    confirmCancelBtn: {
+      flex: 1, paddingVertical: 12, borderRadius: RADIUS.lg,
+      backgroundColor: colors.surfaceDark,
+      borderWidth: 1.5, borderColor: colors.cardBorder,
+      alignItems: 'center',
+    },
+    confirmCancelText: { color: colors.textSub, fontSize: 14, fontWeight: '700' },
+    confirmDeleteBtn: {
+      flex: 1, paddingVertical: 12, borderRadius: RADIUS.lg,
+      backgroundColor: colors.error ?? '#ef4444',
+      alignItems: 'center',
+    },
+    confirmDeleteText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
     // Modal
     modal: { flex: 1, backgroundColor: colors.bg, padding: 20, gap: 14 },
@@ -444,6 +498,13 @@ export default function CommunityTab() {
                                   >
                                     <Text style={styles.replyToBtn}>Reply</Text>
                                   </TouchableOpacity>
+                                  {uid === answer.userId && (
+                                    <TouchableOpacity onPress={() => handleDeleteAnswer(answer.id, post.id)} disabled={deletingAnswer === answer.id}>
+                                      {deletingAnswer === answer.id
+                                        ? <ActivityIndicator size={11} color={colors.textMuted} />
+                                        : <Trash2 size={11} color={colors.textMuted} />}
+                                    </TouchableOpacity>
+                                  )}
                                 </View>
                               </View>
                             </View>
@@ -467,15 +528,24 @@ export default function CommunityTab() {
                                         </Text>
                                       </View>
                                       <Text style={styles.replyContent}>{sub.content}</Text>
-                                      <TouchableOpacity
-                                        style={styles.replyUpvote}
-                                        onPress={() => handleAnswerUpvote(sub.id, post.id)}
-                                      >
-                                        <ThumbsUp size={11} color={subUpvoted ? colors.primary : colors.textMuted} />
-                                        <Text style={[styles.replyUpvoteText, subUpvoted && styles.replyUpvoteTextActive]}>
-                                          {sub.upvotes > 0 ? sub.upvotes : ''}
-                                        </Text>
-                                      </TouchableOpacity>
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                        <TouchableOpacity
+                                          style={styles.replyUpvote}
+                                          onPress={() => handleAnswerUpvote(sub.id, post.id)}
+                                        >
+                                          <ThumbsUp size={11} color={subUpvoted ? colors.primary : colors.textMuted} />
+                                          <Text style={[styles.replyUpvoteText, subUpvoted && styles.replyUpvoteTextActive]}>
+                                            {sub.upvotes > 0 ? sub.upvotes : ''}
+                                          </Text>
+                                        </TouchableOpacity>
+                                        {uid === sub.userId && (
+                                          <TouchableOpacity onPress={() => handleDeleteAnswer(sub.id, post.id)} disabled={deletingAnswer === sub.id}>
+                                            {deletingAnswer === sub.id
+                                              ? <ActivityIndicator size={11} color={colors.textMuted} />
+                                              : <Trash2 size={11} color={colors.textMuted} />}
+                                          </TouchableOpacity>
+                                        )}
+                                      </View>
                                     </View>
                                   </View>
                                 </View>
@@ -526,6 +596,27 @@ export default function CommunityTab() {
           })
         )}
       </ScrollView>
+
+      {/* Confirm delete reply dialog */}
+      <Modal visible={!!confirmDelete} transparent animationType="fade" onRequestClose={() => setConfirmDelete(null)}>
+        <Pressable style={styles.confirmOverlay} onPress={() => setConfirmDelete(null)}>
+          <Pressable style={styles.confirmCard} onPress={() => {}}>
+            <View style={styles.confirmIconWrap}>
+              <Trash2 size={22} color={colors.error ?? '#ef4444'} />
+            </View>
+            <Text style={styles.confirmTitle}>Delete Reply</Text>
+            <Text style={styles.confirmMsg}>Are you sure you want to delete this reply? This action cannot be undone.</Text>
+            <View style={styles.confirmBtns}>
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setConfirmDelete(null)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmDeleteBtn} onPress={confirmDeleteAnswer}>
+                <Text style={styles.confirmDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* New post modal */}
       <Modal visible={showModal} animationType="slide" presentationStyle="pageSheet">

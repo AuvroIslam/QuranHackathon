@@ -88,11 +88,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Quran Foundation API usage
 
-| API | Auth flow | Used for |
+| API | Auth flow | Where it appears in the UI |
 |---|---|---|
-| Content API (verses, translations, audio, search) | OAuth2 client credentials (server-side) | Fetching ayahs, mood search, lesson audio |
-| User API (bookmarks, streaks, reading sessions, goals, collections) | OAuth2 PKCE (user-authenticated) | Syncing user activity to QF account |
-| Quran MCP (`mcp.quran.ai`) | No auth required | Grounding chatbot and AI reflections with verified Quran data |
+| Content API — verses, translations | OAuth2 client credentials (server-side) | Session reading view (ayahs + transliteration + translation) |
+| Content API — audio recitations | OAuth2 client credentials (server-side) | Per-ayah play/pause in reading session and lesson view |
+| Content API — full-text search | OAuth2 client credentials (server-side) | Mood-based ayah selection, Dawah topic search |
+| User API — bookmarks | OAuth2 PKCE (user-authenticated) | Bookmark button on ayah cards and session ayah step |
+| User API — collections | OAuth2 PKCE (user-authenticated) | `BookmarkModal` — users pick an existing QF collection or create a new named one; verses are added directly into the selected collection |
+| User API — reading sessions & streaks | OAuth2 PKCE (user-authenticated) | Synced to QF on session complete (ranges + seconds read) |
+| User API — goals | OAuth2 PKCE (user-authenticated) | Synced on session complete |
+| Quran MCP — search, fetch, translation, tafsir | No auth required | Chatbot (every Quran-related message verified via MCP); AI reflection generation |
 
 All Quran text is fetched live from the API — nothing is hardcoded.
 

@@ -76,7 +76,10 @@ export async function fetchVerseContent(reference: string): Promise<VerseContent
     .trim();
   const arabic: string = verse?.text_uthmani ?? "";
   const translation: string = (verse?.translations?.[0]?.text ?? "")
-    .replace(/<[^>]*>/g, "")
+    .replace(/<sup[^>]*>[\s\S]*?<\/sup>/gi, "") // strip <sup>N</sup> blocks
+    .replace(/<[^>]*>/g, "")                     // strip any remaining tags
+    .replace(/([A-Za-z\]])\d+(?=\s|[.,;!?]|$)/g, "$1") // strip bare footnote numbers glued to words
+    .replace(/\s+/g, " ")
     .trim();
 
   if (!arabic) throw new Error("QF returned empty verse text");

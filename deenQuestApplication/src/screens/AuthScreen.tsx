@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, db } from '../lib/firebase';
 import { useTheme } from '../context/ThemeContext';
-import { RADIUS, SHADOW } from '../theme';
+import { DEPTH, RADIUS, SHADOW } from '../theme';
 
 export default function AuthScreen() {
   const { colors } = useTheme();
@@ -27,6 +27,8 @@ export default function AuthScreen() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [submitPressed, setSubmitPressed] = useState(false);
+  const [googlePressed, setGooglePressed] = useState(false);
 
   const handleSubmit = async () => {
     setError('');
@@ -174,6 +176,7 @@ export default function AuthScreen() {
       paddingVertical: 16,
       alignItems: 'center',
       ...SHADOW.glow(colors.primary),
+      ...DEPTH.button,
     },
     submitBtnDisabled: { opacity: 0.6 },
     submitText: { color: colors.white, fontSize: 16, fontWeight: '700' },
@@ -196,12 +199,14 @@ export default function AuthScreen() {
       paddingVertical: 14,
       borderWidth: 1.5,
       borderColor: colors.cardBorder,
+      borderBottomWidth: 4,
+      borderBottomColor: '#9B8CC8',
     },
     googleG: {
       width: 22,
       height: 22,
       borderRadius: 11,
-      backgroundColor: '#4285F4',
+      backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -280,8 +285,10 @@ export default function AuthScreen() {
               {error !== '' && <Text style={styles.error}>{error}</Text>}
 
               <Pressable
-                style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+                style={[styles.submitBtn, loading && styles.submitBtnDisabled, submitPressed && DEPTH.buttonPressed]}
                 onPress={handleSubmit}
+                onPressIn={() => setSubmitPressed(true)}
+                onPressOut={() => setSubmitPressed(false)}
                 disabled={loading}
               >
                 {loading
@@ -300,8 +307,10 @@ export default function AuthScreen() {
 
               {/* Google Sign-In */}
               <Pressable
-                style={[styles.googleBtn, loading && styles.submitBtnDisabled]}
+                style={[styles.googleBtn, loading && styles.submitBtnDisabled, googlePressed && DEPTH.buttonPressed]}
                 onPress={handleGoogleSignIn}
+                onPressIn={() => setGooglePressed(true)}
+                onPressOut={() => setGooglePressed(false)}
                 disabled={loading}
               >
                 <View style={styles.googleG}>

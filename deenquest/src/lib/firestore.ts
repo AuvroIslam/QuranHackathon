@@ -365,6 +365,14 @@ export async function upvoteAnswer(answerId: string, uid: string) {
   }
 }
 
+export async function deleteAnswer(answerId: string, uid: string) {
+  const ref = doc(db, "answers", answerId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Answer not found");
+  if (snap.data().userId !== uid) throw new Error("Not authorized");
+  await deleteDoc(ref);
+}
+
 // ─── Listening Progress ─────────────────────────────────────────
 
 export interface ListeningProgress {

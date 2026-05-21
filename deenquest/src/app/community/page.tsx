@@ -13,6 +13,7 @@ import {
   upvoteAnswer,
   deletePost,
   updatePost,
+  deleteAnswer,
 } from "@/lib/firestore";
 import type { Post, Answer } from "@/lib/types";
 import {
@@ -59,6 +60,7 @@ export default function CommunityPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingPost, setEditingPost] = useState<{ id: string; title: string; content: string } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteAnswerId, setConfirmDeleteAnswerId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -211,6 +213,21 @@ export default function CommunityPage() {
     const q = searchQuery.toLowerCase();
     return p.title?.toLowerCase().includes(q) || p.content.toLowerCase().includes(q);
   });
+
+  async function handleDeleteAnswer(answerId: string, postId: string) {
+    if (!user) return;
+    setConfirmDeleteAnswerId(null);
+    try {
+      await deleteAnswer(answerId, user.uid);
+      setAnswers((prev) => ({
+        ...prev,
+        [postId]: (prev[postId] || []).filter((a) => a.id !== answerId),
+      }));
+      toast.success("Reply deleted");
+    } catch {
+      toast.error("Failed to delete reply");
+    }
+  }
 
   async function handleAnswerUpvote(answerId: string, postId: string) {
     if (!user) return;
@@ -529,7 +546,22 @@ export default function CommunityPage() {
                                 <Reply size={12} />
                                 Reply
                               </button>
+                              {user?.uid === answer.userId && (
+                                <button
+                                  onClick={() => setConfirmDeleteAnswerId(confirmDeleteAnswerId === answer.id ? null : answer.id)}
+                                  className="flex items-center gap-1 text-xs text-primary/35 hover:text-red-400 transition-colors"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              )}
                             </div>
+                            {confirmDeleteAnswerId === answer.id && (
+                              <div className="ml-8 mt-2 flex items-center gap-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                                <p className="text-xs text-primary/70 flex-1">Delete this reply?</p>
+                                <button onClick={() => handleDeleteAnswer(answer.id, post.id)} className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors">Delete</button>
+                                <button onClick={() => setConfirmDeleteAnswerId(null)} className="text-xs text-primary/40 hover:text-primary/60 transition-colors">Cancel</button>
+                              </div>
+                            )}
 
                             {/* Inline reply input */}
                             {isReplyTarget && (

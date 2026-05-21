@@ -1,6 +1,6 @@
 import {
   collection, query, orderBy, where, getDocs, addDoc, updateDoc,
-  doc, increment, arrayUnion, arrayRemove, getDoc,
+  doc, increment, arrayUnion, arrayRemove, getDoc, deleteDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -70,6 +70,14 @@ export async function createAnswer(
   };
   const ref = await addDoc(collection(db, 'answers'), data);
   return { id: ref.id, ...data };
+}
+
+export async function deleteAnswer(answerId: string, uid: string) {
+  const ref = doc(db, 'answers', answerId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error('Answer not found');
+  if (snap.data().userId !== uid) throw new Error('Not authorized');
+  await deleteDoc(ref);
 }
 
 export async function upvoteAnswer(answerId: string, uid: string) {

@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { triggerHaptic } from '../../lib/haptics';
 import { DEPTH, RADIUS, SHADOW } from '../../theme';
 import { Mood } from '../../types';
 
@@ -40,7 +41,7 @@ interface Props {
 }
 
 export default function MoodSelection({ onSelect, onCustomText, loading = false }: Props) {
-  const { colors } = useTheme();
+  const { colors, isDark, hapticsEnabled } = useTheme();
   const [selected, setSelected] = useState<Mood | null>(null);
   const [situation, setSituation] = useState('');
   const [findPressed, setFindPressed] = useState(false);
@@ -48,6 +49,7 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
 
   const handleMoodPress = (mood: Mood) => {
     if (loading) return;
+    triggerHaptic(hapticsEnabled, 'light');
     setSelected(mood);
     onSelect(mood);
   };
@@ -73,7 +75,7 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
       borderRadius: RADIUS.xl,
       overflow: 'hidden',
     },
-    heroBg: { borderRadius: RADIUS.xl },
+    heroBg: { borderRadius: RADIUS.xl, opacity: isDark ? 0.75 : 1 },
 
     heroContent: {
       flexDirection: 'row',
@@ -84,7 +86,7 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
     heroChar: { width: 90, height: 110, resizeMode: 'contain' },
     heroText: { flex: 1, paddingLeft: 10, paddingBottom: 6 },
     bismillah: {
-      color: colors.primaryDark,
+      color: isDark ? colors.primaryLight : colors.primaryDark,
       fontSize: 13,
       fontStyle: 'italic',
       marginBottom: 3,
@@ -125,11 +127,11 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
     },
     labelWrap: {
       width: '100%',
-      backgroundColor: 'rgba(255,255,255,0.85)',
+      backgroundColor: isDark ? 'rgba(15,10,40,0.82)' : 'rgba(255,255,255,0.85)',
       paddingVertical: 4,
       alignItems: 'center',
     },
-    labelWrapSelected: { backgroundColor: colors.white },
+    labelWrapSelected: { backgroundColor: isDark ? colors.primaryBg : colors.white },
     cardLabel: { color: colors.primary, fontSize: 10, fontWeight: '700' },
 
     divider: {
@@ -170,7 +172,7 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
       opacity: 0.38,
     },
     findBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
-  }), [colors]);
+  }), [colors, isDark]);
 
   return (
     <KeyboardAvoidingView
@@ -191,7 +193,7 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
     >
       {/* Hero banner */}
       <ImageBackground
-        source={require('../../../elementsApp/cardBg1.png')}
+        source={isDark ? require('../../../elementsApp/homecardBGmoonDark.png') : require('../../../elementsApp/cardBg1.png')}
         style={styles.hero}
         imageStyle={styles.heroBg}
       >

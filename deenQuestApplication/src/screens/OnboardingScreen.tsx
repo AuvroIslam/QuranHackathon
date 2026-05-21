@@ -6,7 +6,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
-import { RADIUS, SHADOW } from '../theme';
+import { triggerHaptic } from '../lib/haptics';
+import { DEPTH, RADIUS, SHADOW } from '../theme';
 
 const { width } = Dimensions.get('window');
 export const ONBOARDING_KEY = '@deenquest_onboarded';
@@ -33,8 +34,9 @@ const SLIDES = [
 ];
 
 export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
-  const { colors } = useTheme();
+  const { colors, hapticsEnabled } = useTheme();
   const [index, setIndex] = useState(0);
+  const [nextPressed, setNextPressed] = useState(false);
   const flatRef = useRef<FlatList>(null);
   const dotAnim = useRef(SLIDES.map((_, i) => new Animated.Value(i === 0 ? 1 : 0))).current;
 
@@ -56,6 +58,7 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
   };
 
   const handleNext = async () => {
+    triggerHaptic(hapticsEnabled, 'light');
     if (index < SLIDES.length - 1) {
       goTo(index + 1);
     } else {
@@ -110,6 +113,7 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
       paddingVertical: 17,
       alignItems: 'center',
       ...SHADOW.glow(colors.primary),
+      ...DEPTH.button,
     },
     nextBtnText: { color: colors.white, fontSize: 17, fontWeight: '700' },
     skipBtn: { paddingVertical: 8 },
@@ -151,14 +155,19 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
         {/* Button */}
         <View style={styles.footer}>
-          <Pressable style={styles.nextBtn} onPress={handleNext}>
+          <Pressable
+            style={[styles.nextBtn, nextPressed && DEPTH.buttonPressed]}
+            onPress={handleNext}
+            onPressIn={() => setNextPressed(true)}
+            onPressOut={() => setNextPressed(false)}
+          >
             <Text style={styles.nextBtnText}>
               {index === SLIDES.length - 1 ? 'Get Started' : 'Next'}
             </Text>
           </Pressable>
 
           {index < SLIDES.length - 1 && (
-            <Pressable onPress={finish} style={styles.skipBtn}>
+            <Pressable onPress={() => { triggerHaptic(hapticsEnabled, 'light'); finish(); }} style={styles.skipBtn}>
               <Text style={styles.skipText}>Skip</Text>
             </Pressable>
           )}

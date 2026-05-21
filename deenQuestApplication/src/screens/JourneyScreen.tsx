@@ -460,26 +460,36 @@ export default function JourneyScreen() {
           customMoodText={state.customMoodText ?? null}
         />
       ) : null;
-      case 'listen': return state.ayah ? <ListenStep ayah={state.ayah} /> : null;
-      case 'speak': return state.ayah ? (
-        <SpeakStep
-          ayah={state.ayah}
-          attempts={state.speechAttempts}
-          onResult={handleSpeakResult}
-          onSkip={handleSpeakSkip}
-          passThreshold={passThreshold}
-          showTransliteration={showTransliteration}
-        />
-      ) : null;
-      case 'mcq': return state.question ? (
-        <MCQQuestion
-          key={`mcq-${currentDay}-${state.question.question}`}
-          question={state.question}
-          selectedAnswer={state.selectedAnswer}
-          verdict={mcqVerdict}
-          onAnswer={handleAnswer}
-        />
-      ) : null;
+      // Listen/Speak/MCQ use lesson content in learn mode; mood ayah otherwise
+      case 'listen': {
+        const listenAyah = (isLessonDay && apiLesson) ? apiLesson.learnContent : state.ayah;
+        return listenAyah ? <ListenStep ayah={listenAyah} /> : null;
+      }
+      case 'speak': {
+        const speakAyah = (isLessonDay && apiLesson) ? apiLesson.learnContent : state.ayah;
+        return speakAyah ? (
+          <SpeakStep
+            ayah={speakAyah}
+            attempts={state.speechAttempts}
+            onResult={handleSpeakResult}
+            onSkip={handleSpeakSkip}
+            passThreshold={passThreshold}
+            showTransliteration={showTransliteration}
+          />
+        ) : null;
+      }
+      case 'mcq': {
+        const mcqQuestion = (isLessonDay && apiLesson) ? apiLesson.mcq : state.question;
+        return mcqQuestion ? (
+          <MCQQuestion
+            key={`mcq-${currentDay}-${mcqQuestion.question}`}
+            question={mcqQuestion}
+            selectedAnswer={state.selectedAnswer}
+            verdict={mcqVerdict}
+            onAnswer={handleAnswer}
+          />
+        ) : null;
+      }
       case 'reading': return (
         <QuranReadingSession
           surahNumber={quranProgress.surahNumber}

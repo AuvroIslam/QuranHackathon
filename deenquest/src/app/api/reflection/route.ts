@@ -38,9 +38,9 @@ export async function POST(req: NextRequest) {
   }
 
   const moodContext = customText
-    ? `The reader described how they feel as: "${customText}".`
+    ? `The reader is going through this specific situation: "${customText}". The reflection MUST speak directly to this — reference what they shared, not just the verse in isolation.`
     : mood
-      ? `The reader is feeling: ${mood}.`
+      ? `The reader is feeling: ${mood}. Connect the verse to what someone feeling ${mood} is actually experiencing inside.`
       : "";
 
   // Ground the reflection in VERIFIED tafsir from the Quran MCP server so the
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     `Ayah ${verseKey}: "${translation}"`,
     moodContext,
     tafsirContext,
-    "Write a short, warm reflection on this ayah that speaks directly to the reader. 2-3 sentences, under 280 characters. No greetings, no preamble, no markdown — just the reflection.",
+    "Write a warm, personal reflection on this ayah for this specific reader. 4-5 sentences. Start by acknowledging what they are going through (use their own words if they shared a situation), then show how this verse speaks directly to that — what Allah is saying to them right now through it, and what they can hold onto. No greetings, no preamble, no markdown — just the reflection.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   const result = await callLLM({
     systemPrompt,
     userMessage,
-    maxTokens: 220,
+    maxTokens: 420,
     temperature: 0.75,
   });
 

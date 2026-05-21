@@ -153,14 +153,14 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
       borderLeftWidth: 4,
       borderLeftColor: colors.accent,
       borderColor: colors.cardBorder,
-      padding: 16, gap: 8, ...SHADOW.card,
+      padding: 18, gap: 10, ...SHADOW.card,
     },
     reflectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
     reflectionTitle: {
       color: colors.accentDark, fontSize: 12,
       fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8,
     },
-    reflection: { color: colors.textSub, fontSize: 14, lineHeight: 22 },
+    reflection: { color: colors.text, fontSize: 15, lineHeight: 26 },
     skeletonGroup: { gap: 8 },
     skeletonLine: {
       height: 10,
@@ -235,8 +235,10 @@ export default function AyahDisplay({ ayah, uid, surahName, mood, customMoodText
         {reflectionLoading ? (
           <View style={styles.skeletonGroup}>
             <View style={[styles.skeletonLine, { width: '100%' }]} />
-            <View style={[styles.skeletonLine, { width: '90%' }]} />
-            <View style={[styles.skeletonLine, { width: '65%' }]} />
+            <View style={[styles.skeletonLine, { width: '95%' }]} />
+            <View style={[styles.skeletonLine, { width: '100%' }]} />
+            <View style={[styles.skeletonLine, { width: '88%' }]} />
+            <View style={[styles.skeletonLine, { width: '70%' }]} />
           </View>
         ) : (
           <Text style={styles.reflection}>{reflection ?? ayah.explanation}</Text>

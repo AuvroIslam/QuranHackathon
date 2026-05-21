@@ -25,7 +25,7 @@ export const metadata = {
 };
 
 const APK_URL =
-  "https://pub-21bb855ecdcc4c98962a1ea619ab671a.r2.dev/DeenQuest.apk";
+  "https://pub-0fa4e15c99454090801f7d4dc2a1f738.r2.dev/DeenQuestApp.apk";
 
 const FEATURES = [
   { icon: BookOpen, label: "114 Surahs with audio" },

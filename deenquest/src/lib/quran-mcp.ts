@@ -22,6 +22,7 @@ async function initSession(): Promise<string | null> {
           clientInfo: { name: "deenquest", version: "1.0.0" },
         },
       }),
+      signal: AbortSignal.timeout(3000),
     });
     return res.headers.get("mcp-session-id");
   } catch {
@@ -58,6 +59,7 @@ async function callMCPTool(
       method: "POST",
       headers,
       body,
+      signal: AbortSignal.timeout(4000),
     });
 
     const contentType = res.headers.get("content-type") || "";

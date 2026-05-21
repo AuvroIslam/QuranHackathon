@@ -49,7 +49,7 @@ JSON (no markdown):
         max_tokens: 300,
         temperature: 1.0,
       }),
-      signal: AbortSignal.timeout(7000),
+      signal: AbortSignal.timeout(4500),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();

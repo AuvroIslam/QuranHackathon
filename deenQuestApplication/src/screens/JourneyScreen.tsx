@@ -198,13 +198,9 @@ export default function JourneyScreen() {
     if (moodLoading) return;
     setMoodLoading(true);
     try {
-      if (apiLesson) {
-        animateTo(1, () => selectMood('justHere', apiLesson.learnContent, apiLesson.mcq, text));
-      } else {
-        const { result, error } = await getAyahByCustomMood(text);
-        if (!result) { showAyahError(error); return; }
-        animateTo(1, () => selectMood('justHere', result.ayah, result.question, text));
-      }
+      const { result, error } = await getAyahByCustomMood(text);
+      if (!result) { showAyahError(error); return; }
+      animateTo(1, () => selectMood('justHere', result.ayah, result.question, text));
     } finally {
       setMoodLoading(false);
     }

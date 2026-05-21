@@ -534,7 +534,7 @@ export default function ProfileScreen() {
                   </View>
                   <View style={styles.planGoals}>
                     {([3, 5, 10] as TimePerDay[]).map((mins, i) => {
-                      const labels = ['Quran Pages', 'Ahadith', 'Minutes'];
+                      const labels = ['Light', 'Regular', 'Intensive'];
                       const active = profile?.timePerDay === mins;
                       return (
                         <Pressable key={mins} onPress={() => handlePlanSwitch(mins)} style={[styles.planGoalItem, active && styles.planGoalActive]}>

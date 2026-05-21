@@ -34,7 +34,7 @@ async function fetchVerseRaw(chapter: number, verse: number, token: string | nul
     try {
       const res = await fetch(`${QF_CONTENT_API}/${path}${params}`, {
         headers: getQFHeaders(token),
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(3500),
       });
       if (res.ok) return await res.json();
     } catch {
@@ -44,7 +44,7 @@ async function fetchVerseRaw(chapter: number, verse: number, token: string | nul
 
   const res = await fetch(`${PUBLIC_QURAN_API}/${path}${params}`, {
     headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(6000),
+    signal: AbortSignal.timeout(3500),
   });
   if (!res.ok) throw new Error(`QF API error ${res.status}`);
   return await res.json();

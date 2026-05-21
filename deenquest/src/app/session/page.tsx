@@ -13,7 +13,6 @@ import {
   toggleBookmark,
 } from "@/lib/firestore";
 import { getStreakStatus } from "@/lib/streakUtils";
-import { getAyahsForMood, searchAyahs } from "@/lib/quran";
 import { getQFAccessToken } from "@/lib/qf-user-auth";
 
 /** Fire-and-forget: sync a bookmark add/remove to QF API if the user is connected */
@@ -250,25 +249,26 @@ function SessionPageInner() {
   async function fetchMoodAyah(mood: string, customText?: string) {
     setFetchingAyah(true);
     try {
-      const results = customText
-        ? await searchAyahs(customText)
-        : await getAyahsForMood(mood);
-      // Pick a RANDOM valid match, not always the first. The search term per
-      // mood is constant, so QF returns the same ordered list every time —
-      // taking [0] meant the same ayah (and the same "Skip" ayah) forever.
-      const valid = (results as Array<{ text?: string; translation?: string; verseKey: string; surah: { englishName: string } }>)
-        .filter((x) => x?.text && x?.translation);
-      const r = valid.length ? valid[Math.floor(Math.random() * valid.length)] : undefined;
-      if (r) {
+      const url = customText
+        ? `/api/mood-ayah?mood=${encodeURIComponent(mood)}&customText=${encodeURIComponent(customText)}`
+        : `/api/mood-ayah?mood=${encodeURIComponent(mood)}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) {
+        setMoodAyah(null);
+        setMoodAyahError(true);
+        return;
+      }
+      const data = await res.json();
+      const ayah = data?.ayah;
+      if (ayah?.arabic && ayah?.translation && ayah?.reference) {
         setMoodAyah({
-          verseKey: r.verseKey,
-          arabic: r.text!,
-          translation: r.translation!,
-          surahName: r.surah.englishName,
+          verseKey: ayah.reference,
+          arabic: ayah.arabic,
+          translation: ayah.translation,
+          surahName: "",
         });
         setMoodAyahError(false);
       } else {
-        // No verified verse returned — fail rather than show hardcoded text.
         setMoodAyah(null);
         setMoodAyahError(true);
       }
@@ -931,7 +931,7 @@ function AyahStep({
           {ayah.verseKey && (
             <div className="flex items-center justify-between">
               <p className="text-xs text-white/30">
-                {ayah.surahName} · {ayah.verseKey}
+                {ayah.surahName ? `${ayah.surahName} · ` : ""}{ayah.verseKey}
               </p>
               {onBookmark && (
                 <button

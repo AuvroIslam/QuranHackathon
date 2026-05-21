@@ -13,10 +13,12 @@ function verseKeyToAudioUrl(ref: string): string {
 async function fetchAiVerseForCustomMood(
   customText: string
 ): Promise<{ verseKey: string; explanation: string } | null> {
+  // DeepSeek first — better instruction-following for nuanced verse selection.
+  // Groq is faster but tends to give generic answers on complex prompts.
   const providers = [
-    { url: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.3-70b-versatile", key: process.env.GROQ_API_KEY },
-    { url: "https://api.mistral.ai/v1/chat/completions", model: MISTRAL_MODEL, key: process.env.MISTRAL_API_KEY },
     { url: "https://api.deepseek.com/chat/completions", model: "deepseek-chat", key: process.env.DEEPSEEK_API_KEY },
+    { url: "https://api.mistral.ai/v1/chat/completions", model: MISTRAL_MODEL, key: process.env.MISTRAL_API_KEY },
+    { url: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.3-70b-versatile", key: process.env.GROQ_API_KEY },
   ];
   const systemPrompt = `You are an Islamic scholar with encyclopedic knowledge of all 6,236 verses across all 114 surahs. Your task: find the ONE verse that fits THIS person's situation so precisely that it would NOT be the right answer for any other common hardship.
 
@@ -65,11 +67,14 @@ JSON (no markdown):
     };
   }
 
-  try {
-    return await Promise.any(providers.map(tryProvider));
-  } catch {
-    return null;
+  for (const p of providers) {
+    try {
+      return await tryProvider(p);
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 // ── Reference bank: only stores verse keys, explanations, and audio URLs.

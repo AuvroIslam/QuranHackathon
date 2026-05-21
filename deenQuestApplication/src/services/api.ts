@@ -12,49 +12,37 @@ export const API_BASE = 'https://quran-hackathon-omega.vercel.app';
 // No hardcoded Quran fallback: the verse text is fetched live from the Quran
 // Foundation API server-side. On failure we return null and the UI shows a
 // retry — we never display a bundled copy of the Quran.
-export async function getAyahByMood(
-  mood: Mood
-): Promise<{ ayah: Ayah; question: MCQData } | null> {
+export type AyahResult = { ayah: Ayah; question: MCQData } | null;
+export type AyahError = 'rate_limit' | 'connection' | null;
+
+async function fetchMoodAyah(url: string, timeoutMs: number): Promise<{ result: AyahResult; error: AyahError }> {
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(`${API_BASE}/api/mood-ayah?mood=${encodeURIComponent(mood)}`, {
-        signal: controller.signal,
-      });
-      if (!res.ok) return null;
+      const res = await fetch(url, { signal: controller.signal });
+      if (res.status === 429) return { result: null, error: 'rate_limit' };
+      if (!res.ok) return { result: null, error: 'connection' };
       const data = await res.json();
-      if (!data?.ayah?.arabic) return null;
-      return { ayah: data.ayah, question: data.question };
+      if (!data?.ayah?.arabic) return { result: null, error: 'connection' };
+      return { result: { ayah: data.ayah, question: data.question }, error: null };
     } finally {
       clearTimeout(timer);
     }
   } catch {
-    return null;
+    return { result: null, error: 'connection' };
   }
 }
 
-export async function getAyahByCustomMood(
-  customText: string
-): Promise<{ ayah: Ayah; question: MCQData } | null> {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/mood-ayah?mood=justHere&customText=${encodeURIComponent(customText)}`,
-        { signal: controller.signal }
-      );
-      if (!res.ok) return null;
-      const data = await res.json();
-      if (!data?.ayah?.arabic) return null;
-      return { ayah: data.ayah, question: data.question };
-    } finally {
-      clearTimeout(timer);
-    }
-  } catch {
-    return null;
-  }
+export async function getAyahByMood(mood: Mood): Promise<{ result: AyahResult; error: AyahError }> {
+  return fetchMoodAyah(`${API_BASE}/api/mood-ayah?mood=${encodeURIComponent(mood)}`, 12000);
+}
+
+export async function getAyahByCustomMood(customText: string): Promise<{ result: AyahResult; error: AyahError }> {
+  return fetchMoodAyah(
+    `${API_BASE}/api/mood-ayah?mood=justHere&customText=${encodeURIComponent(customText)}`,
+    15000,
+  );
 }
 
 export async function fetchLessonReflection(opts: {

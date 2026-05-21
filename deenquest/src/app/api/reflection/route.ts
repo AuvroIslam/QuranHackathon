@@ -13,7 +13,7 @@ interface Body {
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit(ip, "reflection", 15);
+  const rl = checkRateLimit(ip, "reflection", 40);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment before trying again." },

@@ -172,7 +172,7 @@ const DEFAULT_QUESTION = {
 
 export async function GET(req: NextRequest) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit(ip, "mood-ayah", 10);
+  const rl = checkRateLimit(ip, "mood-ayah", 60);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment before trying again." },

@@ -162,16 +162,21 @@ export default function JourneyScreen() {
     });
   };
 
+  function showAyahError(error: 'rate_limit' | 'connection' | null) {
+    if (error === 'rate_limit') {
+      setConnectionError("You're going too fast! Wait a moment before trying again.");
+    } else {
+      setConnectionError("Couldn't load the verse. Please check your connection and try again.");
+    }
+  }
+
   const handleMoodSelect = async (mood: Mood, customText?: string) => {
     if (moodLoading) return;
     setMoodLoading(true);
     try {
-      const res = await getAyahByMood(mood);
-      if (!res) {
-        setConnectionError("Couldn't load the verse. Please check your connection and try again.");
-        return;
-      }
-      animateTo(1, () => selectMood(mood, res.ayah, res.question, customText));
+      const { result, error } = await getAyahByMood(mood);
+      if (!result) { showAyahError(error); return; }
+      animateTo(1, () => selectMood(mood, result.ayah, result.question, customText));
     } finally {
       setMoodLoading(false);
     }
@@ -181,12 +186,9 @@ export default function JourneyScreen() {
     if (moodLoading) return;
     setMoodLoading(true);
     try {
-      const res = await getAyahByCustomMood(text);
-      if (!res) {
-        setConnectionError("Couldn't load the verse. Please check your connection and try again.");
-        return;
-      }
-      animateTo(1, () => selectMood('justHere', res.ayah, res.question, text));
+      const { result, error } = await getAyahByCustomMood(text);
+      if (!result) { showAyahError(error); return; }
+      animateTo(1, () => selectMood('justHere', result.ayah, result.question, text));
     } finally {
       setMoodLoading(false);
     }
@@ -199,12 +201,9 @@ export default function JourneyScreen() {
       if (apiLesson) {
         animateTo(1, () => selectMood('justHere', apiLesson.learnContent, apiLesson.mcq, text));
       } else {
-        const res = await getAyahByCustomMood(text);
-        if (!res) {
-          setConnectionError("Couldn't load the verse. Please check your connection and try again.");
-          return;
-        }
-        animateTo(1, () => selectMood('justHere', res.ayah, res.question, text));
+        const { result, error } = await getAyahByCustomMood(text);
+        if (!result) { showAyahError(error); return; }
+        animateTo(1, () => selectMood('justHere', result.ayah, result.question, text));
       }
     } finally {
       setMoodLoading(false);
@@ -215,12 +214,9 @@ export default function JourneyScreen() {
     if (moodLoading) return;
     setMoodLoading(true);
     try {
-      const res = await getAyahByMood('justHere');
-      if (!res) {
-        setConnectionError("Couldn't load the verse. Please check your connection and try again.");
-        return;
-      }
-      animateTo(1, () => skipMood('justHere', res.ayah, res.question));
+      const { result, error } = await getAyahByMood('justHere');
+      if (!result) { showAyahError(error); return; }
+      animateTo(1, () => skipMood('justHere', result.ayah, result.question));
     } finally {
       setMoodLoading(false);
     }
@@ -231,16 +227,11 @@ export default function JourneyScreen() {
     setMoodLoading(true);
     try {
       if (apiLesson) {
-        // Use the structured lesson content — mood is recorded but doesn't change the ayah
         animateTo(1, () => selectMood(mood, apiLesson.learnContent, apiLesson.mcq, customText));
       } else {
-        // Lesson not yet loaded — fall back to mood-based ayah
-        const res = await getAyahByMood(mood);
-        if (!res) {
-          setConnectionError("Couldn't load the verse. Please check your connection and try again.");
-          return;
-        }
-        animateTo(1, () => selectMood(mood, res.ayah, res.question, customText));
+        const { result, error } = await getAyahByMood(mood);
+        if (!result) { showAyahError(error); return; }
+        animateTo(1, () => selectMood(mood, result.ayah, result.question, customText));
       }
     } finally {
       setMoodLoading(false);
@@ -254,12 +245,9 @@ export default function JourneyScreen() {
       if (apiLesson) {
         animateTo(1, () => skipMood('justHere', apiLesson.learnContent, apiLesson.mcq));
       } else {
-        const res = await getAyahByMood('justHere');
-        if (!res) {
-          setConnectionError("Couldn't load the verse. Please check your connection and try again.");
-          return;
-        }
-        animateTo(1, () => skipMood('justHere', res.ayah, res.question));
+        const { result, error } = await getAyahByMood('justHere');
+        if (!result) { showAyahError(error); return; }
+        animateTo(1, () => skipMood('justHere', result.ayah, result.question));
       }
     } finally {
       setMoodLoading(false);

@@ -187,8 +187,10 @@ export default function DawahPage() {
           systemPrompt:
             "You are a respectful Islamic dawah educator. Always return only raw valid JSON — no markdown, no prose outside the JSON. Compare scriptures fairly, keep tone non-inflammatory, cite Quranic references accurately, and never use derogatory language about any faith.",
         }),
+        signal: AbortSignal.timeout(25000),
       });
 
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       const sections = parseDawahSections(data.content || "");
       setQuranView(sections.quranView);

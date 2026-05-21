@@ -139,6 +139,7 @@ async function callOpenAICompatibleProvider(
         max_tokens: provider.maxTokens,
         temperature: 0.7,
       }),
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!response.ok) {
@@ -159,7 +160,7 @@ async function callOpenAICompatibleProvider(
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
-  const rl = checkRateLimit(ip, "deepseek", 20);
+  const rl = checkRateLimit(ip, "deepseek", 40);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment before trying again." },

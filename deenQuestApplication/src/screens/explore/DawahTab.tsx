@@ -209,6 +209,7 @@ export default function DawahTab() {
           systemPrompt:
             'You are a respectful Islamic dawah educator. Always return only raw valid JSON — no markdown, no prose outside the JSON. Compare scriptures fairly, keep tone non-inflammatory, cite Quranic references accurately, and never use derogatory language about any faith.',
         }),
+        signal: AbortSignal.timeout(25000),
       })
         .then((r) => r.json())
         .catch(() => ({}));

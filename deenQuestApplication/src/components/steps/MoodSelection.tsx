@@ -45,17 +45,20 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
   const [selected, setSelected] = useState<Mood | null>(null);
   const [situation, setSituation] = useState('');
   const [findPressed, setFindPressed] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Finding your ayah…');
   const scrollRef = useRef<ScrollView>(null);
 
   const handleMoodPress = (mood: Mood) => {
     if (loading) return;
     triggerHaptic(hapticsEnabled, 'light');
     setSelected(mood);
+    setLoadingMessage('Finding your ayah…');
     onSelect(mood);
   };
 
   const handleCustomSubmit = () => {
     if (!situation.trim()) return;
+    setLoadingMessage('Searching the Quran for you…');
     onCustomText(situation.trim());
   };
 
@@ -114,12 +117,6 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
       justifyContent: 'flex-end',
       backgroundColor: colors.primaryBg,
     },
-    loadingOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      zIndex: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     cardSelected: {
       borderColor: colors.primary,
       borderWidth: 2.5,
@@ -174,17 +171,26 @@ export default function MoodSelection({ onSelect, onCustomText, loading = false 
     findBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
   }), [colors, isDark]);
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 32 }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ color: colors.text, fontSize: 17, fontWeight: '700', textAlign: 'center' }}>
+          {loadingMessage}
+        </Text>
+        <Text style={{ color: colors.textSub, fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
+          Allah's guidance is being prepared for you
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 60}
     >
-    {loading && (
-      <View style={styles.loadingOverlay} pointerEvents="none">
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    )}
     <ScrollView
       ref={scrollRef}
       contentContainerStyle={styles.scrollContent}

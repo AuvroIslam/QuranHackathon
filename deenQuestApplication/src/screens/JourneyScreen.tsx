@@ -302,7 +302,6 @@ export default function JourneyScreen() {
 
   const handleSpeakResult = (result: Parameters<typeof setSpeechResult>[0]) => {
     setSpeechResult(result);
-    if (result.correct) setTimeout(() => animateTo(1, nextStep), 1800);
   };
 
   const handleSpeakSkip = () => animateTo(1, nextStep);
